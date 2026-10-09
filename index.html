@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arch / Физика</title>
+<meta name="description" content="Репетитор по физике, студент МФТИ. ЕГЭ, олимпиады, школьная программа. Интерактивная визуализация к каждому уроку.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jura:wght@500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/main.css">
+<link rel="stylesheet" href="assets/css/home.css">
+</head>
+<body>
+
+<div class="wrap">
+  <header class="topbar">
+    <button class="menu-btn" type="button" data-open-drawer aria-controls="drawer" aria-expanded="false" aria-label="Открыть меню">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 6h14M3 10h10M3 14h14"/></svg>
+      <span class="txt">МЕНЮ</span>
+    </button>
+    <a class="brand" href="./">Arch <b>/</b> Физика</a>
+    <a class="btn btn--accent btn--small cta-text" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">Пробное занятие <span class="arr" aria-hidden="true">→</span></a>
+    <a class="icon-btn icon-btn--accent cta-icon" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener" aria-label="Написать в Telegram">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 7 3-4 5 4z"/><path d="M9 13l12-9"/></svg>
+    </a>
+  </header>
+
+  <main class="home">
+
+    <section class="card hero" aria-labelledby="hero-name">
+      <div class="hero__top">
+        <div class="hero__text">
+          <span class="eyebrow">Репетитор по физике · МФТИ</span>
+          <h1 class="hero__name" id="hero-name"><span>[Имя]</span><span>[Фамилия]</span></h1>
+          <div class="hero__tags">
+            <span class="tag tag--accent">ЕГЭ</span>
+            <span class="tag tag--accent">Олимпиады</span>
+            <span class="tag">Механика</span>
+            <span class="tag">Электродинамика</span>
+            <span class="tag">Термодинамика</span>
+          </div>
+          <p class="hero__lead">Сначала увидеть, как это работает, потом формулы. К каждому уроку делаю интерактивную визуализацию: явление можно покрутить руками, а свойства вывести, а не выучить списком.</p>
+          <div class="hero__actions">
+            <a class="btn btn--solid" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">Записаться на пробное <span class="arr" aria-hidden="true">→</span></a>
+            <a class="btn" href="viz/index.html">Смотреть визуализации</a>
+          </div>
+        </div>
+
+        <div class="hero__photo">
+          <figure class="frame" style="margin: 0">
+            <div class="frame__back" aria-hidden="true"></div>
+            <div class="frame__front">
+              <div class="frame__inner">
+                <!-- Когда будет фото: <img src="assets/img/photo.jpg" alt="[Имя Фамилия]"> вместо canvas и подписи -->
+                <canvas id="throw" role="img" aria-label="Анимация: тело брошено под углом к горизонту, показаны векторы скорости и ускорения свободного падения"></canvas>
+                <span class="frame__hint" id="throw-hint">θ = 66° · веди пальцем по рамке</span>
+              </div>
+            </div>
+            <span class="sticker">фото скоро</span>
+          </figure>
+        </div>
+      </div>
+
+      <div class="path">
+        <span class="label">Путь</span>
+        <ol>
+          <li><span class="year">[ГОД]</span><span class="what">Первые ученики, подготовка к ЕГЭ</span></li>
+          <li><span class="year">2023</span><span class="what">МФТИ, ФЭФМ — поступил на Физтех</span></li>
+          <li class="is-now"><span class="year">2026</span><span class="what">Бакалаврская работа: численная модель плазмохимического травления</span></li>
+          <li class="is-plan"><span class="year">2027–2029</span><span class="what">Магистратура</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Цифры">
+      <div class="card stat" data-reveal="0"><span class="n">[N]+</span><span class="label">учеников за всё время</span></div>
+      <div class="card stat" data-reveal="60"><span class="n">8</span><span class="label">визуализаций к урокам</span></div>
+      <div class="card stat" data-reveal="120"><span class="n">[N]</span><span class="label">средний балл ЕГЭ учеников</span></div>
+      <div class="card stat" data-reveal="180"><span class="n">2</span><span class="label">куратора проверяют ДЗ</span></div>
+    </section>
+
+    <section aria-labelledby="h-method">
+      <div class="section-head" data-reveal="0"><span class="eyebrow">Метод</span><h2 id="h-method">Как я преподаю</h2></div>
+      <div class="bento" style="padding-top: 20px">
+        <article class="card feature viz-card wide lift" data-reveal="0">
+          <div class="body">
+            <svg class="ic" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="36" height="26" rx="4"/><path d="M10 28 Q 18 12 24 22 T 36 14"/><path d="M16 38h12"/></svg>
+            <h3 class="h3">Визуализация к каждому уроку</h3>
+            <p>Анимации явлений, живые графики и ползунки параметров. Открывается по ссылке с телефона, ничего не нужно скачивать.</p>
+            <a class="more" href="viz/index.html">Открыть хранилище →</a>
+          </div>
+          <div class="mini">
+            <div class="mini__chips" aria-hidden="true"><span class="on">s1 · Скорость</span><span>s2 · Ускорение</span><span>s3 · График</span></div>
+            <canvas id="mini-plot" role="img" aria-label="График координаты от времени и касательная к нему"></canvas>
+            <div class="mini__slider">
+              <label for="mini-a">a</label>
+              <input id="mini-a" type="range" min="-1" max="3" step="0.1" value="1.2">
+              <output id="mini-a-out" for="mini-a">a = 1,2 м/с²</output>
+            </div>
+          </div>
+        </article>
+        <article class="card feature compact lift" data-reveal="80">
+          <svg class="ic" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4h18l8 8v28H10z"/><path d="M28 4v8h8"/><path d="M16 20h14M16 26h14M16 32h8"/></svg>
+          <div class="body"><h3 class="h3">Домашка в LaTeX</h3><p>Авторские подборки по возрастанию сложности, перерисованные схемы. Ответы проверены символьно, к сложным задачам есть разборы.</p></div>
+        </article>
+      </div>
+      <div class="bento" style="padding-top: 16px">
+        <article class="card feature compact lift" data-reveal="0">
+          <svg class="ic" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="32" height="32" rx="4"/><path d="M6 16h32M16 16v22"/><path d="M21 24l3 3 6-6"/></svg>
+          <div class="body"><h3 class="h3">Варианты ЕГЭ</h3><p>Тренировочные варианты по структуре КИМ-2027, с собственными иллюстрациями и бланками ответов.</p></div>
+        </article>
+        <article class="card feature compact lift" data-reveal="80">
+          <svg class="ic" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="15" r="6"/><circle cx="30" cy="17" r="5"/><path d="M5 36c1-7 6-11 11-11s10 4 11 11"/><path d="M27 27c5 0 10 3 11 9"/></svg>
+          <div class="body"><h3 class="h3">Проверка и кураторы</h3><p>Два куратора проверяют ДЗ и пробники. Ошибки разбираем по типам, баллы копятся в боте.</p></div>
+        </article>
+        <article class="card feature compact lift" data-reveal="160">
+          <svg class="ic" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="22" cy="22" r="16"/><path d="M22 6v32M6 22h32M11 11l22 22M33 11L11 33"/><circle cx="22" cy="22" r="3" fill="currentColor"/></svg>
+          <div class="body"><h3 class="h3">Пробное занятие</h3><p>Колесо вопросов, пара визуализаций и задачи под твой уровень. Сразу видно, где пробелы.</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-about">
+      <div class="section-head" data-reveal="0"><span class="eyebrow">Обо мне</span><h2 id="h-about">Кто ведёт занятия</h2></div>
+      <div class="about" style="padding-top: 20px">
+        <article class="card me" data-reveal="0">
+          <p class="big">Учусь на 4 курсе Физтеха, на ФЭФМ. Физику не пересказываю по учебнику: показываю, откуда берётся каждая формула, и даю задачи, на которых это видно.</p>
+          <p class="sub">Готовлю к ЕГЭ и олимпиадам, веду школьную программу по механике, электродинамике и термодинамике. Индивидуально и в мини-группах.</p>
+        </article>
+        <article class="card science" data-reveal="80">
+          <span class="eyebrow">Наука</span>
+          <h3 class="h3">Моделирую плазму, которая травит кремний</h3>
+          <p>Бакалаврская работа: 0D-модель плазмы SF<sub>6</sub> для криогенного травления кремния. Так делают микросхемы.</p>
+          <svg width="160" height="160" viewBox="0 0 160 160" fill="none" aria-hidden="true">
+            <circle cx="80" cy="80" r="70" stroke="#c4b5fd" stroke-dasharray="3 6"/>
+            <circle cx="80" cy="80" r="44" stroke="#c4b5fd" stroke-dasharray="3 6"/>
+            <circle cx="80" cy="80" r="6" fill="#c4b5fd"/>
+            <g class="orbit"><circle cx="150" cy="80" r="4" fill="#c4b5fd"/><circle cx="49" cy="49" r="4" fill="#c4b5fd"/></g>
+          </svg>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-results">
+      <div class="section-head" data-reveal="0"><span class="eyebrow">Результаты</span><h2 id="h-results">Достижения</h2></div>
+      <div class="slots" style="padding-top: 20px">
+        <div class="slot" data-reveal="0"><span class="label">Ученик · ЕГЭ</span><span class="v">[БАЛЛ]</span><span class="d">[Имя ученика, с какого балла начинали, куда поступил]</span></div>
+        <div class="slot" data-reveal="60"><span class="label">Ученик · олимпиада</span><span class="v">[ДИПЛОМ]</span><span class="d">[Олимпиада, этап, год]</span></div>
+        <div class="slot" data-reveal="120"><span class="label">Личное</span><span class="v">[НАГРАДА]</span><span class="d">[Свои олимпиады, публикации, конференции]</span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-formats">
+      <div class="section-head" data-reveal="0"><span class="eyebrow">Форматы</span><h2 id="h-formats">Как можно заниматься</h2></div>
+      <div class="formats" style="padding-top: 20px">
+        <article class="card format lift" data-reveal="0">
+          <h3 class="h3">Индивидуально</h3>
+          <p>Программа под твою цель: ЕГЭ, олимпиада или подтянуть школьную физику.</p>
+          <div class="price">[ЦЕНА] ₽ · [N] мин</div>
+        </article>
+        <article class="card format lift" data-reveal="60">
+          <h3 class="h3">Мини-группа</h3>
+          <p>До [N] человек одного уровня. Дешевле, и есть с кем решать.</p>
+          <div class="price">[ЦЕНА] ₽ · [N] мин</div>
+        </article>
+        <article class="card format lift" data-reveal="120">
+          <span class="sticker">скоро</span>
+          <h3 class="h3">Весенний интенсив</h3>
+          <p>Финальный рывок перед ЕГЭ и олимпиадами: три занятия в неделю в группе.</p>
+          <div class="price">[ДАТЫ] · [ЦЕНА] ₽</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="contact" aria-labelledby="h-contact" data-reveal="0">
+      <div class="txt">
+        <span class="eyebrow">Контакт</span>
+        <h2 id="h-contact">Начнём с пробного</h2>
+        <p>Напиши в бота: подберём время и разберёмся, с чего начинать.</p>
+      </div>
+      <a class="btn" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 7 3-4 5 4z"/><path d="M9 13l12-9"/></svg>
+        @Arch_Tutor_Bot
+      </a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 · Arch / Физика</span>
+    <a href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">@Arch_Tutor_Bot</a>
+  </footer>
+</div>
+
+<div class="drawer" id="drawer" aria-hidden="true">
+  <button class="drawer__scrim" type="button" data-close-drawer tabindex="-1" aria-label="Закрыть меню"></button>
+  <nav class="drawer__panel" aria-label="Разделы сайта">
+    <div class="drawer__head">
+      <span class="brand">Arch <b>/</b> Физика</span>
+      <button class="icon-btn" type="button" data-close-drawer aria-label="Закрыть меню">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15"/></svg>
+      </button>
+    </div>
+    <ul class="nav">
+      <li><a href="./" aria-current="page"><span class="num">01</span><span class="name">Главная</span></a></li>
+      <li><a href="viz/index.html"><span class="num">02</span><span class="name">Визуализации</span><span class="meta">8</span></a></li>
+      <li><a href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener"><span class="num">03</span><span class="name">Запись на пробное</span></a></li>
+      <li><span class="soon"><span class="num">04</span><span class="name">Цены</span><span class="meta">скоро</span></span></li>
+      <li><span class="soon"><span class="num">05</span><span class="name">Отзывы</span><span class="meta">скоро</span></span></li>
+      <li><span class="soon"><span class="num">06</span><span class="name">Интенсив</span><span class="meta">скоро</span></span></li>
+    </ul>
+    <div class="drawer__foot">
+      <span class="label">Написать</span>
+      <a class="btn btn--accent" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener" style="text-transform: none; letter-spacing: .02em">@Arch_Tutor_Bot</a>
+    </div>
+  </nav>
+</div>
+
+<script src="assets/js/main.js" defer></script>
+<script src="assets/js/home.js" defer></script>
+</body>
+</html>

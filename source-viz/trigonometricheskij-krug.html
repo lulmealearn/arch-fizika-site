@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Откуда берутся синусоида и косинусоида</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f2e8; --paper-line:#d8cdb6; --ink:#2b3247; --ink-soft:#565f78;
+    --pencil-red:#a6383f; --accent-fill:#eadfc4; --panel:#fffdf7;
+    --sin-color:#a6383f; --cos-color:#2b5f7a;
+    --shadow:0 1px 0 rgba(43,50,71,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:repeating-linear-gradient(0deg,transparent,transparent 27px,var(--paper-line) 27px,var(--paper-line) 28px),var(--paper);
+    color:var(--ink);font-family:'Source Serif 4',Georgia,serif;line-height:1.6;padding:0 0 60px;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px;}
+
+  header{padding:44px 24px 30px;border-bottom:2px solid var(--ink);
+    background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0));}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--pencil-red);margin-bottom:12px;
+    display:flex;align-items:center;gap:10px;}
+  .eyebrow::before{content:"";width:24px;height:2px;background:var(--pencil-red);}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(28px,4.2vw,42px);
+    line-height:1.07;margin:0 0 12px;letter-spacing:-.01em;}
+  h1 em{font-style:italic;font-weight:500;color:var(--pencil-red);}
+  .sub{font-size:17px;color:var(--ink-soft);max-width:620px;margin:0;}
+
+  .stage{background:var(--panel);border:1px solid var(--paper-line);border-radius:4px;
+    padding:18px;margin:34px 0 0;box-shadow:var(--shadow);}
+  canvas{width:100%;height:auto;display:block;touch-action:none;}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;
+    margin-top:16px;padding-top:16px;border-top:1px dashed var(--paper-line);}
+  button{font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--paper);
+    border:1px solid var(--ink-soft);border-radius:3px;padding:7px 13px;cursor:pointer;color:var(--ink);}
+  button:hover{background:var(--accent-fill);border-color:var(--pencil-red);}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  button.primary:hover{background:var(--pencil-red);border-color:var(--pencil-red);}
+  button.active{background:var(--pencil-red);color:#fff;border-color:var(--pencil-red);}
+  .group{display:flex;gap:6px;}
+  .ctl-label{font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);}
+  input[type=range]{accent-color:var(--pencil-red);vertical-align:middle;}
+  #scrub{width:100%;margin-top:14px;}
+  .spacer{flex:1;}
+
+  .readout{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px;
+    font-family:'IBM Plex Mono',monospace;font-size:14px;}
+  .readout div{display:flex;gap:8px;align-items:baseline;}
+  .readout .k{color:var(--ink-soft);font-size:12.5px;}
+  .readout .v{font-size:18px;font-weight:500;}
+  .v.sin{color:var(--sin-color);}
+  .v.cos{color:var(--cos-color);}
+
+  .note{background:var(--accent-fill);border:1px solid #c9b98a;border-radius:3px;
+    padding:15px 17px;margin:26px 0;font-size:15.5px;}
+  .note b{color:var(--pencil-red);}
+  .note.blue{background:#e3ebe6;border-color:#a9c2b3;}
+  .note.blue b{color:var(--cos-color);}
+
+  h2{font-family:'Fraunces',serif;font-weight:600;font-size:22px;margin:38px 0 10px;}
+  p{font-size:16.5px;margin:0 0 14px;}
+  .fm{font-family:'IBM Plex Mono',monospace;}
+
+  table.cp{width:100%;border-collapse:collapse;margin:16px 0;background:var(--panel);box-shadow:var(--shadow);}
+  table.cp th,table.cp td{border:1px solid var(--paper-line);padding:10px 8px;
+    text-align:center;font-size:14.5px;font-family:'IBM Plex Mono',monospace;}
+  table.cp th{background:var(--accent-fill);font-size:12.5px;}
+  table.cp td.lab{text-align:left;background:var(--panel);}
+  tr.r-sin td.lab{color:var(--sin-color);}
+  tr.r-cos td.lab{color:var(--cos-color);}
+  tr.r-what td{font-family:'Source Serif 4',serif;font-size:13.5px;color:var(--ink-soft);}
+
+  .circle-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:26px;align-items:center;}
+  @media(max-width:760px){.circle-grid{grid-template-columns:1fr;}}
+  .rd{font-family:'IBM Plex Mono',monospace;}
+  .rd-row{display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-bottom:1px dashed var(--paper-line);}
+  .rd-row:last-child{border-bottom:none;}
+  .rd-k{font-size:13.5px;color:var(--ink-soft);}
+  .rd-v{font-size:20px;font-weight:500;}
+  .rd-dim{color:var(--ink-soft);font-size:13.5px;}
+  .rd-v.sin{color:var(--sin-color);}
+  .rd-v.cos{color:var(--cos-color);}
+  .rd-v.tan{color:#6b4a6f;}
+  .quad{margin-top:14px;padding:10px 12px;background:var(--accent-fill);border-radius:3px;
+    font-size:13.5px;font-family:'IBM Plex Mono',monospace;}
+  #q_slider{width:100%;margin-top:14px;}
+  .angle-btns{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+  .angle-btns button{font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+    background:var(--paper);border:1px solid var(--ink-soft);border-radius:3px;
+    padding:5px 9px;cursor:pointer;color:var(--ink);}
+  .angle-btns button:hover{background:var(--accent-fill);border-color:var(--pencil-red);}
+  .angle-btns button.active{background:var(--pencil-red);color:#fff;border-color:var(--pencil-red);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Тригонометрия · визуализация</div>
+    <h1>Откуда берутся <em>синусоида и косинусоида</em></h1>
+    <p class="sub">Точка равномерно бежит по окружности радиуса 1. Её высота рисует синус, её горизонтальное смещение — косинус. График — это просто развёрнутая во времени окружность.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="stage">
+    <canvas id="cv" width="920" height="400"></canvas>
+
+    <input type="range" id="scrub" min="0" max="1000" value="0">
+
+    <div class="controls">
+      <button class="primary" id="play">▶ Запустить</button>
+      <button id="reset">Сброс</button>
+      <span class="spacer"></span>
+      <span class="ctl-label">показывать</span>
+      <div class="group">
+        <button data-mode="sin" class="active">синус</button>
+        <button data-mode="cos">косинус</button>
+        <button data-mode="both">оба</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="ctl-label">скорость</span>
+      <input type="range" id="speed" min="1" max="10" value="4">
+    </div>
+
+    <div class="controls" style="border-top:none;padding-top:4px;">
+      <span class="ctl-label">перейти к</span>
+      <div class="group" id="jump">
+        <button data-t="0">0</button>
+        <button data-t="0.5">π/2</button>
+        <button data-t="1">π</button>
+        <button data-t="1.5">3π/2</button>
+        <button data-t="2">2π</button>
+      </div>
+    </div>
+
+    <div class="readout">
+      <div><span class="k">t =</span><span class="v" id="rT">0</span></div>
+      <div><span class="k">sin t =</span><span class="v sin" id="rS">0.000</span></div>
+      <div><span class="k">cos t =</span><span class="v cos" id="rC">1.000</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Главная мысль.</b> Горизонтальная пунктирная линия на картинке нигде не меняет высоту. Высота точки на окружности и высота точки на графике — это <b>одно и то же число</b>. График не «похож» на окружность и не выводится из неё формулой: он и есть окружность, развёрнутая вдоль оси времени.
+  </div>
+
+  <h2>Как читать картинку</h2>
+  <p><b style="color:#a6383f">Синус — красный.</b> Вертикальный отрезок от оси до точки. Это ордината, то есть высота. Когда точка идёт вверх — красный отрезок растёт, и график ползёт вверх. Когда точка проходит верхнюю макушку окружности, синус равен 1 — и график в этот же момент достигает вершины.</p>
+  <p><b style="color:#2b5f7a">Косинус — синий.</b> Горизонтальный отрезок от центра до основания. Это абсцисса. Чтобы отложить его на графике, отрезок надо <b>повернуть на 90°</b> — этот поворот показан пунктирной дугой. Включите режим «косинус» и посмотрите: начинается он с 1, потому что в нулевой момент точка стоит справа, на максимальном удалении по горизонтали.</p>
+
+  <div class="note blue">
+    <b>Почему косинус — это сдвинутый синус.</b> Включите режим «оба». Две волны одинаковы по форме, но синяя опережает красную ровно на четверть периода: <span class="fm">cos t = sin(t + π/2)</span>. Причина видна на окружности — горизонтальная и вертикальная координаты одной точки «отстают» друг от друга на четверть оборота.
+  </div>
+
+  <h2>Опорные точки</h2>
+  <p>Их достаточно знать, чтобы нарисовать обе кривые от руки, не считая ни одного значения.</p>
+
+  <table class="cp">
+    <tr><th>t</th><th>0</th><th>π/2</th><th>π</th><th>3π/2</th><th>2π</th></tr>
+    <tr><td class="lab">точка на окружности</td><td>справа</td><td>сверху</td><td>слева</td><td>снизу</td><td>справа</td></tr>
+    <tr class="r-sin"><td class="lab">sin t (высота)</td><td>0</td><td>1</td><td>0</td><td>−1</td><td>0</td></tr>
+    <tr class="r-cos"><td class="lab">cos t (ширина)</td><td>1</td><td>0</td><td>−1</td><td>0</td><td>1</td></tr>
+    <tr class="r-what"><td class="lab">что на графике</td><td>старт</td><td>вершина sin</td><td>ноль sin</td><td>дно sin</td><td>период</td></tr>
+  </table>
+
+  <div class="note">
+    <b>Период.</b> На графике помещается два полных оборота. Обратите внимание: вторая волна в точности повторяет первую — потому что после полного круга точка возвращается ровно туда же, откуда вышла. Отсюда <span class="fm">sin(t + 2π) = sin t</span>, и это не формула для запоминания, а описание того, что вы видите.
+  </div>
+
+  <h2>Тригонометрический круг целиком</h2>
+  <p>Вторая, статичная картинка — без развёртки. Здесь точку просто тянут мышкой и смотрят, что происходит с координатами. Удобно для разбора четвертей и знаков.</p>
+
+  <div class="stage">
+    <div class="circle-grid">
+      <div><canvas id="cv2" width="440" height="440"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">число t</span>
+            <span class="rd-v"><span id="q_deg">30</span>°&nbsp;<span class="rd-dim">(<span id="q_rad">π/6</span>)</span></span></div>
+          <div class="rd-row"><span class="rd-k">sin t — ордината</span>
+            <span class="rd-v sin" id="q_sin">0.500</span></div>
+          <div class="rd-row"><span class="rd-k">cos t — абсцисса</span>
+            <span class="rd-v cos" id="q_cos">0.866</span></div>
+          <div class="rd-row" id="q_tanrow"><span class="rd-k">tg t — на оси тангенсов</span>
+            <span class="rd-v tan" id="q_tan">0.577</span></div>
+        </div>
+        <div class="quad" id="q_note">Четверть I: cos &gt; 0, sin &gt; 0.</div>
+        <input type="range" id="q_slider" min="0" max="359" value="30">
+        <div class="controls" style="border-top:none;padding-top:10px;">
+          <button id="q_tanBtn">Показать ось тангенсов</button>
+        </div>
+        <div class="angle-btns" id="q_jump"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Тангенс здесь спрятан по умолчанию.</b> На первом занятии он не нужен — сначала должны прочно сесть проекции. Кнопка оставлена, чтобы вернуться к этой же картинке на следующих уроках и не строить новую.
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv2'); if(!cv) return;
+  var ctx=cv.getContext('2d');
+  var S=440, cx=220, cy=220, R=150, LIM=16;
+  var INK='#2b3247', SOFT='#8a8f9e', GRID='#e2d9c4',
+      SIN='#a6383f', COS='#2b5f7a', TAN='#6b4a6f', PAPER='#fffdf7';
+
+  var deg=30, showTan=false;
+  var sl=document.getElementById('q_slider'), jump=document.getElementById('q_jump');
+  var tanBtn=document.getElementById('q_tanBtn'), tanRow=document.getElementById('q_tanrow');
+
+  var names={0:'0',30:'\u03C0/6',45:'\u03C0/4',60:'\u03C0/3',90:'\u03C0/2',120:'2\u03C0/3',
+    135:'3\u03C0/4',150:'5\u03C0/6',180:'\u03C0',210:'7\u03C0/6',225:'5\u03C0/4',240:'4\u03C0/3',
+    270:'3\u03C0/2',300:'5\u03C0/3',315:'7\u03C0/4',330:'11\u03C0/6'};
+
+  [0,30,45,60,90,120,135,150,180,210,225,240,270,300,315,330].forEach(function(a){
+    var b=document.createElement('button'); b.textContent=a+'\u00B0'; b.dataset.a=a;
+    b.addEventListener('click',function(){ deg=a; sl.value=a; draw(); });
+    jump.appendChild(b);
+  });
+
+  function quadText(d){
+    d=((d%360)+360)%360;
+    if(d===0||d===180) return '\u041D\u0430 \u043E\u0441\u0438 X: sin = 0'+(showTan?', tg = 0.':'.');
+    if(d===90||d===270) return '\u041D\u0430 \u043E\u0441\u0438 Y: cos = 0'+(showTan?', tg \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0451\u043D.':'.');
+    if(d<90)  return '\u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044C I: cos > 0, sin > 0'+(showTan?', tg > 0.':'.');
+    if(d<180) return '\u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044C II: cos < 0, sin > 0'+(showTan?', tg < 0.':'.');
+    if(d<270) return '\u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044C III: cos < 0, sin < 0'+(showTan?', tg > 0.':'.');
+    return '\u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044C IV: cos > 0, sin < 0'+(showTan?', tg < 0.':'.');
+  }
+
+  function draw(){
+    var rad=deg*Math.PI/180;
+    var s=Math.sin(rad), c=Math.cos(rad);
+    var px=cx+R*c, py=cy-R*s;
+    ctx.clearRect(0,0,S,S);
+
+    ctx.strokeStyle=GRID; ctx.lineWidth=1;
+    for(var g=-2;g<=2;g++){
+      ctx.beginPath(); ctx.moveTo(cx+g*R/2,18); ctx.lineTo(cx+g*R/2,S-18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(18,cy+g*R/2); ctx.lineTo(S-18,cy+g*R/2); ctx.stroke();
+    }
+    ctx.strokeStyle=INK; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(18,cy); ctx.lineTo(S-18,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,18); ctx.lineTo(cx,S-18); ctx.stroke();
+    ctx.lineWidth=1.9; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+
+    if(showTan){
+      ctx.strokeStyle='#d8cdb6'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(cx+R,18); ctx.lineTo(cx+R,S-18); ctx.stroke(); ctx.setLineDash([]);
+      if(Math.abs(c)>0.02){
+        var raw=cy-R*(s/c), ty=raw, clipped=false;
+        if(ty<LIM){ ty=LIM; clipped=true; }
+        if(ty>S-LIM){ ty=S-LIM; clipped=true; }
+        ctx.strokeStyle=TAN; ctx.lineWidth=3.5;
+        ctx.beginPath(); ctx.moveTo(cx+R,cy); ctx.lineTo(cx+R,ty); ctx.stroke();
+        if(clipped){
+          var dir = raw<LIM ? -1 : 1;
+          ctx.fillStyle=TAN; ctx.beginPath();
+          ctx.moveTo(cx+R, ty);
+          ctx.lineTo(cx+R-6, ty-dir*11);
+          ctx.lineTo(cx+R+6, ty-dir*11);
+          ctx.closePath(); ctx.fill();
+        } else {
+          ctx.fillStyle=TAN; ctx.beginPath(); ctx.arc(cx+R,ty,4.5,0,Math.PI*2); ctx.fill();
+          ctx.strokeStyle='#c9b3cc'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(cx+R,ty); ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+    }
+
+    ctx.strokeStyle=COS; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,cy); ctx.stroke();
+    ctx.strokeStyle=SIN; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(px,cy); ctx.lineTo(px,py); ctx.stroke();
+    ctx.strokeStyle=INK; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,py); ctx.stroke();
+    ctx.strokeStyle=SOFT; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(cx,cy,30,0,-rad,true); ctx.stroke();
+    ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(px,py,6.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=PAPER; ctx.beginPath(); ctx.arc(px,py,3,0,Math.PI*2); ctx.fill();
+
+    ctx.font='13px IBM Plex Mono, monospace';
+    ctx.fillStyle=COS; ctx.fillText('cos t', (cx+px)/2-19, cy+(py<cy?17:-8));
+    ctx.fillStyle=SIN; ctx.fillText('sin t', px+(px<cx?-48:9), (cy+py)/2);
+    ctx.font='11.5px IBM Plex Mono, monospace'; ctx.fillStyle=SOFT;
+    ctx.fillText('1', cx+R+5, cy-7);
+
+    var d=((deg%360)+360)%360;
+    document.getElementById('q_deg').textContent=d;
+    document.getElementById('q_rad').textContent = names[d]!==undefined?names[d]:(d*Math.PI/180).toFixed(2);
+    document.getElementById('q_sin').textContent=s.toFixed(3);
+    document.getElementById('q_cos').textContent=c.toFixed(3);
+    if(Math.abs(c)<0.02){ document.getElementById('q_tan').textContent='\u043D\u0435 \u043E\u043F\u0440.'; }
+    else { document.getElementById('q_tan').textContent=(s/c).toFixed(3); }
+    document.getElementById('q_note').textContent=quadText(d);
+    Array.prototype.forEach.call(jump.children,function(b){
+      b.classList.toggle('active', Number(b.dataset.a)===d); });
+  }
+
+  sl.addEventListener('input',function(){ deg=Number(sl.value); draw(); });
+  tanBtn.addEventListener('click',function(){
+    showTan=!showTan;
+    tanRow.style.display = showTan ? 'flex' : 'none';
+    tanBtn.textContent = showTan
+      ? '\u0421\u043A\u0440\u044B\u0442\u044C \u043E\u0441\u044C \u0442\u0430\u043D\u0433\u0435\u043D\u0441\u043E\u0432'
+      : '\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u043E\u0441\u044C \u0442\u0430\u043D\u0433\u0435\u043D\u0441\u043E\u0432';
+    tanBtn.classList.toggle('active',showTan);
+    draw();
+  });
+  tanRow.style.display='none';
+
+  var drag=false;
+  function angFrom(e){
+    var r=cv.getBoundingClientRect(), kx=S/r.width, ky=S/r.height;
+    var X=(e.touches?e.touches[0].clientX:e.clientX), Y=(e.touches?e.touches[0].clientY:e.clientY);
+    var a=Math.atan2(-((Y-r.top)*ky-cy),(X-r.left)*kx-cx)*180/Math.PI;
+    return Math.round(a<0?a+360:a);
+  }
+  cv.addEventListener('mousedown',function(e){ drag=true; deg=angFrom(e); sl.value=deg; draw(); });
+  window.addEventListener('mousemove',function(e){ if(drag){ deg=angFrom(e); sl.value=deg; draw(); } });
+  window.addEventListener('mouseup',function(){ drag=false; });
+  cv.addEventListener('touchstart',function(e){ drag=true; deg=angFrom(e); sl.value=deg; draw(); });
+  cv.addEventListener('touchmove',function(e){ if(drag){ deg=angFrom(e); sl.value=deg; draw(); e.preventDefault(); } },{passive:false});
+  cv.addEventListener('touchend',function(){ drag=false; });
+
+  draw();
+})();
+</script>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var W=920,H=400;
+  var cx=160, cy=200, R=130;
+  var gx0=340, gx1=890, A=130;
+  var TMAX=4*Math.PI;
+  var scale=(gx1-gx0)/TMAX;
+
+  var INK='#2b3247', SOFT='#8a8f9e', GRID='#e2d9c4',
+      SIN='#a6383f', COS='#2b5f7a', PAPER='#fffdf7';
+
+  var t=0, playing=false, mode='sin', speedEl=document.getElementById('speed');
+  var scrub=document.getElementById('scrub');
+  var rT=document.getElementById('rT'), rS=document.getElementById('rS'), rC=document.getElementById('rC');
+
+  function gx(tt){ return gx0 + tt*scale; }
+
+  function piLabel(tt){
+    var k = tt/(Math.PI/2);
+    var r = Math.round(k);
+    if(Math.abs(k-r) > 0.02) return tt.toFixed(2);
+    var names=['0','\u03C0/2','\u03C0','3\u03C0/2','2\u03C0','5\u03C0/2','3\u03C0','7\u03C0/2','4\u03C0'];
+    return names[r] !== undefined ? names[r] : tt.toFixed(2);
+  }
+
+  function dash(on){ ctx.setLineDash(on?[4,4]:[]); }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var px = cx + R*Math.cos(t), py = cy - R*Math.sin(t);
+    var s = Math.sin(t), c = Math.cos(t);
+    var showS = (mode==='sin'||mode==='both');
+    var showC = (mode==='cos'||mode==='both');
+
+    // ---- circle panel ----
+    ctx.strokeStyle=GRID; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx-R-24,cy); ctx.lineTo(cx+R+24,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,cy-R-24); ctx.lineTo(cx,cy+R+24); ctx.stroke();
+
+    ctx.strokeStyle=INK; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+
+    // swept arc
+    ctx.strokeStyle=SOFT; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,-(t%(2*Math.PI)),true); ctx.stroke();
+
+    // cos: horizontal segment + rotation arc + vertical copy
+    if(showC){
+      ctx.strokeStyle=COS; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,cy); ctx.stroke();
+      var L=R*c;
+      if(Math.abs(L)>2){
+        ctx.strokeStyle=COS; ctx.lineWidth=1.2; dash(true);
+        ctx.beginPath();
+        ctx.arc(cx,cy,Math.abs(L), c>0?0:Math.PI, c>0?-Math.PI/2:Math.PI/2, true);
+        ctx.stroke(); dash(false);
+      }
+      ctx.strokeStyle=COS; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy-L); ctx.stroke();
+      ctx.fillStyle=COS; ctx.beginPath(); ctx.arc(cx,cy-L,4.5,0,Math.PI*2); ctx.fill();
+    }
+
+    // sin: vertical segment
+    if(showS){
+      ctx.strokeStyle=SIN; ctx.lineWidth=4;
+      ctx.beginPath(); ctx.moveTo(px,cy); ctx.lineTo(px,py); ctx.stroke();
+    }
+
+    // radius + point
+    ctx.strokeStyle=INK; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(px,py); ctx.stroke();
+    ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(px,py,6.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=PAPER; ctx.beginPath(); ctx.arc(px,py,3,0,Math.PI*2); ctx.fill();
+
+    ctx.font='12px IBM Plex Mono, monospace'; ctx.fillStyle=SOFT;
+    ctx.fillText('1', cx+R+6, cy-7);
+    ctx.fillText('\u043E\u043A\u0440\u0443\u0436\u043D\u043E\u0441\u0442\u044C R = 1', cx-52, cy+R+44);
+
+    // ---- graph panel ----
+    ctx.strokeStyle=GRID; ctx.lineWidth=1;
+    for(var k=1;k<=8;k++){
+      var X=gx(k*Math.PI/2);
+      ctx.beginPath(); ctx.moveTo(X,cy-A-16); ctx.lineTo(X,cy+A+16); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(gx0,cy-A); ctx.lineTo(gx1,cy-A); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx0,cy+A); ctx.lineTo(gx1,cy+A); ctx.stroke();
+
+    ctx.strokeStyle=INK; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(gx0-14,cy); ctx.lineTo(gx1+8,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx0,cy-A-22); ctx.lineTo(gx0,cy+A+22); ctx.stroke();
+
+    ctx.font='11.5px IBM Plex Mono, monospace'; ctx.fillStyle=SOFT;
+    ctx.fillText('1', gx0-20, cy-A+4);
+    ctx.fillText('-1', gx0-24, cy+A+4);
+    for(var k2=2;k2<=8;k2+=2){
+      var Xl=gx(k2*Math.PI/2);
+      ctx.fillText(piLabel(k2*Math.PI/2), Xl-10, cy+18);
+    }
+    ctx.fillText('t', gx1+2, cy-8);
+
+    // curves traced up to t
+    function curve(fn,color){
+      ctx.strokeStyle=color; ctx.lineWidth=2.6; ctx.beginPath();
+      var started=false;
+      for(var x=0;x<=t+0.0001;x+=0.012){
+        var X=gx(x), Y=cy-A*fn(x);
+        if(!started){ctx.moveTo(X,Y);started=true;} else ctx.lineTo(X,Y);
+      }
+      if(started) ctx.stroke();
+    }
+    // faint full-period preview
+    ctx.globalAlpha=0.16;
+    if(showS){ ctx.strokeStyle=SIN; ctx.lineWidth=2; ctx.beginPath();
+      for(var x1=0;x1<=TMAX;x1+=0.02){ var X1=gx(x1),Y1=cy-A*Math.sin(x1); x1===0?ctx.moveTo(X1,Y1):ctx.lineTo(X1,Y1);} ctx.stroke(); }
+    if(showC){ ctx.strokeStyle=COS; ctx.lineWidth=2; ctx.beginPath();
+      for(var x2=0;x2<=TMAX;x2+=0.02){ var X2=gx(x2),Y2=cy-A*Math.cos(x2); x2===0?ctx.moveTo(X2,Y2):ctx.lineTo(X2,Y2);} ctx.stroke(); }
+    ctx.globalAlpha=1;
+
+    if(showS) curve(Math.sin,SIN);
+    if(showC) curve(Math.cos,COS);
+
+    // connectors
+    var GX=gx(t);
+    if(showS){
+      ctx.strokeStyle=SIN; ctx.lineWidth=1.2; dash(true);
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(GX,py); ctx.stroke(); dash(false);
+      ctx.fillStyle=SIN; ctx.beginPath(); ctx.arc(GX,cy-A*s,5.5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=SIN; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(GX,cy); ctx.lineTo(GX,cy-A*s); ctx.stroke();
+    }
+    if(showC){
+      ctx.strokeStyle=COS; ctx.lineWidth=1.2; dash(true);
+      ctx.beginPath(); ctx.moveTo(cx,cy-R*c); ctx.lineTo(GX,cy-A*c); ctx.stroke(); dash(false);
+      ctx.fillStyle=COS; ctx.beginPath(); ctx.arc(GX,cy-A*c,5.5,0,Math.PI*2); ctx.fill();
+      if(!showS){
+        ctx.strokeStyle=COS; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(GX,cy); ctx.lineTo(GX,cy-A*c); ctx.stroke();
+      }
+    }
+    // time marker
+    ctx.strokeStyle=SOFT; ctx.lineWidth=1; dash(true);
+    ctx.beginPath(); ctx.moveTo(GX,cy-A-16); ctx.lineTo(GX,cy+A+16); ctx.stroke(); dash(false);
+
+    rT.textContent = piLabel(t);
+    rS.textContent = s.toFixed(3);
+    rC.textContent = c.toFixed(3);
+    scrub.value = Math.round(t/TMAX*1000);
+  }
+
+  var last=null;
+  function loop(ts){
+    if(playing){
+      if(last===null) last=ts;
+      var dt=(ts-last)/1000; last=ts;
+      t += dt*(Number(speedEl.value)/10)*Math.PI;
+      if(t>TMAX) t=0;
+      draw();
+    } else { last=null; }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  var playBtn=document.getElementById('play');
+  playBtn.addEventListener('click',function(){
+    playing=!playing; last=null;
+    playBtn.textContent = playing ? '\u23F8 \u041F\u0430\u0443\u0437\u0430' : '\u25B6 \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C';
+  });
+  document.getElementById('reset').addEventListener('click',function(){
+    t=0; playing=false; last=null;
+    playBtn.textContent='\u25B6 \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C';
+    draw();
+  });
+  scrub.addEventListener('input',function(){
+    playing=false; playBtn.textContent='\u25B6 \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C';
+    t = Number(scrub.value)/1000*TMAX; draw();
+  });
+  document.querySelectorAll('[data-mode]').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('[data-mode]').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active'); mode=b.dataset.mode; draw();
+    });
+  });
+  document.querySelectorAll('#jump button').forEach(function(b){
+    b.addEventListener('click',function(){
+      playing=false; playBtn.textContent='\u25B6 \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C';
+      t = Number(b.dataset.t)*Math.PI; draw();
+    });
+  });
+
+  // drag on circle
+  var dragging=false;
+  function angFrom(e){
+    var r=cv.getBoundingClientRect(), sx=W/r.width, sy=H/r.height;
+    var X=(e.touches?e.touches[0].clientX:e.clientX), Y=(e.touches?e.touches[0].clientY:e.clientY);
+    var mx=(X-r.left)*sx, my=(Y-r.top)*sy;
+    if(mx>cx+R+50) return null;
+    var a=Math.atan2(-(my-cy), mx-cx);
+    if(a<0) a+=2*Math.PI;
+    return a;
+  }
+  cv.addEventListener('mousedown',function(e){
+    var a=angFrom(e); if(a===null) return;
+    dragging=true; playing=false;
+    playBtn.textContent='\u25B6 \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C';
+    t=a; draw();
+  });
+  window.addEventListener('mousemove',function(e){ if(dragging){var a=angFrom(e); if(a!==null){t=a;draw();}} });
+  window.addEventListener('mouseup',function(){dragging=false;});
+  cv.addEventListener('touchstart',function(e){
+    var a=angFrom(e); if(a===null) return;
+    dragging=true; playing=false; t=a; draw();
+  });
+  cv.addEventListener('touchmove',function(e){
+    if(dragging){var a=angFrom(e); if(a!==null){t=a;draw();e.preventDefault();}}
+  },{passive:false});
+  cv.addEventListener('touchend',function(){dragging=false;});
+
+  draw();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Предел и производная</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:ital,wght@0,400;0,500;0,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f2e8; --paper-line:#d8cdb6; --ink:#2b3247; --ink-soft:#565f78;
+    --pencil-red:#a6383f; --accent-fill:#eadfc4; --panel:#fffdf7;
+    --cA:#2b5f7a; --cB:#a6383f; --cC:#5a7a4a; --cD:#6b4a6f; --cE:#8a4a15;
+    --shadow:0 1px 0 rgba(43,50,71,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:repeating-linear-gradient(0deg,transparent,transparent 27px,var(--paper-line) 27px,var(--paper-line) 28px),var(--paper);
+    color:var(--ink);font-family:'Source Serif 4',Georgia,serif;line-height:1.6;padding:0 0 70px;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:0 26px;}
+
+  header.hero{padding:52px 26px 36px;border-bottom:2px solid var(--ink);
+    background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0));}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--pencil-red);margin-bottom:13px;display:flex;align-items:center;gap:10px;}
+  .eyebrow::before{content:"";width:25px;height:2px;background:var(--pencil-red);}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(30px,4.6vw,46px);
+    line-height:1.06;margin:0 0 14px;letter-spacing:-.01em;}
+  h1 em{font-style:italic;font-weight:500;color:var(--pencil-red);}
+  .sub{font-size:17.5px;color:var(--ink-soft);max-width:660px;margin:0;}
+  nav.toc{margin-top:26px;padding-top:20px;border-top:1px dashed var(--paper-line);
+    display:flex;flex-wrap:wrap;gap:8px 17px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  nav.toc a{color:var(--ink-soft);text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
+  nav.toc a:hover{color:var(--pencil-red);border-color:var(--pencil-red);}
+
+  section{padding:44px 26px;border-bottom:1px solid var(--paper-line);scroll-margin-top:16px;}
+  section:last-of-type{border-bottom:none;}
+  .sec-head{display:flex;align-items:baseline;gap:15px;margin-bottom:14px;}
+  .sec-num{font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:var(--pencil-red);
+    border:1.5px solid var(--pencil-red);border-radius:50%;width:29px;height:29px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  h2{font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0;}
+  h3{font-family:'Fraunces',serif;font-weight:600;font-size:18.5px;margin:26px 0 9px;}
+  p{margin:0 0 13px;font-size:16.5px;}
+  .lede{font-size:17px;color:var(--ink-soft);}
+  ul{font-size:16.5px;margin:0 0 13px;padding-left:22px;}
+  li{margin-bottom:5px;}
+  .fm{font-family:'IBM Plex Mono',monospace;}
+
+  .callout{background:var(--accent-fill);border:1px solid #c9b98a;border-radius:3px;
+    padding:15px 17px;margin:17px 0;font-size:15.5px;}
+  .callout b{color:var(--pencil-red);}
+  .callout.blue{background:#e3ebe6;border-color:#a9c2b3;}
+  .callout.blue b{color:var(--cA);}
+
+  .derive{background:var(--panel);border:1px solid var(--paper-line);border-radius:4px;
+    padding:15px 17px;margin:13px 0 18px;box-shadow:var(--shadow);}
+  .derive .d-lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--ink-soft);margin-bottom:7px;display:block;}
+  .derive .st{margin:5px 0;font-family:'IBM Plex Mono',monospace;font-size:15px;}
+  .derive .st.big{font-size:17px;margin-top:8px;}
+
+  .app{background:var(--panel);border:1px solid var(--paper-line);border-radius:4px;
+    padding:20px;box-shadow:var(--shadow);margin:18px 0;}
+  canvas{width:100%;height:auto;display:block;touch-action:none;}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:center;}
+  @media(max-width:800px){.grid2{grid-template-columns:1fr;}}
+
+  .rd{font-family:'IBM Plex Mono',monospace;}
+  .rd-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+    border-bottom:1px dashed var(--paper-line);gap:10px;}
+  .rd-row:last-child{border-bottom:none;}
+  .rd-k{font-size:12.5px;color:var(--ink-soft);}
+  .rd-v{font-size:18px;font-weight:500;white-space:nowrap;}
+  .rd-v.a{color:var(--cA);} .rd-v.b{color:var(--cB);}
+  .rd-v.c{color:var(--cC);} .rd-v.d{color:var(--cD);}
+  .note-box{margin-top:12px;padding:9px 11px;background:var(--accent-fill);border-radius:3px;
+    font-size:12.5px;font-family:'IBM Plex Mono',monospace;line-height:1.55;}
+
+  .ctl{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:13px;
+    padding-top:13px;border-top:1px dashed var(--paper-line);}
+  .ctl-lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.07em;color:var(--ink-soft);}
+  button{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--paper);
+    border:1px solid var(--ink-soft);border-radius:3px;padding:6px 11px;cursor:pointer;color:var(--ink);}
+  button:hover{background:var(--accent-fill);border-color:var(--pencil-red);}
+  button.active{background:var(--pencil-red);color:#fff;border-color:var(--pencil-red);}
+  input[type=range]{accent-color:var(--pencil-red);vertical-align:middle;flex:1;min-width:140px;}
+  .grp{display:flex;gap:6px;flex-wrap:wrap;}
+
+  table.t{width:100%;border-collapse:collapse;margin:16px 0;background:var(--panel);box-shadow:var(--shadow);}
+  table.t th,table.t td{border:1px solid var(--paper-line);padding:8px 9px;font-size:14.5px;}
+  table.t th{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--accent-fill);text-align:left;}
+  table.t td{font-family:'IBM Plex Mono',monospace;}
+  table.t td.n{width:34px;color:var(--ink-soft);text-align:center;}
+  .tcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:760px){.tcols{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Урок 4 · математика для физики</div>
+    <h1>Предел и <em>производная</em></h1>
+    <p class="sub">Сначала разбираемся, зачем вообще понадобился предел — без него определение производной невозможно даже записать. Потом смотрим, что производная означает геометрически и почему в физике скорость — это производная координаты.</p>
+    <nav class="toc">
+      <a href="#s1">1. Зачем нужен предел</a>
+      <a href="#s2">2. Предел последовательности</a>
+      <a href="#s3">3. Предел функции</a>
+      <a href="#s4">4. Секущая и касательная</a>
+      <a href="#s5">5. Под микроскопом</a>
+      <a href="#s6">6. Когда производной нет</a>
+      <a href="#s7">7. Считаем по определению</a>
+      <a href="#s8">8. Производная как функция</a>
+      <a href="#s9">9. Почему (sin x)′ = cos x</a>
+      <a href="#s10">10. Таблица и правила</a>
+      <a href="#s11">11. Линейное приближение</a>
+      <a href="#s12">12. Производная в физике</a>
+      <a href="#s13">13. Задача на максимум</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="s1">
+  <div class="sec-head"><div class="sec-num">1</div><h2>Зачем нужен предел</h2></div>
+  <p class="lede">Предел — не самоцель. Он появился, потому что без него один конкретный вопрос невозможно даже сформулировать.</p>
+
+  <p>Вопрос такой: <b>что такое скорость в данный момент времени?</b></p>
+
+  <div class="derive">
+    <span class="d-lbl">Средняя скорость — тут всё просто</span>
+    <div class="st">за время Δt тело сместилось на Δx</div>
+    <div class="st big">v<sub>ср</sub> = Δx / Δt</div>
+  </div>
+
+  <p>Но спидометр показывает не среднюю скорость за час, а скорость <b>прямо сейчас</b>. Чтобы её получить, надо брать промежуток Δt всё меньше и меньше. И тут возникает проблема: если взять Δt ровно равным нулю, то и Δx станет нулём, и мы получим бессмысленное выражение <span class="fm">0/0</span>.</p>
+
+  <div class="callout">
+    <b>Вот в этом и суть предела.</b> Он позволяет сказать: «мы не подставляем ноль, мы смотрим, к какому числу стремится дробь, когда Δt <b>стремится</b> к нулю, оставаясь ненулевым». Дробь <span class="fm">0/0</span> не существует, а предел этой дроби — вполне конкретное число.
+  </div>
+</section>
+
+<section id="s2">
+  <div class="sec-head"><div class="sec-num">2</div><h2>Предел последовательности</h2></div>
+  <p>Простейший пример — последовательность <span class="fm">1, 1/2, 1/3, 1/4, …, 1/n, …</span>. Увеличивайте n и следите за точками на прямой.</p>
+
+  <div class="app">
+    <canvas id="c1" width="900" height="230"></canvas>
+    <div class="ctl">
+      <span class="ctl-lbl">n = <b id="v1n">6</b></span>
+      <input type="range" id="s1r" min="1" max="60" value="6">
+      <span class="ctl-lbl">1/n = <b id="v1v">0.1667</b></span>
+    </div>
+    <div class="note-box" id="n1">Точки сгущаются у нуля, но ни одна в него не попадает</div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Что мы видим</span>
+    <div class="st">при росте n числа 1/n приближаются к 0</div>
+    <div class="st">но <b>никогда его не достигают</b>: 1/n &gt; 0 при любом n</div>
+    <div class="st big">говорим: <b>lim</b><sub>n→∞</sub> <b>1/n = 0</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Ключевое слово — «стремится», а не «равно».</b> Предел не обязан быть значением последовательности. Ноль здесь — это число, к которому можно подойти сколь угодно близко, но не число из списка. Именно поэтому предел решает проблему из первого раздела: он даёт ответ, не требуя подставлять запрещённое значение.
+  </div>
+</section>
+
+<section id="s3">
+  <div class="sec-head"><div class="sec-num">3</div><h2>Предел функции</h2></div>
+  <p>То же самое можно делать не с номерами, а с аргументом функции. Двигайте точку к <span class="fm">x = 2</span> с любой стороны и следите за значением <span class="fm">x²</span>.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c2" width="600" height="380"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">x</span><span class="rd-v a" id="v2x">2.600</span></div>
+          <div class="rd-row"><span class="rd-k">x²</span><span class="rd-v b" id="v2y">6.760</span></div>
+          <div class="rd-row"><span class="rd-k">расстояние до 2</span><span class="rd-v" id="v2d">0.600</span></div>
+          <div class="rd-row"><span class="rd-k">отклонение от 4</span><span class="rd-v" id="v2e">2.760</span></div>
+        </div>
+        <div class="note-box" id="n2">Чем ближе x к 2, тем ближе x² к 4</div>
+        <div class="ctl">
+          <input type="range" id="s3r" min="-90" max="90" value="60">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-d="-60">слева</button>
+            <button data-d="-10">ближе</button>
+            <button data-d="10">ближе</button>
+            <button data-d="60">справа</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Запись</span>
+    <div class="st big"><b>lim</b><sub>x→2</sub> <b>x² = 4</b></div>
+    <div class="st" style="margin-top:8px;color:#565f78;">читается: предел функции x² при x, стремящемся к 2, равен 4</div>
+  </div>
+
+  <div class="callout blue">
+    <b>Здесь предел совпал со значением.</b> Действительно, <span class="fm">2² = 4</span>, и можно было просто подставить. Так бывает у «хороших» функций, и в этом случае предел не даёт ничего нового. Вся польза предела проявится в следующем разделе, где подставить будет <b>нельзя</b> — там в знаменателе окажется ноль.
+  </div>
+</section>
+
+<section id="s4">
+  <div class="sec-head"><div class="sec-num">4</div><h2>Секущая и касательная</h2></div>
+  <p class="lede">Это ядро всей темы. Если понять эту картинку, всё остальное — техника.</p>
+
+  <p>Возьмём точку A на графике и отступим от неё на Δx вправо — получим точку B. Через две точки проведём прямую (её называют <b>секущей</b>). Наклон этой прямой равен <span class="fm">Δf/Δx</span>. Теперь уменьшайте Δx ползунком.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c3" width="620" height="400"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">Δx</span><span class="rd-v a" id="v3dx">2.000</span></div>
+          <div class="rd-row"><span class="rd-k">Δf</span><span class="rd-v b" id="v3df">2.800</span></div>
+          <div class="rd-row"><span class="rd-k">Δf / Δx — наклон секущей</span><span class="rd-v c" id="v3k">1.400</span></div>
+          <div class="rd-row"><span class="rd-k">f′(2) — наклон касательной</span><span class="rd-v d">1.400</span></div>
+        </div>
+        <div class="note-box" id="n3">Уменьшайте Δx — секущая ложится на касательную</div>
+        <div class="ctl">
+          <span class="ctl-lbl">Δx</span>
+          <input type="range" id="s4r" min="2" max="250" value="200">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-dx="200">2,0</button>
+            <button data-dx="100">1,0</button>
+            <button data-dx="40">0,4</button>
+            <button data-dx="10">0,1</button>
+            <button data-dx="2">0,02</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Определение производной</span>
+    <div class="st">Δf = f(x + Δx) − f(x)</div>
+    <div class="st">наклон секущей = Δf / Δx</div>
+    <div class="st big"><b>f′(x) = lim<sub>Δx→0</sub> Δf/Δx = lim<sub>Δx→0</sub> [f(x+Δx) − f(x)] / Δx</b></div>
+    <div class="st" style="margin-top:8px;color:#565f78;">то же самое обозначают df/dx — «дэ эф по дэ икс»</div>
+  </div>
+
+  <div class="callout">
+    <b>Почему без предела никак.</b> Если просто подставить Δx = 0, получится <span class="fm">0/0</span> — выражение без смысла. Но пока Δx ≠ 0, дробь считается совершенно честно, и мы видим, что при уменьшении Δx она подходит к конкретному числу. Это число и называют производной.
+  </div>
+
+  <div class="callout blue">
+    <b>Геометрический смысл.</b> Предельное положение секущей — это <b>касательная</b> к графику в точке A. Значит производная равна тангенсу угла наклона касательной: <span class="fm">f′(x) = tg α = k</span>, где k — угловой коэффициент касательной.
+  </div>
+</section>
+
+<section id="s5">
+  <div class="sec-head"><div class="sec-num">5</div><h2>Под микроскопом</h2></div>
+  <p>Есть второй способ увидеть то же самое. Возьмём график и начнём приближать его в одной точке, как через микроскоп.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c4" width="600" height="360"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">увеличение</span><span class="rd-v a" id="v4z">×1</span></div>
+          <div class="rd-row"><span class="rd-k">ширина окна по x</span><span class="rd-v" id="v4w">6.000</span></div>
+          <div class="rd-row"><span class="rd-k">макс. отклонение от прямой</span><span class="rd-v b" id="v4e">1.575</span></div>
+        </div>
+        <div class="note-box" id="n4">Кривая заметно отличается от прямой</div>
+        <div class="ctl">
+          <span class="ctl-lbl">зум</span>
+          <input type="range" id="s5r" min="0" max="100" value="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Гладкая кривая вблизи точки неотличима от прямой.</b> Чем сильнее увеличение, тем точнее график совпадает с касательной. Производная — это как раз наклон той прямой, на которую график становится похож при бесконечном увеличении.
+  </div>
+  <p>Отсюда и запись через дифференциалы: на маленьком участке <span class="fm">Δx</span> и <span class="fm">Δf</span> превращаются в <span class="fm">dx</span> и <span class="fm">df</span>, а отношение <span class="fm">df/dx</span> — это наклон.</p>
+</section>
+
+<section id="s6">
+  <div class="sec-head"><div class="sec-num">6</div><h2>Когда производной не существует</h2></div>
+  <p class="lede">Самый быстрый способ понять, что такое производная — посмотреть на случай, когда её нет.</p>
+
+  <p>Возьмём функцию <span class="fm">f(x) = |x|</span> и точку <span class="fm">x = 0</span>. Подходим к ней секущей слева и справа одновременно.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c8" width="620" height="360"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">Δx</span><span class="rd-v" id="v8dx">1.000</span></div>
+          <div class="rd-row"><span class="rd-k">наклон слева</span><span class="rd-v a" id="v8l">−1.000</span></div>
+          <div class="rd-row"><span class="rd-k">наклон справа</span><span class="rd-v b" id="v8r">+1.000</span></div>
+          <div class="rd-row"><span class="rd-k">разница</span><span class="rd-v d" id="v8g">2.000</span></div>
+        </div>
+        <div class="note-box" id="n8">Слева и справа получаются разные числа</div>
+        <div class="ctl">
+          <span class="ctl-lbl">Δx</span>
+          <input type="range" id="s9r" min="1" max="200" value="100">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-k8="100">1,0</button>
+            <button data-k8="20">0,2</button>
+            <button data-k8="4">0,04</button>
+            <button data-k8="1">0,01</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Что происходит</span>
+    <div class="st">справа: Δf/Δx = Δx/Δx = <b>+1</b> при любом Δx</div>
+    <div class="st">слева: Δf/Δx = Δx/(−Δx) = <b>−1</b> при любом Δx</div>
+    <div class="st big">разные числа ⇒ предела нет ⇒ <b>производная не существует</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Уменьшать Δx бесполезно.</b> Обычно при уменьшении Δx секущая всё точнее ложится на одну прямую. Здесь же секущие слева и справа остаются двумя разными прямыми, сколько ни приближай. Предел существует, только если подход с обеих сторон даёт <b>одно и то же</b> число.
+  </div>
+
+  <div class="callout blue">
+    <b>Связь с микроскопом.</b> В прошлом разделе мы увидели: гладкая кривая под увеличением выпрямляется. Здесь излом под увеличением остаётся изломом — сколько ни приближай, точка <span class="fm">x = 0</span> так и выглядит уголком. Нет прямой, на которую график становится похож — нет и наклона, то есть нет производной.
+  </div>
+  <p>В физике это не экзотика: график скорости при резком ударе имеет излом, и в момент удара ускорение формально не определено.</p>
+</section>
+
+<section id="s7">
+  <div class="sec-head"><div class="sec-num">7</div><h2>Считаем по определению</h2></div>
+  <p>Три примера, которые стоит хоть раз пройти руками — дальше всё берётся из таблицы.</p>
+
+  <div class="derive">
+    <span class="d-lbl">1 · производная константы</span>
+    <div class="st">f(x) = C</div>
+    <div class="st">Δf = f(x+Δx) − f(x) = C − C = 0</div>
+    <div class="st big">f′(x) = lim<sub>Δx→0</sub> 0/Δx = <b>0</b></div>
+    <div class="st" style="color:#565f78;">график — горизонтальная прямая, наклон нулевой</div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">2 · производная x</span>
+    <div class="st">Δf = (x + Δx) − x = Δx</div>
+    <div class="st big">f′(x) = lim<sub>Δx→0</sub> Δx/Δx = <b>1</b></div>
+    <div class="st" style="color:#565f78;">прямая y = x идёт под 45°, tg 45° = 1</div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">3 · производная x² — здесь виден весь механизм</span>
+    <div class="st">Δf = (x + Δx)² − x² = x² + 2x·Δx + (Δx)² − x² = 2x·Δx + (Δx)²</div>
+    <div class="st">Δf/Δx = (2x·Δx + (Δx)²) / Δx = 2x + Δx</div>
+    <div class="st big">f′(x) = lim<sub>Δx→0</sub> (2x + Δx) = <b>2x</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Смотрите, что произошло.</b> До сокращения дробь имела вид «ноль на ноль» — и числитель, и знаменатель обращались в ноль при Δx = 0. После сокращения на Δx осталось выражение <span class="fm">2x + Δx</span>, в которое ноль подставить уже <b>можно</b>. Это и есть типичная работа с пределом: преобразовать так, чтобы неопределённость исчезла.
+  </div>
+</section>
+
+<section id="s8">
+  <div class="sec-head"><div class="sec-num">8</div><h2>Производная как функция</h2></div>
+  <p>В каждой точке своё значение производной — значит, производная сама является функцией. Ведите точку по верхнему графику и смотрите, как строится нижний.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c5" width="620" height="440"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">x</span><span class="rd-v" id="v5x">-1.60</span></div>
+          <div class="rd-row"><span class="rd-k">f(x)</span><span class="rd-v a" id="v5f">0.23</span></div>
+          <div class="rd-row"><span class="rd-k">f′(x) — наклон</span><span class="rd-v b" id="v5d">1.56</span></div>
+        </div>
+        <div class="note-box" id="n5">f′ &gt; 0 — функция растёт, касательная идёт вверх</div>
+        <div class="ctl">
+          <span class="ctl-lbl">x</span>
+          <input type="range" id="s6r" min="-210" max="210" value="-160">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-x="-100">максимум</button>
+            <button data-x="0">перегиб</button>
+            <button data-x="100">минимум</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Связь знака производной и поведения функции</span>
+    <div class="st"><b style="color:#5a7a4a">f′(x) &gt; 0</b> &nbsp;→&nbsp; функция возрастает</div>
+    <div class="st"><b style="color:#a6383f">f′(x) &lt; 0</b> &nbsp;→&nbsp; функция убывает</div>
+    <div class="st"><b style="color:#6b4a6f">f′(x) = 0</b> &nbsp;→&nbsp; касательная горизонтальна: максимум, минимум или перегиб</div>
+  </div>
+
+  <div class="callout">
+    <b>Отсюда весь поиск максимумов.</b> Чтобы найти наибольшее значение функции, ищут точки, где производная обращается в ноль. Это работает, потому что в вершине холма касательная горизонтальна — функция на мгновение перестаёт и расти, и убывать.
+  </div>
+</section>
+
+<section id="s9">
+  <div class="sec-head"><div class="sec-num">9</div><h2>Почему (sin x)′ = cos x</h2></div>
+  <p class="lede">В таблице ниже семнадцать строк. Их не нужно принимать на веру — вот как одна из них получается прямо из картинки.</p>
+
+  <p>Ведите точку по синусоиде и следите за наклоном касательной. Внизу этот наклон откладывается как значение.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c9" width="620" height="430"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">x</span><span class="rd-v" id="v9x">0.00</span></div>
+          <div class="rd-row"><span class="rd-k">sin x</span><span class="rd-v a" id="v9s">0.000</span></div>
+          <div class="rd-row"><span class="rd-k">наклон касательной</span><span class="rd-v b" id="v9k">1.000</span></div>
+          <div class="rd-row"><span class="rd-k">cos x</span><span class="rd-v d" id="v9c">1.000</span></div>
+        </div>
+        <div class="note-box" id="n9">Наклон и косинус совпадают в любой точке</div>
+        <div class="ctl">
+          <span class="ctl-lbl">x</span>
+          <input type="range" id="s10r" min="0" max="628" value="0">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-k9="0">0</button>
+            <button data-k9="157">π/2</button>
+            <button data-k9="314">π</button>
+            <button data-k9="471">3π/2</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Читаем по опорным точкам</span>
+    <div class="st">x = 0 &nbsp;— синус растёт круче всего, наклон = 1 &nbsp;→&nbsp; cos 0 = 1 ✓</div>
+    <div class="st">x = π/2 &nbsp;— вершина, касательная горизонтальна, наклон = 0 &nbsp;→&nbsp; cos π/2 = 0 ✓</div>
+    <div class="st">x = π &nbsp;— синус падает круче всего, наклон = −1 &nbsp;→&nbsp; cos π = −1 ✓</div>
+    <div class="st big">наклон синусоиды в каждой точке равен <b>cos x</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Здесь и пригодились малые углы.</b> Строгий вывод опирается на предел <span class="fm">lim<sub>h→0</sub> (sin h)/h = 1</span> — то самое приближение <span class="fm">sin h ≈ h</span>, которое мы разбирали в тригонометрии. Оказывается, оно было нужно не само по себе, а чтобы вообще суметь продифференцировать синус.
+  </div>
+</section>
+
+<section id="s10">
+  <div class="sec-head"><div class="sec-num">10</div><h2>Таблица и правила</h2></div>
+  <p>Считать каждый раз через предел никто не будет. Все базовые производные один раз посчитаны и сведены в таблицу.</p>
+
+  <div class="tcols">
+    <table class="t">
+      <tr><th></th><th>функция y</th><th>производная y′</th></tr>
+      <tr><td class="n">1</td><td>a &nbsp;(a ∈ ℝ)</td><td>0</td></tr>
+      <tr><td class="n">2</td><td>x<sup>a</sup></td><td>a·x<sup>a−1</sup></td></tr>
+      <tr><td class="n">3</td><td>e<sup>x</sup></td><td>e<sup>x</sup></td></tr>
+      <tr><td class="n">4</td><td>a<sup>x</sup> &nbsp;(a &gt; 0)</td><td>a<sup>x</sup>·ln a</td></tr>
+      <tr><td class="n">5</td><td>ln x</td><td>1/x</td></tr>
+      <tr><td class="n">6</td><td>log<sub>a</sub> x</td><td>1/(x·ln a)</td></tr>
+      <tr><td class="n">7</td><td>sin x</td><td>cos x</td></tr>
+      <tr><td class="n">8</td><td>cos x</td><td>−sin x</td></tr>
+      <tr><td class="n">9</td><td>tg x</td><td>1/cos²x</td></tr>
+    </table>
+    <table class="t">
+      <tr><th></th><th>функция y</th><th>производная y′</th></tr>
+      <tr><td class="n">10</td><td>ctg x</td><td>−1/sin²x</td></tr>
+      <tr><td class="n">11</td><td>arcsin x</td><td>1/√(1−x²)</td></tr>
+      <tr><td class="n">12</td><td>arccos x</td><td>−1/√(1−x²)</td></tr>
+      <tr><td class="n">13</td><td>arctg x</td><td>1/(1+x²)</td></tr>
+      <tr><td class="n">14</td><td>arcctg x</td><td>−1/(1+x²)</td></tr>
+      <tr><th colspan="3">важные частные случаи</th></tr>
+      <tr><td class="n">15</td><td>x</td><td>1</td></tr>
+      <tr><td class="n">16</td><td>1/x</td><td>−1/x²</td></tr>
+      <tr><td class="n">17</td><td>√x</td><td>1/(2√x)</td></tr>
+    </table>
+  </div>
+
+  <h3>Правила дифференцирования</h3>
+  <table class="t">
+    <tr><th>функция</th><th>производная</th></tr>
+    <tr><td>a·f(x) &nbsp;(a ∈ ℝ)</td><td>a·f′(x)</td></tr>
+    <tr><td>f(x) ± g(x)</td><td>f′(x) ± g′(x)</td></tr>
+    <tr><td>f(x)·g(x)</td><td>f′(x)·g(x) + f(x)·g′(x)</td></tr>
+    <tr><td>f(x) / g(x)</td><td>[ f′(x)·g(x) − f(x)·g′(x) ] / g²(x)</td></tr>
+    <tr><td>f(g(x))</td><td>f′(g(x)) · g′(x)</td></tr>
+  </table>
+
+  <div class="derive">
+    <span class="d-lbl">Разбор примеров</span>
+    <div class="st">(5x²)′ = 5·(x²)′ = 5·2x = <b>10x</b></div>
+    <div class="st">(x¹⁰⁰ + cos x)′ = 100x⁹⁹ − sin x</div>
+    <div class="st">(x¹⁰⁰·cos x)′ = 100x⁹⁹·cos x + x¹⁰⁰·(−sin x)</div>
+    <div class="st">(x¹⁰⁰ / cos x)′ = [100x⁹⁹·cos x − x¹⁰⁰·(−sin x)] / cos²x</div>
+    <div class="st">(cos(x¹⁰⁰))′ = −sin(x¹⁰⁰) · 100x⁹⁹ &nbsp; <span style="color:#565f78">— сложная функция</span></div>
+  </div>
+
+  <h3>Откуда берётся правило произведения</h3>
+  <p>Формула <span class="fm">(fg)′ = f′g + fg′</span> выглядит странно, пока не увидишь картинку. Пусть f и g — стороны прямоугольника, тогда их произведение это его площадь. Увеличим обе стороны и посмотрим, из чего складывается прирост площади.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c10" width="600" height="340"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">полоса g·Δf</span><span class="rd-v a" id="v10a">—</span></div>
+          <div class="rd-row"><span class="rd-k">полоса f·Δg</span><span class="rd-v b" id="v10b">—</span></div>
+          <div class="rd-row"><span class="rd-k">уголок Δf·Δg</span><span class="rd-v d" id="v10c">—</span></div>
+          <div class="rd-row"><span class="rd-k">доля уголка в приросте</span><span class="rd-v" id="v10p">—</span></div>
+        </div>
+        <div class="note-box" id="n10">Уменьшайте приращения и следите за уголком</div>
+        <div class="ctl">
+          <span class="ctl-lbl">приращение</span>
+          <input type="range" id="s11r" min="3" max="60" value="45">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Вывод по картинке</span>
+    <div class="st">Δ(fg) = g·Δf + f·Δg + Δf·Δg</div>
+    <div class="st">делим на Δx: &nbsp; Δ(fg)/Δx = g·(Δf/Δx) + f·(Δg/Δx) + Δf·(Δg/Δx)</div>
+    <div class="st">последнее слагаемое содержит множитель Δf, который сам стремится к нулю</div>
+    <div class="st big">⇒ <b>(fg)′ = f′·g + f·g′</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Уголок — вот вся суть.</b> Два прямоугольных «ломтя» дают знакомые слагаемые, а маленький квадратик в углу пропадает: он второго порядка малости, то есть убывает быстрее остальных. Именно поэтому в формуле два слагаемых, а не три.
+  </div>
+
+  <div class="callout">
+    <b>Как узнать сложную функцию.</b> Если под знаком функции стоит не просто x, а целое выражение — это композиция, и нужно правило цепочки: производная внешней функции, вычисленная от внутренней, умножить на производную внутренней. В <span class="fm">cos(x¹⁰⁰)</span> внешняя — косинус, внутренняя — <span class="fm">x¹⁰⁰</span>.
+  </div>
+</section>
+
+<section id="s11">
+  <div class="sec-head"><div class="sec-num">11</div><h2>Линейное приближение</h2></div>
+  <p class="lede">Самое практичное следствие всего урока: производная позволяет считать в уме то, что иначе требует калькулятора.</p>
+
+  <p>Из раздела про микроскоп мы знаем: вблизи точки график почти совпадает с касательной. Значит, вместо сложной функции можно подставить простую прямую.</p>
+
+  <div class="derive">
+    <span class="d-lbl">Формула</span>
+    <div class="st big">f(x₀ + h) ≈ f(x₀) + f′(x₀)·h</div>
+    <div class="st" style="margin-top:7px;color:#565f78;">чем меньше h, тем точнее</div>
+  </div>
+
+  <p>Возьмём <span class="fm">f(x) = √x</span> и точку <span class="fm">x₀ = 4</span>, где всё известно точно: <span class="fm">√4 = 2</span>, <span class="fm">f′(4) = 1/(2√4) = 0,25</span>. Отходите от четвёрки и смотрите, как расходятся кривая и касательная.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c11" width="620" height="360"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">x</span><span class="rd-v" id="v11x">4.10</span></div>
+          <div class="rd-row"><span class="rd-k">точное √x</span><span class="rd-v a" id="v11t">2.0248</span></div>
+          <div class="rd-row"><span class="rd-k">по касательной</span><span class="rd-v b" id="v11a">2.0250</span></div>
+          <div class="rd-row"><span class="rd-k">ошибка</span><span class="rd-v d" id="v11e">0.0002</span></div>
+        </div>
+        <div class="note-box" id="n11">Совпадение до четвёртого знака</div>
+        <div class="ctl">
+          <span class="ctl-lbl">x</span>
+          <input type="range" id="s12r" min="405" max="1100" value="410">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-k11="410">4,1</button>
+            <button data-k11="450">4,5</button>
+            <button data-k11="600">6</button>
+            <button data-k11="900">9</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Считаем √4,1 в уме</span>
+    <div class="st">√4,1 = √(4 + 0,1) ≈ √4 + 0,25 · 0,1</div>
+    <div class="st">≈ 2 + 0,025 = <b>2,025</b></div>
+    <div class="st" style="margin-top:7px;color:#565f78;">точное значение 2,02485… — ошибка меньше сотой доли процента</div>
+  </div>
+
+  <div class="callout blue">
+    <b>Вот откуда все физические приближения.</b> Формулы вида <span class="fm">sin α ≈ α</span>, <span class="fm">cos α ≈ 1</span>, <span class="fm">(1+x)ⁿ ≈ 1 + nx</span> — это одна и та же линеаризация в разных обёртках. Физика постоянно заменяет функцию касательной, потому что с прямой можно решить уравнение, а с кривой обычно нельзя. Именно так из уравнения маятника получается формула периода.
+  </div>
+</section>
+
+<section id="s12">
+  <div class="sec-head"><div class="sec-num">12</div><h2>Производная в физике</h2></div>
+  <p class="lede">Ровно тот вопрос, с которого мы начали: мгновенная скорость.</p>
+
+  <div class="derive">
+    <span class="d-lbl">Определения</span>
+    <div class="st">скорость — производная координаты по времени</div>
+    <div class="st big">v<sub>x</sub> = lim<sub>Δt→0</sub> Δx/Δt = dx/dt = ẋ</div>
+    <div class="st" style="margin-top:10px;">ускорение — производная скорости по времени</div>
+    <div class="st big">a<sub>x</sub> = dv<sub>x</sub>/dt = v̇<sub>x</sub> = ẍ</div>
+    <div class="st" style="margin-top:8px;color:#565f78;">точка над буквой — принятое в физике обозначение производной по времени</div>
+  </div>
+
+  <p>Разберём движение <span class="fm">x(t) = 1 + 12t − 3t²</span>. Ведите ползунок времени и следите за всеми тремя графиками сразу.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c6" width="620" height="450"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">t</span><span class="rd-v" id="v6t">0.00</span></div>
+          <div class="rd-row"><span class="rd-k">x = 1 + 12t − 3t²</span><span class="rd-v a" id="v6x">1.00</span></div>
+          <div class="rd-row"><span class="rd-k">v = ẋ = 12 − 6t</span><span class="rd-v b" id="v6v">12.00</span></div>
+          <div class="rd-row"><span class="rd-k">a = v̇ = −6</span><span class="rd-v c">−6.00</span></div>
+        </div>
+        <div class="note-box" id="n6">v &gt; 0 — тело движется вперёд, координата растёт</div>
+        <div class="ctl">
+          <span class="ctl-lbl">t</span>
+          <input type="range" id="s7r" min="0" max="400" value="0">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:4px;">
+          <div class="grp">
+            <button data-t="0">старт</button>
+            <button data-t="200">разворот</button>
+            <button data-t="400">конец</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Ускорение — это производная от производной.</b> Его называют второй производной и пишут <span class="fm">ẍ</span> или <span class="fm">d²x/dt²</span>. У неё есть и геометрический смысл: знак второй производной показывает, куда выгнут график. Здесь <span class="fm">ẍ = −6 &lt; 0</span> — и график координаты выгнут вниз, как купол. Будь ускорение положительным, график смотрел бы чашей вверх.
+  </div>
+
+  <div class="callout blue">
+    <b>Момент разворота виден сразу.</b> При <span class="fm">t = 2</span> скорость обращается в ноль, и координата достигает максимума. Это тот же самый факт, что и в разделе 7: в точке максимума производная равна нулю. Ускорение при этом остаётся равным −6 и никуда не девается — именно оно и разворачивает тело.
+  </div>
+</section>
+
+<section id="s13">
+  <div class="sec-head"><div class="sec-num">13</div><h2>Зачем это нужно: задача на максимум</h2></div>
+  <p>Классическая задача. Из проволоки длиной 40 см делают прямоугольник. При каких сторонах его площадь наибольшая?</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c7" width="620" height="330"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">сторона x</span><span class="rd-v a" id="v7x">4.0</span></div>
+          <div class="rd-row"><span class="rd-k">сторона 20 − x</span><span class="rd-v b" id="v7y">16.0</span></div>
+          <div class="rd-row"><span class="rd-k">площадь S</span><span class="rd-v c" id="v7s">64.0</span></div>
+          <div class="rd-row"><span class="rd-k">S′ = 20 − 2x</span><span class="rd-v d" id="v7d">12.0</span></div>
+        </div>
+        <div class="note-box" id="n7">S′ &gt; 0 — площадь ещё растёт</div>
+        <div class="ctl">
+          <span class="ctl-lbl">x</span>
+          <input type="range" id="s8r" min="10" max="190" value="40">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Решение</span>
+    <div class="st">периметр: P = 2x + 2(20 − x) = 40 ✓ &nbsp;<span style="color:#565f78">полупериметр равен 20</span></div>
+    <div class="st">площадь: S(x) = x·(20 − x) = 20x − x²</div>
+    <div class="st">ищем максимум: S′(x) = 20 − 2x</div>
+    <div class="st">приравниваем нулю: 20 − 2x = 0</div>
+    <div class="st big"><b>x = 10</b> &nbsp;→&nbsp; квадрат 10 × 10, площадь 100 см²</div>
+  </div>
+
+  <div class="callout">
+    <b>Вот ради чего всё было.</b> Мы не перебирали варианты и не гадали — мы записали площадь как функцию, взяли производную и решили уравнение. Производная превратила задачу «на сообразительность» в задачу «на технику».
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var INK='#2b3247',SOFT='#8a8f9e',GRID='#e2d9c4',PAPER='#fffdf7',
+      cA='#2b5f7a',cB='#a6383f',cC='#5a7a4a',cD='#6b4a6f',cE='#8a4a15';
+
+  function arrow(ctx,x1,y1,x2,y2,color,w){
+    var dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy); if(L<1)return;
+    var ux=dx/L,uy=dy/L,h=Math.min(10,L*0.4);
+    ctx.strokeStyle=color;ctx.lineWidth=w||1.6;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*h*0.6,y2-uy*h*0.6);ctx.stroke();
+    ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ux*h-uy*h*0.4,y2-uy*h+ux*h*0.4);
+    ctx.lineTo(x2-ux*h+uy*h*0.4,y2-uy*h-ux*h*0.4);
+    ctx.closePath();ctx.fill();
+  }
+  function dash(ctx,x1,y1,x2,y2,color,w){
+    ctx.strokeStyle=color;ctx.lineWidth=w||1.1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+  }
+  function lab(ctx,t,x,y,color,size,align){
+    ctx.font=(size||12.5)+'px IBM Plex Mono, monospace';ctx.fillStyle=color;
+    ctx.textAlign=align||'left';ctx.fillText(t,x,y);ctx.textAlign='left';
+  }
+  function clipRect(ctx,x,y,w,h,fn){
+    ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();fn();ctx.restore();
+  }
+
+  /* ===== 1. последовательность 1/n ===== */
+  (function(){
+    var cv=document.getElementById('c1');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=900,H=230;
+    var x0=80,x1=830,ay=140;
+    var sl=document.getElementById('s1r');
+    function px(v){return x0+v*(x1-x0);}
+    function draw(){
+      var N=Number(sl.value);
+      ctx.clearRect(0,0,W,H);
+      arrow(ctx,x0-40,ay,x1+45,ay,INK,1.7);
+      lab(ctx,'0',x0-4,ay+26,INK,13);
+      ctx.strokeStyle=INK;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.moveTo(x0,ay-7);ctx.lineTo(x0,ay+7);ctx.stroke();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(x0,ay,5,0,7);ctx.fill();
+      ctx.strokeStyle=INK;ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(x0,ay,5,0,7);ctx.stroke();
+      for(var n=N;n>=1;n--){
+        var X=px(1/n), r=(n===N)?7:4.5;
+        var alpha=(n===N)?1:0.42;
+        ctx.globalAlpha=alpha;
+        ctx.fillStyle=(n===N)?cB:'#d99a9e';
+        ctx.beginPath();ctx.arc(X,ay,r,0,7);ctx.fill();
+        ctx.globalAlpha=1;
+        if(n<=4||n===N){
+          ctx.strokeStyle=SOFT;ctx.lineWidth=1;
+          ctx.beginPath();ctx.moveTo(X,ay+7);ctx.lineTo(X,ay+15);ctx.stroke();
+          lab(ctx,(n===1?'1':'1/'+n),X,ay+32,(n===N)?cB:SOFT,12,'center');
+        }
+      }
+      var Xn=px(1/N);
+      dash(ctx,Xn,ay-14,Xn,60,cB,1.2);
+      lab(ctx,'n = '+N,Xn,52,cB,13,'center');
+      lab(ctx,'сколько ни увеличивай n — точка не дойдёт до нуля',x0-40,196,SOFT,12.5);
+      document.getElementById('v1n').textContent=N;
+      document.getElementById('v1v').textContent=(1/N).toFixed(4);
+      document.getElementById('n1').textContent =
+        N<5 ? 'Точки идут крупными шагами' :
+        N<20 ? 'Шаги мельчают, точки жмутся к нулю' :
+        'Расстояние до нуля уже меньше '+(1/N).toFixed(3)+', но оно не ноль';
+    }
+    sl.addEventListener('input',draw);draw();
+  })();
+
+  /* ===== 2. предел функции x^2 при x->2 ===== */
+  (function(){
+    var cv=document.getElementById('c2');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=600,H=380;
+    var ox=80,oy=330,sx=145,sy=27;
+    var sl=document.getElementById('s3r');
+    function PX(x){return ox+x*sx;}
+    function PY(y){return oy-y*sy;}
+    function draw(){
+      var d=Number(sl.value)/100;
+      var x=2+d, y=x*x;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=3;g++){ctx.beginPath();ctx.moveTo(PX(g),40);ctx.lineTo(PX(g),oy+16);ctx.stroke();}
+      for(var v=0;v<=10;v+=2){ctx.beginPath();ctx.moveTo(ox-16,PY(v));ctx.lineTo(W-30,PY(v));ctx.stroke();}
+      arrow(ctx,ox-16,oy,W-28,oy,INK,1.5);
+      arrow(ctx,ox,oy+16,ox,38,INK,1.5);
+      lab(ctx,'x',W-24,oy-8,INK,13);lab(ctx,'y',ox+9,46,INK,13);
+
+      clipRect(ctx,ox-18,34,W-ox-8,oy-34+18,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.4;ctx.beginPath();
+        for(var t=0;t<=3.05;t+=0.02){
+          var X=PX(t),Y=PY(t*t);
+          t===0?ctx.moveTo(X,Y):ctx.lineTo(X,Y);
+        }
+        ctx.stroke();
+      });
+
+      dash(ctx,PX(2),oy,PX(2),PY(4),SOFT,1.2);
+      dash(ctx,ox,PY(4),PX(2),PY(4),SOFT,1.2);
+      ctx.fillStyle=PAPER;ctx.strokeStyle=SOFT;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.arc(PX(2),PY(4),5.5,0,7);ctx.fill();ctx.stroke();
+      lab(ctx,'2',PX(2),oy+19,SOFT,12.5,'center');
+      lab(ctx,'4',ox-10,PY(4)+4,SOFT,12.5,'right');
+
+      dash(ctx,PX(x),oy,PX(x),PY(y),cA,1.3);
+      dash(ctx,ox,PY(y),PX(x),PY(y),cB,1.3);
+      ctx.fillStyle=cA;ctx.beginPath();ctx.arc(PX(x),PY(y),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x),PY(y),2.5,0,7);ctx.fill();
+
+      document.getElementById('v2x').textContent=x.toFixed(3);
+      document.getElementById('v2y').textContent=y.toFixed(3);
+      document.getElementById('v2d').textContent=Math.abs(d).toFixed(3);
+      document.getElementById('v2e').textContent=Math.abs(y-4).toFixed(3);
+      document.getElementById('n2').textContent =
+        Math.abs(d)<0.06 ? 'x почти равен 2, а x² почти равен 4' :
+        (d<0?'Подходим к двойке слева':'Подходим к двойке справа');
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-d]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.d;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 3. секущая -> касательная ===== */
+  (function(){
+    var cv=document.getElementById('c3');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=400;
+    var ox=70,oy=345,sx=92,sy=31;
+    var x0=2, f=function(x){return 0.35*x*x;}, df=function(x){return 0.7*x;};
+    var sl=document.getElementById('s4r');
+    function PX(x){return ox+x*sx;}
+    function PY(y){return oy-y*sy;}
+    function draw(){
+      var dx=Number(sl.value)/100;
+      var xa=x0, ya=f(xa), xb=x0+dx, yb=f(xb);
+      var k=(yb-ya)/dx;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=5;g++){ctx.beginPath();ctx.moveTo(PX(g),30);ctx.lineTo(PX(g),oy+16);ctx.stroke();}
+      for(var v=0;v<=9;v+=1.5){ctx.beginPath();ctx.moveTo(ox-16,PY(v));ctx.lineTo(W-26,PY(v));ctx.stroke();}
+      arrow(ctx,ox-16,oy,W-24,oy,INK,1.5);
+      arrow(ctx,ox,oy+16,ox,28,INK,1.5);
+      lab(ctx,'x',W-20,oy-8,INK,13);lab(ctx,'f',ox+9,36,INK,13);
+
+      var CL={x:ox-18,y:24,w:W-ox-6,h:oy-24+18};
+      clipRect(ctx,CL.x,CL.y,CL.w,CL.h,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.4;ctx.beginPath();
+        for(var t=0;t<=5.2;t+=0.02){var X=PX(t),Y=PY(f(t));t===0?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+        // касательная
+        var kt=df(x0);
+        ctx.strokeStyle=cD;ctx.lineWidth=1.6;ctx.setLineDash([6,4]);
+        ctx.beginPath();
+        ctx.moveTo(PX(-1),PY(ya+kt*(-1-x0)));
+        ctx.lineTo(PX(5.4),PY(ya+kt*(5.4-x0)));
+        ctx.stroke();ctx.setLineDash([]);
+        // секущая
+        ctx.strokeStyle=cC;ctx.lineWidth=2.6;
+        ctx.beginPath();
+        ctx.moveTo(PX(-1),PY(ya+k*(-1-x0)));
+        ctx.lineTo(PX(5.4),PY(ya+k*(5.4-x0)));
+        ctx.stroke();
+      });
+
+      // треугольник приращений
+      ctx.strokeStyle=cA;ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(PX(xa),PY(ya));ctx.lineTo(PX(xb),PY(ya));ctx.stroke();
+      ctx.strokeStyle=cB;ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(PX(xb),PY(ya));ctx.lineTo(PX(xb),PY(yb));ctx.stroke();
+      if(dx>0.28){
+        lab(ctx,'Δx',(PX(xa)+PX(xb))/2,PY(ya)+18,cA,12.5,'center');
+        lab(ctx,'Δf',PX(xb)+8,(PY(ya)+PY(yb))/2+4,cB,12.5);
+      }
+
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(PX(xa),PY(ya),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(xa),PY(ya),2.5,0,7);ctx.fill();
+      lab(ctx,'A',PX(xa)-16,PY(ya)+5,INK,13);
+      ctx.fillStyle=cC;ctx.beginPath();ctx.arc(PX(xb),PY(yb),5.5,0,7);ctx.fill();
+      if(dx>0.2) lab(ctx,'B',PX(xb)+9,PY(yb)-7,cC,13);
+
+      ctx.strokeStyle=cC;ctx.lineWidth=2.6;
+      ctx.beginPath();ctx.moveTo(96,52);ctx.lineTo(126,52);ctx.stroke();
+      lab(ctx,'секущая — наклон Δf/Δx',132,56,cC,12.5);
+      ctx.strokeStyle=cD;ctx.lineWidth=1.8;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(96,74);ctx.lineTo(126,74);ctx.stroke();ctx.setLineDash([]);
+      lab(ctx,'касательная — наклон f′(x)',132,78,cD,12.5);
+
+      document.getElementById('v3dx').textContent=dx.toFixed(3);
+      document.getElementById('v3df').textContent=(yb-ya).toFixed(3);
+      document.getElementById('v3k').textContent=k.toFixed(3);
+      document.getElementById('n3').textContent =
+        dx>1.2 ? 'Секущая заметно круче касательной' :
+        dx>0.35 ? 'Секущая приближается к касательной' :
+        'Секущая почти слилась с касательной: '+k.toFixed(3)+' против 1,400';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-dx]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.dx;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 4. микроскоп ===== */
+  (function(){
+    var cv=document.getElementById('c4');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=600,H=360;
+    var cx=W/2, cy=H/2;
+    var x0=1.2, f=function(x){return 0.35*x*x;}, df=function(x){return 0.7*x;};
+    var sl=document.getElementById('s5r');
+    function draw(){
+      var p=Number(sl.value)/100;
+      var zoom=Math.pow(60,p);
+      var half=3/zoom;
+      var sx=(W-120)/(2*half);
+      var sy=sx;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var i=-3;i<=3;i++){
+        ctx.beginPath();ctx.moveTo(cx+i*(W-120)/6,24);ctx.lineTo(cx+i*(W-120)/6,H-24);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(40,cy+i*(H-80)/6);ctx.lineTo(W-40,cy+i*(H-80)/6);ctx.stroke();
+      }
+      var y0=f(x0), k=df(x0);
+      function PX(x){return cx+(x-x0)*sx;}
+      function PY(y){return cy-(y-y0)*sy;}
+      var maxdev=0;
+      clipRect(ctx,36,20,W-72,H-40,function(){
+        ctx.strokeStyle=cD;ctx.lineWidth=1.8;ctx.setLineDash([6,4]);
+        ctx.beginPath();
+        ctx.moveTo(PX(x0-half*1.3),PY(y0+k*(-half*1.3)));
+        ctx.lineTo(PX(x0+half*1.3),PY(y0+k*(half*1.3)));
+        ctx.stroke();ctx.setLineDash([]);
+        ctx.strokeStyle=cB;ctx.lineWidth=2.6;ctx.beginPath();
+        var started=false;
+        for(var t=x0-half*1.3;t<=x0+half*1.3;t+=half/120){
+          var X=PX(t),Y=PY(f(t));
+          started?ctx.lineTo(X,Y):(ctx.moveTo(X,Y),started=true);
+          var dev=Math.abs(f(t)-(y0+k*(t-x0)));
+          if(Math.abs(t-x0)<=half && dev>maxdev) maxdev=dev;
+        }
+        ctx.stroke();
+      });
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(cx,cy,6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(cx,cy,2.5,0,7);ctx.fill();
+
+      ctx.strokeStyle=SOFT;ctx.lineWidth=1.2;ctx.setLineDash([3,3]);
+      ctx.strokeRect(36,20,W-72,H-40);ctx.setLineDash([]);
+      lab(ctx,'красная — график,  фиолетовая пунктирная — касательная',44,H-6,SOFT,12);
+
+      document.getElementById('v4z').textContent='×'+(zoom<10?zoom.toFixed(1):Math.round(zoom));
+      document.getElementById('v4w').textContent=(2*half).toFixed(3);
+      document.getElementById('v4e').textContent=maxdev.toFixed(4);
+      document.getElementById('n4').textContent =
+        p<0.2 ? 'Кривая заметно отличается от прямой' :
+        p<0.6 ? 'Отличие уже небольшое' :
+        'График и касательная практически неразличимы';
+    }
+    sl.addEventListener('input',draw);draw();
+  })();
+
+  /* ===== 5. производная как функция ===== */
+  (function(){
+    var cv=document.getElementById('c5');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=440;
+    var ox=310,sx=104;
+    var topY=125, botY=345, syF=52, syD=40;
+    var f=function(x){return x*x*x/3-x;}, d=function(x){return x*x-1;};
+    var sl=document.getElementById('s6r');
+    function PX(x){return ox+x*sx;}
+    function PYf(y){return topY-y*syF;}
+    function PYd(y){return botY-y*syD;}
+    function draw(){
+      var x=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=-2;g<=2;g++){
+        ctx.beginPath();ctx.moveTo(PX(g),18);ctx.lineTo(PX(g),H-18);ctx.stroke();
+      }
+      // верхняя панель
+      arrow(ctx,ox-232,topY,ox+238,topY,INK,1.4);
+      lab(ctx,'x',ox+242,topY-7,INK,12.5);
+      lab(ctx,'f(x) = x³/3 − x',36,34,cA,13);
+      clipRect(ctx,30,18,W-40,200,function(){
+        ctx.strokeStyle=cA;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var t=-2.2;t<=2.2;t+=0.02){var X=PX(t),Y=PYf(f(t));t===-2.2?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+        var k=d(x),y=f(x);
+        ctx.strokeStyle=cD;ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(PX(x-0.85),PYf(y+k*(-0.85)));
+        ctx.lineTo(PX(x+0.85),PYf(y+k*(0.85)));
+        ctx.stroke();
+      });
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(PX(x),PYf(f(x)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x),PYf(f(x)),2.5,0,7);ctx.fill();
+
+      // разделитель
+      dash(ctx,30,238,W-30,238,'#d8cdb6',1.2);
+
+      // нижняя панель
+      arrow(ctx,ox-232,botY,ox+238,botY,INK,1.4);
+      lab(ctx,'x',ox+242,botY-7,INK,12.5);
+      lab(ctx,"f′(x) = x² − 1",36,256,cB,13);
+      clipRect(ctx,30,250,W-40,H-256,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var t=-2.2;t<=2.2;t+=0.02){var X=PX(t),Y=PYd(d(t));t===-2.2?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+      ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PX(x),PYd(d(x)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x),PYd(d(x)),2.5,0,7);ctx.fill();
+      dash(ctx,PX(x),PYf(f(x)),PX(x),PYd(d(x)),SOFT,1.2);
+      ctx.strokeStyle=cC;ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(PX(x),botY);ctx.lineTo(PX(x),PYd(d(x)));ctx.stroke();
+
+      var dv=d(x);
+      document.getElementById('v5x').textContent=x.toFixed(2);
+      document.getElementById('v5f').textContent=f(x).toFixed(2);
+      document.getElementById('v5d').textContent=dv.toFixed(2);
+      document.getElementById('n5').textContent =
+        Math.abs(dv)<0.06 ? 'f′ = 0 — касательная горизонтальна, это экстремум' :
+        dv>0 ? 'f′ > 0 — функция растёт, касательная идёт вверх'
+             : 'f′ < 0 — функция убывает, касательная идёт вниз';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-x]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.x;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 6. физика ===== */
+  (function(){
+    var cv=document.getElementById('c6');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=450;
+    var sl=document.getElementById('s7r');
+    var X=function(t){return 1+12*t-3*t*t;}, V=function(t){return 12-6*t;};
+    var t0=70,t1=560, PPT=(t1-t0)/4;
+    function PT(t){return t0+(t/4)*(t1-t0);}
+    var trY=52;
+    function PXtrack(x){return t0+(x/14)*(t1-t0);}
+    var gxY=270, sxv=9.4;      // уровень x=0
+    var gvY=382, svv=5.6;      // уровень v=0
+    function PYx(v){return gxY-v*sxv;}
+    function PYv(v){return gvY-v*svv;}
+    function draw(){
+      var t=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+
+      // ---- трасса
+      lab(ctx,'положение тела на прямой',t0,24,SOFT,12.5);
+      ctx.strokeStyle=INK;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.moveTo(t0,trY);ctx.lineTo(t1,trY);ctx.stroke();
+      for(var m=0;m<=14;m+=2){
+        ctx.strokeStyle=SOFT;ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(PXtrack(m),trY-5);ctx.lineTo(PXtrack(m),trY+5);ctx.stroke();
+        lab(ctx,''+m,PXtrack(m),trY+19,SOFT,11,'center');
+      }
+      ctx.fillStyle=cA;ctx.beginPath();ctx.arc(PXtrack(X(t)),trY,8,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PXtrack(X(t)),trY,3.5,0,7);ctx.fill();
+      var vv=V(t);
+      if(Math.abs(vv)>0.25){
+        var dir=vv>0?1:-1, Lv=Math.min(58,Math.abs(vv)*4.2);
+        var bx0=PXtrack(X(t));
+        arrow(ctx,bx0,95,bx0+dir*Lv,95,cB,2.2);
+        lab(ctx,'v',bx0+dir*(Lv/2),87,cB,12,'center');
+      }
+
+      // ---- график x(t)
+      lab(ctx,'x(t) = 1 + 12t − 3t²',t0,132,cA,13);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=4;g++){ctx.beginPath();ctx.moveTo(PT(g),140);ctx.lineTo(PT(g),280);ctx.stroke();}
+      arrow(ctx,t0-14,gxY,t1+18,gxY,INK,1.4);
+      lab(ctx,'t',t1+22,gxY-8,INK,12.5);
+      clipRect(ctx,t0-16,128,W-t0,162,function(){
+        ctx.strokeStyle=cA;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var s1=0;s1<=4.01;s1+=0.02){var Xp=PT(s1),Yp=PYx(X(s1));s1===0?ctx.moveTo(Xp,Yp):ctx.lineTo(Xp,Yp);}
+        ctx.stroke();
+        var kpx=V(t)*sxv/PPT;   // наклон в пикселях: и есть скорость
+        ctx.strokeStyle=cD;ctx.lineWidth=1.9;
+        ctx.beginPath();
+        ctx.moveTo(PT(t)-72,PYx(X(t))+kpx*72);
+        ctx.lineTo(PT(t)+72,PYx(X(t))-kpx*72);
+        ctx.stroke();
+      });
+      ctx.fillStyle=cA;ctx.beginPath();ctx.arc(PT(t),PYx(X(t)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PT(t),PYx(X(t)),2.5,0,7);ctx.fill();
+
+      // ---- график v(t)
+      lab(ctx,'v(t) = 12 − 6t   — это наклон верхнего графика',t0,302,cB,13);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g2=0;g2<=4;g2++){ctx.beginPath();ctx.moveTo(PT(g2),310);ctx.lineTo(PT(g2),448);ctx.stroke();}
+      arrow(ctx,t0-14,gvY,t1+18,gvY,INK,1.4);
+      lab(ctx,'t',t1+22,gvY-8,INK,12.5);
+      clipRect(ctx,t0-16,306,W-t0,144,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var s2=0;s2<=4.01;s2+=0.02){var Xv=PT(s2),Yv=PYv(V(s2));s2===0?ctx.moveTo(Xv,Yv):ctx.lineTo(Xv,Yv);}
+        ctx.stroke();
+      });
+      ctx.strokeStyle=cC;ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.moveTo(PT(t),gvY);ctx.lineTo(PT(t),PYv(V(t)));ctx.stroke();
+      ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PT(t),PYv(V(t)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PT(t),PYv(V(t)),2.5,0,7);ctx.fill();
+      dash(ctx,PT(2),312,PT(2),446,SOFT,1.1);
+      lab(ctx,'t = 2',PT(2)+7,374,SOFT,12);
+
+      document.getElementById('v6t').textContent=t.toFixed(2);
+      document.getElementById('v6x').textContent=X(t).toFixed(2);
+      document.getElementById('v6v').textContent=V(t).toFixed(2);
+      document.getElementById('n6').textContent =
+        Math.abs(V(t))<0.35 ? 'v = 0 — тело останавливается, координата максимальна' :
+        V(t)>0 ? 'v > 0 — тело движется вперёд, координата растёт'
+               : 'v < 0 — тело поехало назад, координата убывает';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-t]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.t;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 7. максимум площади ===== */
+  (function(){
+    var cv=document.getElementById('c7');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=330;
+    var sl=document.getElementById('s8r');
+    var bx=60,by=270,unit=9.5;
+    var gx0=300,gx1=590,gy0=60,gy1=270;
+    function GX(x){return gx0+(x/20)*(gx1-gx0);}
+    function GY(s){return gy1-(s/100)*(gy1-gy0);}
+    function draw(){
+      var x=Number(sl.value)/10;
+      var y=20-x, S=x*y, d=20-2*x;
+      ctx.clearRect(0,0,W,H);
+
+      // прямоугольник
+      lab(ctx,'прямоугольник с полупериметром 20',bx-6,32,SOFT,12.5);
+      ctx.fillStyle='rgba(90,122,74,0.20)';
+      ctx.fillRect(bx,by-y*unit,x*unit,y*unit);
+      ctx.strokeStyle=INK;ctx.lineWidth=1.8;
+      ctx.strokeRect(bx,by-y*unit,x*unit,y*unit);
+      lab(ctx,'x = '+x.toFixed(1),bx+x*unit/2,by+20,cA,12.5,'center');
+      lab(ctx,(20-x).toFixed(1),bx-10,by-y*unit/2+4,cB,12.5,'right');
+
+      // график S(x)
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=20;g+=5){ctx.beginPath();ctx.moveTo(GX(g),gy0-10);ctx.lineTo(GX(g),gy1+14);ctx.stroke();}
+      arrow(ctx,gx0-16,gy1,gx1+18,gy1,INK,1.4);
+      arrow(ctx,gx0,gy1+14,gx0,gy0-16,INK,1.4);
+      lab(ctx,'x',gx1+22,gy1-8,INK,12.5);
+      lab(ctx,'S(x) = 20x − x²',gx0+8,42,cC,13);
+      clipRect(ctx,gx0-18,gy0-22,W-gx0+10,gy1-gy0+40,function(){
+        ctx.strokeStyle=cC;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var t=0;t<=20.05;t+=0.1){var X=GX(t),Y=GY(20*t-t*t);t===0?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+      dash(ctx,GX(10),gy1,GX(10),GY(100),SOFT,1.2);
+      lab(ctx,'10',GX(10),gy1+18,SOFT,12,'center');
+      lab(ctx,'100',gx0-8,GY(100)+4,SOFT,12,'right');
+
+      ctx.fillStyle=cC;ctx.beginPath();ctx.arc(GX(x),GY(S),6.5,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(GX(x),GY(S),2.8,0,7);ctx.fill();
+      // касательная к S(x)
+      var kt=(d/100)*(gy1-gy0)/((gx1-gx0)/20);
+      ctx.strokeStyle=cD;ctx.lineWidth=1.9;
+      ctx.beginPath();
+      ctx.moveTo(GX(x)-58,GY(S)+kt*58);
+      ctx.lineTo(GX(x)+58,GY(S)-kt*58);
+      ctx.stroke();
+
+      document.getElementById('v7x').textContent=x.toFixed(1);
+      document.getElementById('v7y').textContent=y.toFixed(1);
+      document.getElementById('v7s').textContent=S.toFixed(1);
+      document.getElementById('v7d').textContent=d.toFixed(1);
+      document.getElementById('n7').textContent =
+        Math.abs(d)<0.35 ? "S′ = 0 — касательная горизонтальна, площадь наибольшая" :
+        d>0 ? "S′ > 0 — площадь ещё растёт" : "S′ < 0 — площадь уже убывает";
+    }
+    sl.addEventListener('input',draw);draw();
+  })();
+
+  /* ===== 8. когда производной нет: |x| ===== */
+  (function(){
+    var cv=document.getElementById('c8');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=360;
+    var ox=310,oy=250,sx=115,sy=85;
+    var sl=document.getElementById('s9r');
+    function PX(x){return ox+x*sx;}
+    function PY(y){return oy-y*sy;}
+    function draw(){
+      var dx=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=-2;g<=2;g++){ctx.beginPath();ctx.moveTo(PX(g),30);ctx.lineTo(PX(g),oy+18);ctx.stroke();}
+      for(var v=-0.5;v<=2.5;v+=0.5){ctx.beginPath();ctx.moveTo(40,PY(v));ctx.lineTo(W-30,PY(v));ctx.stroke();}
+      arrow(ctx,40,oy,W-26,oy,INK,1.5);
+      arrow(ctx,ox,oy+18,ox,26,INK,1.5);
+      lab(ctx,'x',W-22,oy-8,INK,13);lab(ctx,'f',ox+9,34,INK,13);
+
+      clipRect(ctx,36,26,W-60,H-42,function(){
+        // продолжения секущих за точку излома: две РАЗНЫЕ прямые
+        ctx.setLineDash([6,4]);ctx.lineWidth=1.7;
+        ctx.strokeStyle=cA;   // левая секущая y = -x, её продолжение вправо-вниз
+        ctx.beginPath();ctx.moveTo(PX(0),PY(0));ctx.lineTo(PX(1.05),PY(-1.05));ctx.stroke();
+        ctx.strokeStyle=cB;   // правая секущая y = x, её продолжение влево-вниз
+        ctx.beginPath();ctx.moveTo(PX(0),PY(0));ctx.lineTo(PX(-1.05),PY(-1.05));ctx.stroke();
+        ctx.setLineDash([]);
+        // сам график |x|
+        ctx.strokeStyle=INK;ctx.lineWidth=2.8;
+        ctx.beginPath();ctx.moveTo(PX(-2.4),PY(2.4));ctx.lineTo(PX(0),PY(0));ctx.lineTo(PX(2.4),PY(2.4));ctx.stroke();
+      });
+      // отмеченные точки на расстоянии dx
+      ctx.strokeStyle=cA;ctx.lineWidth=2.6;
+      ctx.beginPath();ctx.moveTo(PX(0),PY(0));ctx.lineTo(PX(-dx),PY(dx));ctx.stroke();
+      ctx.strokeStyle=cB;ctx.lineWidth=2.6;
+      ctx.beginPath();ctx.moveTo(PX(0),PY(0));ctx.lineTo(PX(dx),PY(dx));ctx.stroke();
+      ctx.fillStyle=cA;ctx.beginPath();ctx.arc(PX(-dx),PY(dx),5.5,0,7);ctx.fill();
+      ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PX(dx),PY(dx),5.5,0,7);ctx.fill();
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(PX(0),PY(0),6.5,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(0),PY(0),2.8,0,7);ctx.fill();
+
+      lab(ctx,'наклон −1',60,48,cA,12.5);
+      lab(ctx,'наклон +1',W-140,48,cB,12.5);
+      lab(ctx,'две разные прямые — общего предела нет',ox-118,H-14,cD,12.5);
+      lab(ctx,'f(x) = |x|',W-130,H-14,INK,13);
+
+      document.getElementById('v8dx').textContent=dx.toFixed(3);
+      document.getElementById('v8l').textContent='\u22121.000';
+      document.getElementById('v8r').textContent='+1.000';
+      document.getElementById('v8g').textContent='2.000';
+      document.getElementById('n8').textContent = dx<0.1
+        ? 'Δx уже '+dx.toFixed(2)+', а разница всё та же — ровно 2'
+        : 'Слева и справа получаются разные числа';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-k8]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.k8;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 9. (sin x)' = cos x ===== */
+  (function(){
+    var cv=document.getElementById('c9');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=430;
+    var t0=70,t1=580,sx=(t1-t0)/(2*Math.PI);
+    var topY=130, botY=340, sv=54;
+    var sl=document.getElementById('s10r');
+    function PX(x){return t0+x*sx;}
+    function PYs(y){return topY-y*sv;}
+    function PYc(y){return botY-y*sv;}
+    function draw(){
+      var x=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=4;g++){
+        var gx=PX(g*Math.PI/2);
+        ctx.beginPath();ctx.moveTo(gx,40);ctx.lineTo(gx,H-20);ctx.stroke();
+      }
+      // верх
+      lab(ctx,'y = sin x',36,44,cA,13);
+      arrow(ctx,t0-26,topY,t1+22,topY,INK,1.4);
+      lab(ctx,'x',t1+26,topY-8,INK,12.5);
+      clipRect(ctx,32,40,W-42,150,function(){
+        ctx.strokeStyle=cA;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var t=0;t<=6.29;t+=0.02){var X=PX(t),Y=PYs(Math.sin(t));t===0?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+        var k=Math.cos(x)*sv/sx;
+        ctx.strokeStyle=cD;ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(PX(x)-70,PYs(Math.sin(x))+k*70);
+        ctx.lineTo(PX(x)+70,PYs(Math.sin(x))-k*70);
+        ctx.stroke();
+      });
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(PX(x),PYs(Math.sin(x)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x),PYs(Math.sin(x)),2.5,0,7);ctx.fill();
+
+      dash(ctx,32,232,W-32,232,'#d8cdb6',1.2);
+
+      // низ
+      lab(ctx,'наклон в этой точке  =  cos x',36,258,cB,13);
+      arrow(ctx,t0-26,botY,t1+22,botY,INK,1.4);
+      lab(ctx,'x',t1+26,botY-8,INK,12.5);
+      clipRect(ctx,32,250,W-42,H-256,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.6;ctx.beginPath();
+        for(var t2=0;t2<=6.29;t2+=0.02){var X2=PX(t2),Y2=PYc(Math.cos(t2));t2===0?ctx.moveTo(X2,Y2):ctx.lineTo(X2,Y2);}
+        ctx.stroke();
+      });
+      ctx.strokeStyle=cC;ctx.lineWidth=2.4;
+      ctx.beginPath();ctx.moveTo(PX(x),botY);ctx.lineTo(PX(x),PYc(Math.cos(x)));ctx.stroke();
+      ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PX(x),PYc(Math.cos(x)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x),PYc(Math.cos(x)),2.5,0,7);ctx.fill();
+      dash(ctx,PX(x),PYs(Math.sin(x)),PX(x),PYc(Math.cos(x)),SOFT,1.1);
+
+      document.getElementById('v9x').textContent=x.toFixed(2);
+      document.getElementById('v9s').textContent=Math.sin(x).toFixed(3);
+      document.getElementById('v9k').textContent=Math.cos(x).toFixed(3);
+      document.getElementById('v9c').textContent=Math.cos(x).toFixed(3);
+      var c=Math.cos(x);
+      document.getElementById('n9').textContent =
+        Math.abs(c)<0.06 ? 'Вершина синусоиды: касательная горизонтальна, cos = 0' :
+        c>0 ? 'Синус растёт — наклон положителен, как и cos x'
+            : 'Синус убывает — наклон отрицателен, как и cos x';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-k9]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.k9;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 10. правило произведения ===== */
+  (function(){
+    var cv=document.getElementById('c10');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=600,H=340;
+    var bx=70,by=280,Wf=190,Hg=130;
+    var sl=document.getElementById('s11r');
+    function draw(){
+      var d=Number(sl.value);
+      ctx.clearRect(0,0,W,H);
+      // базовый прямоугольник
+      ctx.fillStyle='rgba(43,50,71,0.10)';
+      ctx.fillRect(bx,by-Hg,Wf,Hg);
+      // полоса g*df
+      ctx.fillStyle='rgba(43,95,122,0.42)';
+      ctx.fillRect(bx+Wf,by-Hg,d,Hg);
+      // полоса f*dg
+      ctx.fillStyle='rgba(166,56,63,0.42)';
+      ctx.fillRect(bx,by-Hg-d,Wf,d);
+      // уголок df*dg
+      ctx.fillStyle='rgba(107,74,111,0.85)';
+      ctx.fillRect(bx+Wf,by-Hg-d,d,d);
+
+      ctx.strokeStyle=INK;ctx.lineWidth=1.6;
+      ctx.strokeRect(bx,by-Hg,Wf,Hg);
+      ctx.setLineDash([5,4]);ctx.lineWidth=1.4;
+      ctx.strokeRect(bx,by-Hg-d,Wf+d,Hg+d);
+      ctx.setLineDash([]);
+
+      lab(ctx,'f',bx+Wf/2,by+22,INK,14,'center');
+      lab(ctx,'Δf',bx+Wf+d/2,by+22,cA,13,'center');
+      lab(ctx,'g',bx-16,by-Hg/2+5,INK,14,'right');
+      lab(ctx,'Δg',bx-16,by-Hg-d/2+5,cB,13,'right');
+      lab(ctx,'f·g',bx+Wf/2,by-Hg/2+5,INK,14,'center');
+
+      // выноска на уголок
+      var cxk=bx+Wf+d/2, cyk=by-Hg-d/2;
+      ctx.strokeStyle=cD;ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(cxk+d/2,cyk-d/2);ctx.lineTo(cxk+58,cyk-40);ctx.stroke();
+      lab(ctx,'Δf·Δg — уголок',cxk+62,cyk-42,cD,12.5);
+      lab(ctx,'он и пропадает',cxk+62,cyk-26,cD,12);
+
+      var A=Hg*d, B=Wf*d, C=d*d, tot=A+B+C;
+      document.getElementById('v10a').textContent=(A/1000).toFixed(2);
+      document.getElementById('v10b').textContent=(B/1000).toFixed(2);
+      document.getElementById('v10c').textContent=(C/1000).toFixed(2);
+      document.getElementById('v10p').textContent=(100*C/tot).toFixed(1)+' %';
+      document.getElementById('n10').textContent = (100*C/tot)<6
+        ? 'Уголок даёт всего '+(100*C/tot).toFixed(1)+' % прироста — им пренебрегают'
+        : 'Уголок пока заметен: '+(100*C/tot).toFixed(1)+' % прироста';
+    }
+    sl.addEventListener('input',draw);draw();
+  })();
+
+  /* ===== 11. линейное приближение ===== */
+  (function(){
+    var cv=document.getElementById('c11');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=620,H=360;
+    var ox=70,oy=300,sx=44,sy=70;
+    var x0=4,y0=2,k=0.25;
+    var sl=document.getElementById('s12r');
+    function PX(x){return ox+x*sx;}
+    function PY(y){return oy-y*sy;}
+    function draw(){
+      var x=Number(sl.value)/100;
+      var exact=Math.sqrt(x), approx=y0+k*(x-x0);
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=12;g+=2){ctx.beginPath();ctx.moveTo(PX(g),34);ctx.lineTo(PX(g),oy+16);ctx.stroke();}
+      for(var v=0;v<=3;v++){ctx.beginPath();ctx.moveTo(ox-16,PY(v));ctx.lineTo(W-26,PY(v));ctx.stroke();}
+      arrow(ctx,ox-16,oy,W-24,oy,INK,1.5);
+      arrow(ctx,ox,oy+16,ox,30,INK,1.5);
+      lab(ctx,'x',W-20,oy-8,INK,13);
+      lab(ctx,'2',ox-9,PY(2)+4,SOFT,12,'right');
+      lab(ctx,'4',PX(4),oy+18,SOFT,12,'center');
+
+      clipRect(ctx,ox-18,26,W-ox-4,oy-26+18,function(){
+        ctx.strokeStyle=cD;ctx.lineWidth=2;ctx.setLineDash([6,4]);
+        ctx.beginPath();ctx.moveTo(PX(0),PY(y0+k*(0-x0)));ctx.lineTo(PX(12),PY(y0+k*(12-x0)));ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle=cA;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var t=0;t<=12.05;t+=0.03){var X=PX(t),Y=PY(Math.sqrt(t));t===0?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+
+      ctx.fillStyle=INK;ctx.beginPath();ctx.arc(PX(x0),PY(y0),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(x0),PY(y0),2.5,0,7);ctx.fill();
+
+      // зазор между кривой и касательной
+      ctx.strokeStyle=cB;ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(PX(x),PY(exact));ctx.lineTo(PX(x),PY(approx));ctx.stroke();
+      ctx.fillStyle=cA;ctx.beginPath();ctx.arc(PX(x),PY(exact),5.5,0,7);ctx.fill();
+      ctx.fillStyle=cD;ctx.beginPath();ctx.arc(PX(x),PY(approx),5.5,0,7);ctx.fill();
+      dash(ctx,PX(x),oy,PX(x),PY(Math.max(exact,approx)),SOFT,1.1);
+
+      lab(ctx,'√x',PX(11),PY(Math.sqrt(11))-14,cA,13);
+      lab(ctx,'касательная в x = 4',PX(6.4),PY(y0+k*(6.4-x0))+22,cD,12.5);
+
+      document.getElementById('v11x').textContent=x.toFixed(2);
+      document.getElementById('v11t').textContent=exact.toFixed(4);
+      document.getElementById('v11a').textContent=approx.toFixed(4);
+      document.getElementById('v11e').textContent=Math.abs(approx-exact).toFixed(4);
+      var err=Math.abs(approx-exact);
+      document.getElementById('n11').textContent =
+        err<0.005 ? 'Совпадение почти полное — ошибка '+err.toFixed(4) :
+        err<0.08  ? 'Приближение ещё хорошее, ошибка '+err.toFixed(3)
+                  : 'Отошли далеко — приближение испортилось, ошибка '+err.toFixed(2);
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-k11]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.k11;draw();});
+    });
+    draw();
+  })();
+})();
+</script>
+
+</body>
+</html>

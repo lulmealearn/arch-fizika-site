@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Движение по окружности</title>
+<style>
+  :root{
+    --bg:#f7f6f2; --paper:#fff; --ink:#181820; --muted:#6c6a78; --line:#e2dfd6;
+    --violet:#6d28d9; --magenta:#d61f69; --blue:#1d4ed8; --red:#d92b2b;
+    --green:#0e8a5f; --amber:#b7791f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 "Charter","Georgia","PT Serif",serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 18px 80px}
+
+  header.top{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:18px}
+  .eyebrow{font:600 12px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--violet)}
+  h1{font-size:clamp(26px,4.4vw,40px);line-height:1.12;margin:10px 0 6px;font-weight:700;letter-spacing:-.01em}
+  header.top p{margin:0;color:var(--muted);max-width:72ch}
+
+  nav.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:20;border-bottom:1px solid var(--line)}
+  .chip{font:600 13px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;padding:9px 13px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--muted);cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  section{display:none;animation:fade .25s ease}
+  section.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  h2{font-size:clamp(21px,3vw,29px);margin:0 0 6px;letter-spacing:-.01em}
+  h3{font-size:18px;margin:22px 0 8px}
+  .lead{color:var(--muted);margin:0 0 18px;max-width:74ch}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;margin:16px 0}
+  canvas{width:100%;display:block;border-radius:10px;background:#fcfcfa;touch-action:pan-y}
+
+  .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:14px}
+  .ctrl{display:flex;align-items:center;gap:10px;flex:1 1 240px}
+  .ctrl label{font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+  input[type=range]{flex:1;accent-color:var(--violet);min-width:110px}
+  button.btn{font:600 13px/1 ui-monospace,Menlo,monospace;padding:10px 14px;border-radius:9px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:.15s}
+  button.btn.ghost{background:transparent;color:var(--ink)}
+  button.btn:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+  button.btn.small{padding:7px 11px;font-size:12px}
+  button.btn.sel{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  .readout{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .val{font:600 13px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fbfaf6}
+  .val.blue{color:var(--blue);border-color:#c7d5f7}
+  .val.red{color:var(--red);border-color:#f3ccc9}
+  .val.green{color:var(--green);border-color:#bfe6d5}
+  .val.violet{color:var(--violet);border-color:#ddd0f7}
+  .val.amber{color:var(--amber);border-color:#f0dfba}
+
+  .note{border-left:3px solid var(--violet);background:#f4f0ff;padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+  .note.warn{border-color:var(--magenta);background:#fdf0f6}
+  .note.ok{border-color:var(--green);background:#eefaf4}
+  .note .tag{font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--violet);display:block;margin-bottom:6px}
+  .note.warn .tag{color:var(--magenta)}
+  .note.ok .tag{color:var(--green)}
+  .note p{margin:0}
+  .note p+p{margin-top:8px}
+
+  .f{font:600 15px/1.7 ui-monospace,"JetBrains Mono",Menlo,monospace;background:#f4f2ec;border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:inline-block;margin:6px 8px 6px 0}
+  .f.big{font-size:18px;border-color:var(--magenta);background:#fdf2f7}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:#f2f0ea;font:700 12px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  td.k{font:600 13px ui-monospace,Menlo,monospace}
+
+  ul.tight{margin:8px 0 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font:600 12px ui-monospace,Menlo,monospace;color:var(--muted)}
+  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-3px}
+  .status{font:700 13px/1.45 ui-monospace,Menlo,monospace;letter-spacing:.05em;padding:11px 14px;border-radius:9px;display:inline-block;margin-top:12px;border:1px solid}
+  .status.go{color:var(--green);border-color:#bfe6d5;background:#eefaf4}
+  .status.stop{color:var(--red);border-color:#f3ccc9;background:#fdf0ee}
+  .status.zero{color:var(--amber);border-color:#f0dfba;background:#fdf7ea}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Урок 7 · кинематика</div>
+  <h1>Движение по окружности</h1>
+  <p>Тело едет по кругу с постоянной по модулю скоростью — и всё равно движется с ускорением. Разберём, откуда оно берётся, чему равно, и что происходит, когда скорость ещё и меняется по величине.</p>
+</header>
+
+<nav class="chips" id="nav">
+  <button class="chip on" data-go="s1">1 · Период и частота</button>
+  <button class="chip" data-go="s2">2 · Угловая скорость</button>
+  <button class="chip" data-go="s3">3 · v = ωr</button>
+  <button class="chip" data-go="s4">4 · Откуда ускорение</button>
+  <button class="chip" data-go="s5">5 · Центростремительное</button>
+  <button class="chip" data-go="s6">6 · Тангенциальное</button>
+  <button class="chip" data-go="s7">7 · Полное ускорение</button>
+  <button class="chip" data-go="s8">8 · Итог</button>
+</nav>
+
+<!-- ============ S1 ============ -->
+<section id="s1" class="on">
+  <h2>Период и частота: две стороны одной монеты</h2>
+  <p class="lead">Движение по кругу повторяется. Значит, его можно описать двумя числами: сколько времени уходит на один оборот и сколько оборотов успевает пройти за секунду. Это <b>период</b> и <b>частота</b>, и они обратны друг другу.</p>
+
+  <div class="card">
+    <canvas id="c1" height="340" style="height:340px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>период T, с</label><input type="range" id="r1a" min="5" max="40" value="20"></div>
+      <button class="btn" id="p1">пауза</button>
+      <button class="btn ghost" id="z1">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val">прошло t = <b id="o1t">0.0</b> с</span>
+      <span class="val violet">T = <b id="o1T">2.0</b> с</span>
+      <span class="val blue">ν = 1/T = <b id="o1n">0.50</b> Гц</span>
+      <span class="val green">оборотов N = <b id="o1N">0.00</b></span>
+    </div>
+  </div>
+
+  <span class="f big">T = t / N</span>
+  <span class="f big">ν = 1 / T</span>
+  <span class="f">[T] = с</span>
+  <span class="f">[ν] = Гц</span>
+
+  <div class="note">
+    <span class="tag">Как не путать</span>
+    <p><b>Период</b> — сколько секунд на один оборот. <b>Частота</b> — сколько оборотов за одну секунду. Если период 0,5 с, то за секунду укладывается два оборота: ν = 2 Гц. Числа обратны, и это единственное, что нужно помнить.</p>
+    <p>В задачах часто дают «вентилятор делает 300 оборотов в минуту». Переведи это в обороты за <b>секунду</b>, и получишь частоту: ν = 300/60 = 5 Гц.</p>
+  </div>
+</section>
+
+<!-- ============ S2 ============ -->
+<section id="s2">
+  <h2>Угловая скорость: как быстро проворачивается радиус</h2>
+  <p class="lead">Пока тело едет по дуге, отрезок от центра к телу поворачивается. Скорость этого поворота — <b>угловая скорость</b> ω. Измеряется в радианах в секунду: полный оборот это 2π радиан.</p>
+
+  <div class="card">
+    <canvas id="c2" height="340" style="height:340px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>ω, рад/с</label><input type="range" id="r2a" min="5" max="60" value="20"></div>
+      <button class="btn" id="p2">пауза</button>
+      <button class="btn ghost" id="z2">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val amber">ω = <b id="o2w">2.0</b> рад/с</span>
+      <span class="val">повёрнутый угол φ = <b id="o2f">0.00</b> рад</span>
+      <span class="val violet">T = 2π/ω = <b id="o2T">3.14</b> с</span>
+      <span class="val blue">ν = ω/2π = <b id="o2n">0.32</b> Гц</span>
+    </div>
+  </div>
+
+  <span class="f big">ω = φ / t</span>
+  <span class="f big">ω = 2π / T = 2πν</span>
+  <span class="f">[ω] = рад/с</span>
+
+  <div class="note ok">
+    <span class="tag">Откуда 2π</span>
+    <p>За один период радиус проворачивается на полный круг, то есть на 2π радиан. Поделили угол на время — получили ω = 2π/T. Отсюда же T = 2π/ω и ν = ω/2π. Три формулы, но факт один.</p>
+  </div>
+</section>
+
+<!-- ============ S3 ============ -->
+<section id="s3">
+  <h2>Связь линейной и угловой скорости</h2>
+  <p class="lead">Посади на один диск две точки — близко к центру и у самого края. Проворачиваются они <b>одинаково</b>: за одно и то же время на один и тот же угол. А вот путь по дуге у них разный. Отсюда и разная линейная скорость.</p>
+
+  <div class="card">
+    <canvas id="c3" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>ω, рад/с</label><input type="range" id="r3a" min="5" max="45" value="18"></div>
+      <div class="ctrl"><label>радиус точки B, м</label><input type="range" id="r3b" min="10" max="30" value="15"></div>
+      <button class="btn" id="p3">пауза</button>
+    </div>
+    <div class="readout">
+      <span class="val amber">ω = <b id="o3w">1.8</b> рад/с — одна на всех</span>
+      <span class="val blue">A: r = 3.0 м, v = <b id="o3va">5.4</b> м/с</span>
+      <span class="val red">B: r = <b id="o3rb">1.5</b> м, v = <b id="o3vb">2.7</b> м/с</span>
+    </div>
+    <div class="legend">
+      <span><i style="background:#1d4ed8"></i>дальняя точка A</span>
+      <span><i style="background:#d92b2b"></i>ближняя точка B</span>
+      <span>вектор скорости всегда по касательной</span>
+    </div>
+  </div>
+
+  <span class="f big">v = ω·r</span>
+  <span class="f">T = 2πr / v</span>
+  <span class="f">ω = v / r</span>
+
+  <div class="note">
+    <span class="tag">Ключ ко всем задачам про шкивы и колёса</span>
+    <p>Если две точки на <b>одном твёрдом теле</b> — у них общая ω. Если два колеса связаны <b>ремнём или катятся без проскальзывания</b> — общей будет линейная скорость v, а угловые окажутся разными.</p>
+    <p>Первым делом в такой задаче спроси себя: что здесь общее, ω или v? Дальше всё решается одной формулой v = ωr.</p>
+  </div>
+</section>
+
+<!-- ============ S4 ============ -->
+<section id="s4">
+  <h2>Откуда берётся ускорение, если скорость постоянна</h2>
+  <p class="lead">Скорость — вектор. Даже если её длина не меняется, направление меняется всё время. А значит, вектор скорости меняется — и есть ускорение. Посмотрим, куда оно направлено. Сжимай угол между двумя положениями и следи за вектором Δv справа.</p>
+
+  <div class="card">
+    <canvas id="c4" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>угол поворота Δφ</label><input type="range" id="r4a" min="4" max="120" value="80"></div>
+    </div>
+    <div class="readout">
+      <span class="val">Δφ = <b id="o4f">80</b>°</span>
+      <span class="val blue">|v₁| = |v₂| = <b id="o4v">4.0</b> м/с</span>
+      <span class="val red">|Δv| = <b id="o4dv">5.1</b> м/с</span>
+      <span class="val green">угол между Δv и радиусом: <b id="o4a">40</b>°</span>
+    </div>
+    <div id="o4st" class="status zero">Угол большой: Δv заметно отклоняется от направления на центр</div>
+  </div>
+
+  <div class="note">
+    <span class="tag">Что мы увидели</span>
+    <p>Длины векторов v₁ и v₂ одинаковы, но направления разные — значит их разность Δv не ноль. Чем меньше Δφ, тем точнее Δv смотрит <b>перпендикулярно скорости, ровно на центр окружности</b>.</p>
+    <p>Ускорение a = Δv/Δt в пределе малого Δt направлено туда же — к центру. Поэтому оно и называется <b>центростремительным</b>: оно не разгоняет тело, а всё время заворачивает его.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Частая путаница</span>
+    <p>«Скорость постоянна, значит ускорение ноль» — верно только для <b>прямолинейного</b> движения. По окружности постоянен лишь модуль скорости, а вектор поворачивается непрерывно.</p>
+  </div>
+</section>
+
+<!-- ============ S5 ============ -->
+<section id="s5">
+  <h2>Центростремительное ускорение</h2>
+  <p class="lead">Теперь посчитаем его величину. Из геометрии предыдущего блока получается на удивление простой ответ, который можно записать двумя способами — через линейную скорость и через угловую.</p>
+
+  <div class="card">
+    <canvas id="c5" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>v, м/с</label><input type="range" id="r5a" min="10" max="80" value="40"></div>
+      <div class="ctrl"><label>r, м</label><input type="range" id="r5b" min="10" max="40" value="25"></div>
+      <button class="btn" id="p5">пауза</button>
+    </div>
+    <div class="readout">
+      <span class="val blue">v = <b id="o5v">4.0</b> м/с</span>
+      <span class="val">r = <b id="o5r">2.5</b> м</span>
+      <span class="val amber">ω = v/r = <b id="o5w">1.60</b> рад/с</span>
+      <span class="val red">aₙ = v²/r = ω²r = <b id="o5a">6.40</b> м/с²</span>
+    </div>
+  </div>
+
+  <span class="f big">aₙ = v² / r</span>
+  <span class="f big">aₙ = ω²·r</span>
+  <span class="f">направлено всегда к центру</span>
+
+  <div class="note ok">
+    <span class="tag">Две формулы — одна величина</span>
+    <p>Подставь v = ωr в первую формулу: aₙ = (ωr)²/r = ω²r. Это одно и то же, записанное через разные величины. Бери ту, где известны обе входящие в неё.</p>
+    <p>Обрати внимание на квадрат: увеличили скорость вдвое — ускорение выросло <b>вчетверо</b>. Именно поэтому поворот на высокой скорости так резко нагружает машину.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Осторожно с радиусом</span>
+    <p>Формулы aₙ = v²/r и aₙ = ω²r ведут себя по-разному при изменении r. В первой ускорение падает с ростом радиуса, во второй — растёт. Противоречия нет: в первой мы держим постоянной v, во второй — ω. Всегда смотри, что именно в задаче остаётся неизменным.</p>
+  </div>
+</section>
+
+<!-- ============ S6 ============ -->
+<section id="s6">
+  <h2>Тангенциальное ускорение</h2>
+  <p class="lead">До сих пор модуль скорости не менялся. А если тело по кругу <b>разгоняется</b> — например, карусель только раскручивается? Тогда появляется вторая составляющая ускорения, направленная <b>по касательной</b>, вдоль скорости.</p>
+
+  <div class="card">
+    <canvas id="c6" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>a<sub>τ</sub>, м/с²</label><input type="range" id="r6a" min="-30" max="30" value="15"></div>
+      <button class="btn" id="p6">пауза</button>
+      <button class="btn ghost" id="z6">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val">t = <b id="o6t">0.0</b> с</span>
+      <span class="val amber">a<sub>τ</sub> = <b id="o6at">1.5</b> м/с²</span>
+      <span class="val blue">v = <b id="o6v">2.0</b> м/с</span>
+    </div>
+    <div id="o6st" class="status go">aτ сонаправлено с v — тело разгоняется</div>
+  </div>
+
+  <span class="f big">a<sub>τ</sub> = Δv / Δt</span>
+  <span class="f">вдоль касательной, то есть вдоль скорости</span>
+
+  <div class="note">
+    <span class="tag">Чем отличаются две составляющие</span>
+    <p><b>Нормальное</b> aₙ смотрит поперёк скорости, к центру, и отвечает за <b>поворот</b>. Оно меняет направление скорости, но не её длину.</p>
+    <p><b>Тангенциальное</b> a<sub>τ</sub> смотрит вдоль скорости и отвечает за <b>изменение модуля</b>. Оно разгоняет или тормозит, но не заворачивает.</p>
+    <p>Если a<sub>τ</sub> = 0 — движение равномерное по окружности, и остаётся только aₙ. Если равен нулю aₙ — окружности просто нет, движение прямолинейное.</p>
+  </div>
+</section>
+
+<!-- ============ S7 ============ -->
+<section id="s7">
+  <h2>Полное ускорение</h2>
+  <p class="lead">На самом деле у тела одно ускорение — просто нам удобно раскладывать его на две перпендикулярные составляющие. Полное ускорение это их <b>векторная сумма</b>, и находится она по теореме Пифагора, потому что составляющие взаимно перпендикулярны.</p>
+
+  <div class="card">
+    <canvas id="c7" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>v, м/с</label><input type="range" id="r7a" min="10" max="70" value="40"></div>
+      <div class="ctrl"><label>r, м</label><input type="range" id="r7b" min="10" max="40" value="25"></div>
+      <div class="ctrl"><label>a<sub>τ</sub>, м/с²</label><input type="range" id="r7c" min="-80" max="80" value="30"></div>
+      <button class="btn" id="p7">пауза</button>
+    </div>
+    <div class="readout">
+      <span class="val red">aₙ = v²/r = <b id="o7an">6.40</b> м/с²</span>
+      <span class="val amber">a<sub>τ</sub> = <b id="o7at">3.00</b> м/с²</span>
+      <span class="val violet">|a| = √(aₙ² + a<sub>τ</sub>²) = <b id="o7a">7.07</b> м/с²</span>
+      <span class="val green">угол с радиусом α = <b id="o7ang">25</b>°</span>
+    </div>
+    <div class="legend">
+      <span><i style="background:#d92b2b"></i>aₙ — к центру</span>
+      <span><i style="background:#b7791f"></i>aτ — по касательной</span>
+      <span><i style="background:#6d28d9"></i>полное ускорение a</span>
+    </div>
+  </div>
+
+  <span class="f big">a = aₙ + a<sub>τ</sub> (векторно)</span>
+  <span class="f big">|a| = √(aₙ² + a<sub>τ</sub>²)</span>
+  <span class="f">tg α = a<sub>τ</sub> / aₙ</span>
+
+  <div class="note ok">
+    <span class="tag">Как это выглядит в трёх случаях</span>
+    <ul class="tight">
+      <li><b>Равномерно по кругу:</b> a<sub>τ</sub> = 0, полное ускорение равно нормальному и смотрит строго в центр.</li>
+      <li><b>Разгон по кругу:</b> вектор a отклоняется от радиуса вперёд, в сторону движения.</li>
+      <li><b>Торможение по кругу:</b> вектор a отклоняется назад, против движения.</li>
+    </ul>
+    <p>Поставь a<sub>τ</sub> = 0 и убедись сам: фиолетовая стрелка ляжет точно на красную.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Типичная ошибка</span>
+    <p>Складывать aₙ и a<sub>τ</sub> как обычные числа. Так нельзя: это перпендикулярные векторы, и складываются они по Пифагору. При aₙ = 3 и a<sub>τ</sub> = 4 полное ускорение равно 5, а не 7.</p>
+  </div>
+</section>
+
+<!-- ============ S8 ============ -->
+<section id="s8">
+  <h2>Итог</h2>
+
+  <h3>Описание вращения</h3>
+  <span class="f big">T = t/N</span>
+  <span class="f big">ν = 1/T</span>
+  <span class="f big">ω = 2π/T = 2πν</span>
+  <span class="f big">v = ωr</span>
+  <span class="f">T = 2πr/v</span>
+
+  <h3>Ускорение</h3>
+  <table>
+    <tr><th>составляющая</th><th>направление</th><th>за что отвечает</th><th>формула</th></tr>
+    <tr><td>нормальное aₙ</td><td>к центру, поперёк v</td><td>поворот вектора скорости</td><td class="k">v²/r = ω²r</td></tr>
+    <tr><td>тангенциальное a<sub>τ</sub></td><td>по касательной, вдоль v</td><td>изменение модуля скорости</td><td class="k">Δv/Δt</td></tr>
+    <tr><td>полное a</td><td>сумма двух предыдущих</td><td>всё сразу</td><td class="k">√(aₙ² + a<sub>τ</sub>²)</td></tr>
+  </table>
+
+  <div class="note">
+    <span class="tag">Три вопроса, которые решают задачу</span>
+    <ul class="tight">
+      <li>Что общее у связанных тел: угловая скорость ω (одно тело, одна ось) или линейная v (ремень, качение)?</li>
+      <li>Меняется ли модуль скорости? Если нет — есть только aₙ, и всё ускорение направлено в центр.</li>
+      <li>Что в условии держат постоянным — v или ω? От этого зависит, какой формулой для aₙ пользоваться.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Урок 7 · кинематика. Все числа на панелях пересчитываются вживую по формулам из конспекта.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const TAU=Math.PI*2;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const fmt=(v,n)=>{const s=(+v).toFixed(n===undefined?1:n);return s.replace('-','−');};
+
+  function fit(cv){
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+    if(!w||!h) return null;
+    if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+    const ctx=cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    return {ctx,w,h};
+  }
+  function arrow(ctx,x1,y1,x2,y2,color,lw,head){
+    lw=lw||2; head=head||9;
+    const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy);
+    if(L<2) return;
+    const ux=dx/L,uy=dy/L;
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*head*.7,y2-uy*head*.7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ux*head-uy*head*.42,y2-uy*head+ux*head*.42);
+    ctx.lineTo(x2-ux*head+uy*head*.42,y2-uy*head-ux*head*.42);
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  }
+  function label(ctx,txt,x,y,color,size,align,baseline){
+    ctx.fillStyle=color;
+    ctx.font='600 '+(size||12)+'px ui-monospace,Menlo,monospace';
+    ctx.textAlign=align||'left';ctx.textBaseline=baseline||'middle';
+    ctx.fillText(txt,x,y);
+  }
+  function dot(ctx,x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=fill;ctx.fill();}
+  function circle(ctx,cx,cy,R,col,lw,dash){
+    ctx.strokeStyle=col;ctx.lineWidth=lw||1.6;
+    if(dash)ctx.setLineDash(dash);
+    ctx.beginPath();ctx.arc(cx,cy,R,0,TAU);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // положение на окружности: угол отсчитываем против часовой от оси Ox
+  const PX=(cx,R,a)=>cx+R*Math.cos(a);
+  const PY=(cy,R,a)=>cy-R*Math.sin(a);
+
+  /* ---------- навигация ---------- */
+  let cur='s1';
+  document.getElementById('nav').addEventListener('click',e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));
+    document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.go));
+    cur=b.dataset.go;
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  function toggler(id,st){
+    const b=document.getElementById(id);
+    b.addEventListener('click',()=>{st.play=!st.play;b.textContent=st.play?'пауза':'продолжить';});
+  }
+
+  /* ================= S1 ================= */
+  const S1={T:2.0,t:0,play:true};
+  const r1a=document.getElementById('r1a');
+  r1a.addEventListener('input',()=>{S1.T=+r1a.value/10;});
+  toggler('p1',S1);
+  document.getElementById('z1').addEventListener('click',()=>{S1.t=0;});
+
+  function drawS1(){
+    const g=fit(document.getElementById('c1')); if(!g) return;
+    const {ctx,w,h}=g;
+    const cx=w*0.30, cy=h*0.5, R=Math.min(h*0.36,120);
+    const N=S1.t/S1.T, ang=TAU*N;
+
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    // след пройденной дуги за текущий оборот
+    const frac=N-Math.floor(N);
+    ctx.strokeStyle='#6d28d9';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx,cy,R,0,-TAU*frac,true);ctx.stroke();
+
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    const px=PX(cx,R,ang), py=PY(cy,R,ang);
+    ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+    dot(ctx,px,py,9,'#181820');
+    label(ctx,'старт',cx+R+8,cy,'#a9a698',11,'left');
+    dot(ctx,cx+R,cy,4,'#c9c6bc');
+
+    // шкала оборотов
+    const bx=w*0.60, bw=Math.min(300,w*0.34), by=h*0.5;
+    label(ctx,'оборотов сделано',bx,by-52,'#6c6a78',12,'left');
+    ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;
+    ctx.strokeRect(bx,by-26,bw,26);
+    ctx.fillStyle='rgba(109,40,217,.75)';
+    ctx.fillRect(bx,by-26,bw*clamp((N%1),0,1),26);
+    label(ctx,fmt(N,2),bx+bw+10,by-13,'#6d28d9',14,'left');
+    label(ctx,'полных оборотов: '+Math.floor(N),bx,by+16,'#6c6a78',12,'left');
+    label(ctx,'за 1 секунду: '+fmt(1/S1.T,2)+' оборота',bx,by+38,'#1d4ed8',12,'left');
+
+    document.getElementById('o1t').textContent=fmt(S1.t);
+    document.getElementById('o1T').textContent=fmt(S1.T);
+    document.getElementById('o1n').textContent=fmt(1/S1.T,2);
+    document.getElementById('o1N').textContent=fmt(N,2);
+  }
+
+  /* ================= S2 ================= */
+  const S2={w:2.0,t:0,play:true};
+  const r2a=document.getElementById('r2a');
+  r2a.addEventListener('input',()=>{S2.w=+r2a.value/10;});
+  toggler('p2',S2);
+  document.getElementById('z2').addEventListener('click',()=>{S2.t=0;});
+
+  function drawS2(){
+    const g=fit(document.getElementById('c2')); if(!g) return;
+    const {ctx,w,h}=g;
+    const cx=w*0.32, cy=h*0.5, R=Math.min(h*0.36,120);
+    const ang=S2.w*S2.t;
+
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    // сектор повёрнутого угла (в пределах текущего оборота)
+    const a0=0, a1=ang%TAU;
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R*0.55,-a0,-a1,true);ctx.closePath();
+    ctx.fillStyle='rgba(183,121,31,.20)';ctx.fill();
+
+    ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+R,cy);ctx.stroke();
+    const px=PX(cx,R,ang), py=PY(cy,R,ang);
+    ctx.strokeStyle='#b7791f';ctx.lineWidth=2.4;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+    dot(ctx,px,py,8,'#181820');
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    label(ctx,'φ',cx+R*0.72*Math.cos(a1/2),cy-R*0.72*Math.sin(a1/2),'#b7791f',14,'center');
+
+    // числовая шкала радиан
+    const bx=w*0.62, bw=Math.min(290,w*0.32), by=h*0.42;
+    label(ctx,'повёрнутый угол в этом обороте',bx,by-38,'#6c6a78',12,'left');
+    ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;ctx.strokeRect(bx,by-16,bw,22);
+    ctx.fillStyle='rgba(183,121,31,.72)';ctx.fillRect(bx,by-16,bw*(a1/TAU),22);
+    label(ctx,'0',bx,by+18,'#a9a698',11,'left');
+    label(ctx,'π',bx+bw/2,by+18,'#a9a698',11,'center');
+    label(ctx,'2π',bx+bw,by+18,'#a9a698',11,'right');
+    label(ctx,'полный оборот = 2π ≈ 6,28 рад',bx,by+46,'#6c6a78',12,'left');
+    label(ctx,'за 1 с радиус проворачивается на '+fmt(S2.w,2)+' рад',bx,by+68,'#b7791f',12,'left');
+
+    document.getElementById('o2w').textContent=fmt(S2.w);
+    document.getElementById('o2f').textContent=fmt(ang,2);
+    document.getElementById('o2T').textContent=fmt(TAU/S2.w,2);
+    document.getElementById('o2n').textContent=fmt(S2.w/TAU,2);
+  }
+
+  /* ================= S3 ================= */
+  const S3={w:1.8,rb:1.5,t:0,play:true};
+  const r3a=document.getElementById('r3a'),r3b=document.getElementById('r3b');
+  r3a.addEventListener('input',()=>{S3.w=+r3a.value/10;});
+  r3b.addEventListener('input',()=>{S3.rb=+r3b.value/10;});
+  toggler('p3',S3);
+
+  function drawS3(){
+    const g=fit(document.getElementById('c3')); if(!g) return;
+    const {ctx,w,h}=g;
+    const cx=w*0.36, cy=h*0.5;
+    const RA=Math.min(h*0.38,128);          // r = 3 м
+    const rA=3.0, rB=S3.rb;
+    const RB=RA*rB/rA;
+    const ang=S3.w*S3.t;
+    const vA=S3.w*rA, vB=S3.w*rB;
+
+    // диск
+    ctx.fillStyle='#f4f3ee';ctx.beginPath();ctx.arc(cx,cy,RA,0,TAU);ctx.fill();
+    circle(ctx,cx,cy,RA,'#dcd9d0',2);
+    circle(ctx,cx,cy,RB,'#e6e3da',1.4,[4,4]);
+    dot(ctx,cx,cy,4,'#c9c6bc');
+
+    // спица
+    const ax=PX(cx,RA,ang), ay=PY(cy,RA,ang);
+    const bx=PX(cx,RB,ang), by=PY(cy,RB,ang);
+    ctx.strokeStyle='#b9b6ac';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ax,ay);ctx.stroke();
+
+    // касательные векторы: направление (-sin, -cos) в экранных координатах
+    const tx=-Math.sin(ang), ty=-Math.cos(ang);
+    const sc=12;
+    arrow(ctx,ax,ay,ax+tx*vA*sc,ay+ty*vA*sc,'#1d4ed8',3,9);
+    arrow(ctx,bx,by,bx+tx*vB*sc,by+ty*vB*sc,'#d92b2b',3,9);
+    dot(ctx,ax,ay,8,'#1d4ed8');
+    dot(ctx,bx,by,7,'#d92b2b');
+    label(ctx,'A',ax+12*Math.cos(ang),ay-12*Math.sin(ang),'#1d4ed8',13,'center');
+    label(ctx,'B',bx-14*Math.cos(ang),by+14*Math.sin(ang),'#d92b2b',13,'center');
+
+    // сравнение длин
+    const px=w*0.70, bw=Math.min(250,w*0.26), py0=h*0.36;
+    label(ctx,'длина вектора скорости',px,py0-30,'#6c6a78',12,'left');
+    const vmax=Math.max(vA,0.1);
+    ctx.fillStyle='rgba(29,78,216,.8)';ctx.fillRect(px,py0,bw*clamp(vA/vmax,0,1),22);
+    label(ctx,'A: '+fmt(vA,1)+' м/с',px+6,py0+11,'#fff',12,'left');
+    ctx.fillStyle='rgba(217,43,43,.8)';ctx.fillRect(px,py0+32,bw*clamp(vB/vmax,0,1),22);
+    label(ctx,'B: '+fmt(vB,1)+' м/с',px+6,py0+43,'#fff',12,'left');
+    label(ctx,'угол поворота у них общий,',px,py0+78,'#6c6a78',12,'left');
+    label(ctx,'а дуга у A длиннее — значит и v больше',px,py0+98,'#6c6a78',12,'left');
+
+    document.getElementById('o3w').textContent=fmt(S3.w);
+    document.getElementById('o3va').textContent=fmt(vA);
+    document.getElementById('o3rb').textContent=fmt(rB);
+    document.getElementById('o3vb').textContent=fmt(vB);
+  }
+
+  /* ================= S4 ================= */
+  const S4={df:80};
+  const r4a=document.getElementById('r4a');
+  r4a.addEventListener('input',()=>{S4.df=+r4a.value;});
+
+  function drawS4(){
+    const g=fit(document.getElementById('c4')); if(!g) return;
+    const {ctx,w,h}=g;
+    const df=S4.df*Math.PI/180, v=4.0;
+    const half=w*0.46;
+
+    // ---------- слева: окружность и два положения ----------
+    const cx=half*0.52, cy=h*0.52, R=Math.min(h*0.32,112);
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    const a1=Math.PI*0.5-df/2, a2=Math.PI*0.5+df/2;
+    ctx.strokeStyle='#6d28d9';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx,cy,R,-a1,-a2,true);ctx.stroke();
+
+    const pts=[];
+    [[a1,'v₁','#1d4ed8','1'],[a2,'v₂','#93a8dd','2']].forEach(([a,nm,col,num])=>{
+      const px=PX(cx,R,a), py=PY(cy,R,a);
+      pts.push([px,py]);
+      ctx.strokeStyle='#e0ddd4';ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+      const tx=-Math.sin(a), ty=-Math.cos(a);
+      arrow(ctx,px,py,px+tx*50,py+ty*50,col,3,9);
+      dot(ctx,px,py,7,'#181820');
+      label(ctx,nm,px+tx*62,py+ty*62,col,13,'center');
+      label(ctx,num,px+Math.cos(a)*17,py-Math.sin(a)*17,'#6c6a78',12,'center');
+    });
+    label(ctx,'Δφ = '+S4.df+'°',cx,cy-R*0.42,'#6d28d9',13,'center');
+
+    // ---------- справа: треугольник векторов ----------
+    const ox=half+w*0.26, oy=h*0.66, S=84;
+    label(ctx,'вычитаем векторы: Δv = v₂ − v₁',half+w*0.26,h*0.10,'#6c6a78',12,'center');
+
+    const t1x=-Math.sin(a1), t1y=-Math.cos(a1);
+    const t2x=-Math.sin(a2), t2y=-Math.cos(a2);
+    const e1x=ox+t1x*S, e1y=oy+t1y*S;
+    const e2x=ox+t2x*S, e2y=oy+t2y*S;
+
+    arrow(ctx,ox,oy,e1x,e1y,'#1d4ed8',2.8,9);
+    arrow(ctx,ox,oy,e2x,e2y,'#93a8dd',2.8,9);
+    label(ctx,'v₁',ox+t1x*(S+16),oy+t1y*(S+16),'#1d4ed8',12,'center');
+    label(ctx,'v₂',ox+t2x*(S+24),oy+t2y*(S+24),'#93a8dd',12,'center');
+    dot(ctx,ox,oy,4,'#c9c6bc');
+
+    // истинный Δv — тонкой линией
+    ctx.strokeStyle='#e0b6b3';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(e1x,e1y);ctx.lineTo(e2x,e2y);ctx.stroke();
+
+    // эталон: направление «на центр» из точки 1
+    const n1x=-Math.cos(a1), n1y=Math.sin(a1);
+    const L=96;
+    ctx.setLineDash([5,4]);ctx.strokeStyle='#0e8a5f';ctx.lineWidth=1.8;
+    ctx.beginPath();ctx.moveTo(e1x,e1y);ctx.lineTo(e1x+n1x*L,e1y+n1y*L);ctx.stroke();
+    ctx.setLineDash([]);
+    label(ctx,'на центр из точки 1',e1x+n1x*L,e1y+n1y*L+20,'#0e8a5f',11,'center');
+
+    // Δv показан увеличенным — чтобы направление читалось при любом Δφ
+    const dl=Math.hypot(e2x-e1x,e2y-e1y);
+    if(dl>0.5){
+      const ux=(e2x-e1x)/dl, uy=(e2y-e1y)/dl, LD=84;
+      arrow(ctx,e1x,e1y,e1x+ux*LD,e1y+uy*LD,'#d92b2b',3.4,10);
+      label(ctx,'Δv',e1x+ux*(LD+18),e1y+uy*(LD+18),'#d92b2b',13,'center');
+    }
+    label(ctx,'(вектор Δv показан увеличенным)',half+w*0.26,h*0.10+20,'#a9a698',11,'center');
+
+    const dv=2*v*Math.sin(df/2);
+    document.getElementById('o4f').textContent=S4.df;
+    document.getElementById('o4v').textContent=fmt(v);
+    document.getElementById('o4dv').textContent=fmt(dv);
+    document.getElementById('o4a').textContent=fmt(S4.df/2,0);
+    const st=document.getElementById('o4st');
+    if(S4.df<=12){st.className='status go';st.textContent='Δφ мал: Δv практически лёг на пунктир — вектор смотрит точно в центр';}
+    else if(S4.df<=45){st.className='status zero';st.textContent='угол сжимается, Δv разворачивается к направлению на центр';}
+    else {st.className='status stop';st.textContent='Угол большой: Δv заметно отклоняется от направления на центр';}
+  }
+
+  /* ================= S5 ================= */
+  const S5={v:4.0,r:2.5,t:0,play:true};
+  const r5a=document.getElementById('r5a'),r5b=document.getElementById('r5b');
+  r5a.addEventListener('input',()=>{S5.v=+r5a.value/10;});
+  r5b.addEventListener('input',()=>{S5.r=+r5b.value/10;});
+  toggler('p5',S5);
+
+  function drawS5(){
+    const g=fit(document.getElementById('c5')); if(!g) return;
+    const {ctx,w,h}=g;
+    const om=S5.v/S5.r, an=S5.v*S5.v/S5.r;
+    const cx=w*0.34, cy=h*0.5;
+    const R=clamp(S5.r*44,44,Math.min(h*0.38,130));
+    const ang=om*S5.t;
+
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    const px=PX(cx,R,ang), py=PY(cy,R,ang);
+    ctx.strokeStyle='#e0ddd4';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+    label(ctx,'r',(cx+px)/2+10,(cy+py)/2-10,'#a9a698',12,'center');
+
+    const tx=-Math.sin(ang), ty=-Math.cos(ang);
+    arrow(ctx,px,py,px+tx*S5.v*13,py+ty*S5.v*13,'#1d4ed8',3,9);
+    label(ctx,'v',px+tx*S5.v*13+tx*12,py+ty*S5.v*13+ty*12,'#1d4ed8',13,'center');
+    // к центру
+    const nx=(cx-px)/R, ny=(cy-py)/R;
+    const la=clamp(an*7,18,R*0.9);
+    arrow(ctx,px,py,px+nx*la,py+ny*la,'#d92b2b',3.2,10);
+    label(ctx,'aₙ',px+nx*la*0.55+ny*14,py+ny*la*0.55-nx*14,'#d92b2b',13,'center');
+    dot(ctx,px,py,8,'#181820');
+
+    // столбик зависимости от v
+    const bx=w*0.68, bw=Math.min(240,w*0.26), by=h*0.5;
+    label(ctx,'aₙ растёт как квадрат скорости',bx,by-56,'#6c6a78',12,'left');
+    ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;ctx.strokeRect(bx,by-30,bw,26);
+    ctx.fillStyle='rgba(217,43,43,.75)';
+    ctx.fillRect(bx,by-30,bw*clamp(an/26,0,1),26);
+    label(ctx,fmt(an,2)+' м/с²',bx+bw+10,by-17,'#d92b2b',13,'left');
+    label(ctx,'ω = v/r = '+fmt(om,2)+' рад/с',bx,by+16,'#b7791f',12,'left');
+    label(ctx,'T = 2πr/v = '+fmt(TAU*S5.r/S5.v,2)+' с',bx,by+38,'#6d28d9',12,'left');
+
+    document.getElementById('o5v').textContent=fmt(S5.v);
+    document.getElementById('o5r').textContent=fmt(S5.r);
+    document.getElementById('o5w').textContent=fmt(om,2);
+    document.getElementById('o5a').textContent=fmt(an,2);
+  }
+
+  /* ================= S6 ================= */
+  const S6={at:1.5,v:2.0,t:0,ang:0,play:true};
+  const r6a=document.getElementById('r6a');
+  r6a.addEventListener('input',()=>{S6.at=+r6a.value/10;});
+  toggler('p6',S6);
+  document.getElementById('z6').addEventListener('click',()=>{S6.v=2.0;S6.t=0;S6.ang=0;});
+
+  function stepS6(dt){
+    S6.t+=dt;
+    S6.v=clamp(S6.v+S6.at*dt,0.15,9);
+    S6.ang+=(S6.v/2.5)*dt;
+  }
+  function drawS6(){
+    const g=fit(document.getElementById('c6')); if(!g) return;
+    const {ctx,w,h}=g;
+    const R=Math.min(h*0.36,124), cx=w*0.34, cy=h*0.5;
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    const a=S6.ang;
+    const px=PX(cx,R,a), py=PY(cy,R,a);
+    const tx=-Math.sin(a), ty=-Math.cos(a);
+    arrow(ctx,px,py,px+tx*S6.v*15,py+ty*S6.v*15,'#1d4ed8',3.2,10);
+    label(ctx,'v',px+tx*(S6.v*15+14),py+ty*(S6.v*15+14),'#1d4ed8',13,'center');
+    if(Math.abs(S6.at)>0.05){
+      const s=Math.sign(S6.at);
+      // тангенциальное рисуем со смещением внутрь, чтобы не сливалось с v
+      const ox=px+ (cx-px)/R*20, oy=py+(cy-py)/R*20;
+      arrow(ctx,ox,oy,ox+tx*s*Math.abs(S6.at)*22,oy+ty*s*Math.abs(S6.at)*22,'#b7791f',3,9);
+      label(ctx,'aτ',ox+tx*s*(Math.abs(S6.at)*22+16),oy+ty*s*(Math.abs(S6.at)*22+16),'#b7791f',13,'center');
+    }
+    dot(ctx,px,py,8,'#181820');
+
+    // спидометр
+    const bx=w*0.66, bw=Math.min(250,w*0.28), by=h*0.5;
+    label(ctx,'модуль скорости',bx,by-46,'#6c6a78',12,'left');
+    ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;ctx.strokeRect(bx,by-24,bw,26);
+    ctx.fillStyle='rgba(29,78,216,.75)';ctx.fillRect(bx,by-24,bw*clamp(S6.v/9,0,1),26);
+    label(ctx,fmt(S6.v)+' м/с',bx+bw+10,by-11,'#1d4ed8',13,'left');
+    label(ctx,'за каждую секунду v меняется на '+fmt(S6.at)+' м/с',bx,by+26,'#b7791f',12,'left');
+
+    document.getElementById('o6t').textContent=fmt(S6.t);
+    document.getElementById('o6at').textContent=fmt(S6.at);
+    document.getElementById('o6v').textContent=fmt(S6.v);
+    const st=document.getElementById('o6st');
+    if(Math.abs(S6.at)<0.05){st.className='status zero';st.textContent='aτ = 0 — модуль скорости не меняется, движение равномерное по окружности';}
+    else if(S6.at>0){st.className='status go';st.textContent='aτ сонаправлено с v — тело разгоняется, дуга проходится всё быстрее';}
+    else {st.className='status stop';st.textContent='aτ противоположно v — тело тормозит, оставаясь на той же окружности';}
+  }
+
+  /* ================= S7 ================= */
+  const S7={v:4.0,r:2.5,at:3.0,ang:0,play:true};
+  const r7a=document.getElementById('r7a'),r7b=document.getElementById('r7b'),r7c=document.getElementById('r7c');
+  r7a.addEventListener('input',()=>{S7.v=+r7a.value/10;});
+  r7b.addEventListener('input',()=>{S7.r=+r7b.value/10;});
+  r7c.addEventListener('input',()=>{S7.at=+r7c.value/10;});
+  toggler('p7',S7);
+
+  function drawS7(){
+    const g=fit(document.getElementById('c7')); if(!g) return;
+    const {ctx,w,h}=g;
+    const an=S7.v*S7.v/S7.r, at=S7.at;
+    const full=Math.hypot(an,at);
+    const alpha=Math.atan2(Math.abs(at),an)*180/Math.PI;
+
+    const cx=w*0.36, cy=h*0.52, R=Math.min(h*0.34,120);
+    circle(ctx,cx,cy,R,'#dcd9d0',2);
+    dot(ctx,cx,cy,4,'#c9c6bc');
+    const a=S7.ang;
+    const px=PX(cx,R,a), py=PY(cy,R,a);
+    const tx=-Math.sin(a), ty=-Math.cos(a);     // касательная, направление движения
+    const nx=(cx-px)/R, ny=(cy-py)/R;           // нормаль, к центру
+
+    ctx.strokeStyle='#e0ddd4';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(px,py);ctx.stroke();
+    // скорость — бледная, для ориентира
+    arrow(ctx,px,py,px+tx*S7.v*11,py+ty*S7.v*11,'#9db4e6',2.4,8);
+    label(ctx,'v',px+tx*(S7.v*11+12),py+ty*(S7.v*11+12),'#9db4e6',12,'center');
+
+    const K=clamp(110/Math.max(full,0.05),4,400);   // масштаб: полный вектор всегда ~110 px
+    const Ax=nx*an*K, Ay=ny*an*K;
+    const Bx=tx*at*K, By=ty*at*K;
+
+    // составляющие
+    arrow(ctx,px,py,px+Ax,py+Ay,'#d92b2b',3,10);
+    label(ctx,'aₙ',px+Ax*0.55+ny*15,py+Ay*0.55-nx*15,'#d92b2b',13,'center');
+    if(Math.abs(at)>0.05){
+      arrow(ctx,px,py,px+Bx,py+By,'#b7791f',3,10);
+      label(ctx,'aτ',px+Bx*0.6+nx*15,py+By*0.6+ny*15,'#b7791f',13,'center');
+      // пунктирный параллелограмм
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.3;
+      ctx.beginPath();
+      ctx.moveTo(px+Ax,py+Ay);ctx.lineTo(px+Ax+Bx,py+Ay+By);
+      ctx.moveTo(px+Bx,py+By);ctx.lineTo(px+Ax+Bx,py+Ay+By);
+      ctx.stroke();ctx.setLineDash([]);
+    }
+    // полное
+    arrow(ctx,px,py,px+Ax+Bx,py+Ay+By,'#6d28d9',3.6,11);
+    label(ctx,'a',px+(Ax+Bx)*1.12,py+(Ay+By)*1.12,'#6d28d9',14,'center');
+    dot(ctx,px,py,8,'#181820');
+
+    // прямоугольный треугольник справа
+    const ox=w*0.72, oy=h*0.62, sc=Math.min(120/Math.max(full,0.1),16);
+    label(ctx,'составляющие перпендикулярны',ox,h*0.14,'#6c6a78',12,'center');
+    label(ctx,'значит складываются по Пифагору',ox,h*0.14+20,'#6c6a78',12,'center');
+    const AX=an*sc, AY=Math.abs(at)*sc;
+    ctx.strokeStyle='#d92b2b';ctx.lineWidth=2.6;
+    ctx.beginPath();ctx.moveTo(ox-AX/2,oy);ctx.lineTo(ox+AX/2,oy);ctx.stroke();
+    ctx.strokeStyle='#b7791f';ctx.lineWidth=2.6;
+    ctx.beginPath();ctx.moveTo(ox+AX/2,oy);ctx.lineTo(ox+AX/2,oy-AY);ctx.stroke();
+    ctx.strokeStyle='#6d28d9';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(ox-AX/2,oy);ctx.lineTo(ox+AX/2,oy-AY);ctx.stroke();
+    label(ctx,fmt(an,1),ox,oy+16,'#d92b2b',12,'center');
+    label(ctx,fmt(Math.abs(at),1),ox+AX/2+10,oy-AY/2,'#b7791f',12,'left');
+    label(ctx,'|a| = '+fmt(full,2),ox-AX/2,oy-AY-14,'#6d28d9',13,'left');
+
+    document.getElementById('o7an').textContent=fmt(an,2);
+    document.getElementById('o7at').textContent=fmt(at,2);
+    document.getElementById('o7a').textContent=fmt(full,2);
+    document.getElementById('o7ang').textContent=fmt(alpha,0);
+  }
+
+  /* ================= цикл ================= */
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    if(cur==='s1'){ if(S1.play) S1.t+=dt; drawS1(); }
+    else if(cur==='s2'){ if(S2.play) S2.t+=dt; drawS2(); }
+    else if(cur==='s3'){ if(S3.play) S3.t+=dt; drawS3(); }
+    else if(cur==='s4'){ drawS4(); }
+    else if(cur==='s5'){ if(S5.play) S5.t+=dt; drawS5(); }
+    else if(cur==='s6'){ if(S6.play) stepS6(dt); drawS6(); }
+    else if(cur==='s7'){ if(S7.play) S7.ang+=(S7.v/S7.r)*dt*0.5; drawS7(); }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+<!-- site-backlink -->
+<a href="index.html" aria-label="Все визуализации"
+   style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;
+          display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;
+          background:rgba(24,24,32,.88);color:#fff;text-decoration:none;
+          font:500 12px/1 'JetBrains Mono',Menlo,Consolas,monospace;letter-spacing:.06em;
+          box-shadow:0 8px 20px -10px rgba(24,24,32,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">
+  <span aria-hidden="true" style="font-size:15px">←</span> ВСЕ ВИЗУАЛИЗАЦИИ
+</a>
+</body>
+</html>

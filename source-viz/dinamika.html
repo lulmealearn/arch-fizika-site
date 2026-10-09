@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Динамика: законы Ньютона и силы</title>
+<style>
+  :root{
+    --bg:#f7f6f2; --paper:#fff; --ink:#181820; --muted:#6c6a78; --line:#e2dfd6;
+    --violet:#6d28d9; --magenta:#d61f69; --blue:#1d4ed8; --red:#d92b2b;
+    --green:#0e8a5f; --amber:#b7791f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 "Charter","Georgia","PT Serif",serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:28px 18px 80px}
+
+  header.top{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:18px}
+  .eyebrow{font:600 12px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--violet)}
+  h1{font-size:clamp(26px,4.4vw,40px);line-height:1.12;margin:10px 0 6px;font-weight:700;letter-spacing:-.01em}
+  header.top p{margin:0;color:var(--muted);max-width:74ch}
+
+  nav.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:20;border-bottom:1px solid var(--line)}
+  .chip{font:600 13px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;padding:9px 13px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--muted);cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  section{display:none;animation:fade .25s ease}
+  section.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  h2{font-size:clamp(21px,3vw,29px);margin:0 0 6px;letter-spacing:-.01em}
+  h3{font-size:18px;margin:22px 0 8px}
+  .lead{color:var(--muted);margin:0 0 18px;max-width:76ch}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;margin:16px 0}
+  canvas{width:100%;display:block;border-radius:10px;background:#fcfcfa;touch-action:pan-y}
+
+  .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:14px}
+  .ctrl{display:flex;align-items:center;gap:10px;flex:1 1 230px}
+  .ctrl label{font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+  input[type=range]{flex:1;accent-color:var(--violet);min-width:100px}
+  button.btn{font:600 13px/1 ui-monospace,Menlo,monospace;padding:10px 14px;border-radius:9px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:.15s}
+  button.btn.ghost{background:transparent;color:var(--ink)}
+  button.btn:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+  button.btn.small{padding:7px 11px;font-size:12px}
+  button.btn.sel{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  .readout{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .val{font:600 13px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fbfaf6}
+  .val.blue{color:var(--blue);border-color:#c7d5f7}
+  .val.red{color:var(--red);border-color:#f3ccc9}
+  .val.green{color:var(--green);border-color:#bfe6d5}
+  .val.violet{color:var(--violet);border-color:#ddd0f7}
+  .val.amber{color:var(--amber);border-color:#f0dfba}
+  .val.mag{color:var(--magenta);border-color:#f5cfe0}
+
+  .note{border-left:3px solid var(--violet);background:#f4f0ff;padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+  .note.warn{border-color:var(--magenta);background:#fdf0f6}
+  .note.ok{border-color:var(--green);background:#eefaf4}
+  .note.nat{border-color:var(--amber);background:#fdf7ea}
+  .note .tag{font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--violet);display:block;margin-bottom:6px}
+  .note.warn .tag{color:var(--magenta)}
+  .note.ok .tag{color:var(--green)}
+  .note.nat .tag{color:var(--amber)}
+  .note p{margin:0}
+  .note p+p{margin-top:8px}
+
+  .f{font:600 15px/1.7 ui-monospace,"JetBrains Mono",Menlo,monospace;background:#f4f2ec;border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:inline-block;margin:6px 8px 6px 0}
+  .f.big{font-size:18px;border-color:var(--magenta);background:#fdf2f7}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:#f2f0ea;font:700 12px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  td.k{font:600 13px ui-monospace,Menlo,monospace}
+
+  ul.tight{margin:8px 0 0;padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font:600 12px ui-monospace,Menlo,monospace;color:var(--muted)}
+  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-3px}
+  .status{font:700 13px/1.45 ui-monospace,Menlo,monospace;letter-spacing:.05em;padding:11px 14px;border-radius:9px;display:inline-block;margin-top:12px;border:1px solid}
+  .status.go{color:var(--green);border-color:#bfe6d5;background:#eefaf4}
+  .status.stop{color:var(--red);border-color:#f3ccc9;background:#fdf0ee}
+  .status.zero{color:var(--amber);border-color:#f0dfba;background:#fdf7ea}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Динамика · законы Ньютона и силы</div>
+  <h1>Динамика: почему тела движутся именно так</h1>
+  <p>Кинематика описывала движение, но не объясняла его. Динамика отвечает на вопрос «почему». Ниже — законы Ньютона и все школьные силы, причём у каждой разобрана её <b>физическая природа</b>: что именно на микроуровне заставляет силу появиться.</p>
+</header>
+
+<nav class="chips" id="nav">
+  <button class="chip on" data-go="s1">1 · Законы Ньютона</button>
+  <button class="chip" data-go="s2">2 · Природа сил</button>
+  <button class="chip" data-go="s3">3 · Реакция опоры</button>
+  <button class="chip" data-go="s4">4 · Вес и невесомость</button>
+  <button class="chip" data-go="s5">5 · Упругость</button>
+  <button class="chip" data-go="s6">6 · Натяжение нити</button>
+  <button class="chip" data-go="s7">7 · Трение</button>
+  <button class="chip" data-go="s8">8 · Тяготение</button>
+  <button class="chip" data-go="s9">9 · НеИСО</button>
+  <button class="chip" data-go="s10">10 · Итог</button>
+</nav>
+
+<!-- ================= S1 ================= -->
+<section id="s1" class="on">
+  <h2>Три закона Ньютона</h2>
+  <p class="lead"><b>Первый:</b> существуют системы отсчёта, в которых тело, не испытывающее нескомпенсированного воздействия, движется равномерно и прямолинейно. Такие системы называют инерциальными. <b>Второй:</b> в них ускорение пропорционально равнодействующей и обратно пропорционально массе. <b>Третий:</b> силы всегда рождаются парами.</p>
+
+  <div class="card">
+    <canvas id="c1" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>F₁ вправо, Н</label><input type="range" id="r1a" min="0" max="60" value="30"></div>
+      <div class="ctrl"><label>F₂ влево, Н</label><input type="range" id="r1b" min="0" max="60" value="10"></div>
+      <div class="ctrl"><label>масса m, кг</label><input type="range" id="r1c" min="10" max="60" value="20"></div>
+      <button class="btn" id="z1">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val red">равнодействующая R = <b id="o1R">2.0</b> Н</span>
+      <span class="val violet">a = R/m = <b id="o1a">1.00</b> м/с²</span>
+      <span class="val blue">v = <b id="o1v">0.0</b> м/с</span>
+    </div>
+    <div id="o1st" class="status go">Равнодействующая не ноль — тело разгоняется</div>
+  </div>
+
+  <span class="f big">F₁ + F₂ + ... = m·a</span>
+  <span class="f big">R = 0 ⟹ v = const</span>
+  <span class="f big">F₁₂ = −F₂₁</span>
+
+  <div class="note warn">
+    <span class="tag">Третий закон: где ошибаются почти все</span>
+    <p>Силы действия и противодействия <b>приложены к разным телам</b>, поэтому они никогда не уравновешивают друг друга. Книга давит на стол, стол давит на книгу — это пара из третьего закона. А вот сила тяжести книги и реакция стола приложены к <b>одному</b> телу и парой третьего закона не являются, хотя тоже равны по модулю.</p>
+  </div>
+
+  <div class="note">
+    <span class="tag">Про первый закон</span>
+    <p>Первый закон — это не частный случай второго при R = 0. Он утверждает более фундаментальное: что инерциальные системы отсчёта вообще <b>существуют</b>. Без этого утверждения второй закон нельзя было бы записать, ведь он верен только в них.</p>
+  </div>
+</section>
+
+<!-- ================= S2 ================= -->
+<section id="s2">
+  <h2>Природа сил: их всего две</h2>
+  <p class="lead">В школьной механике встречается около семи разных сил, но фундаментальных взаимодействий за ними стоит <b>всего два</b>: гравитационное и электромагнитное. Все контактные силы — реакция опоры, упругость, натяжение, трение — это одно и то же электромагнитное отталкивание электронных оболочек, просто в разных геометриях.</p>
+
+  <div class="card">
+    <canvas id="c2" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>нагрузка на поверхность</label><input type="range" id="r2a" min="0" max="100" value="35"></div>
+    </div>
+    <div class="readout">
+      <span class="val amber">деформация решётки: <b id="o2d">35</b> %</span>
+      <span class="val green">возникшая сила N: <b id="o2n">3.5</b> усл. ед.</span>
+    </div>
+    <div id="o2st" class="status zero">Атомы сближены — электронные оболочки отталкиваются сильнее</div>
+  </div>
+
+  <div class="note nat">
+    <span class="tag">Главная мысль про природу</span>
+    <p>Твёрдое тело — это решётка атомов, связанных электромагнитными силами. Связи ведут себя как пружинки: сожми их — они оттолкнут, растяни — притянут. Никакой «силы стола» отдельно не существует: есть <b>миллиарды деформированных межатомных связей</b>, и их суммарное действие мы называем реакцией опоры.</p>
+    <p>Отсюда следует важное: <b>любая опора всегда немного прогибается</b>. Просто у стола прогиб микроскопический, а у батута — заметный глазу. Физика одна и та же.</p>
+  </div>
+
+  <table>
+    <tr><th>Сила</th><th>Фундаментальная природа</th><th>Механизм появления</th></tr>
+    <tr><td>Тяжести, гравитации</td><td class="k">гравитационное</td><td>притяжение любых масс</td></tr>
+    <tr><td>Реакции опоры N</td><td class="k">электромагнитное</td><td>сжатие межатомных связей опоры</td></tr>
+    <tr><td>Упругости</td><td class="k">электромагнитное</td><td>деформация связей внутри тела</td></tr>
+    <tr><td>Натяжения нити T</td><td class="k">электромагнитное</td><td>растяжение связей вдоль нити</td></tr>
+    <tr><td>Трения</td><td class="k">электромагнитное</td><td>зацепление и слипание неровностей</td></tr>
+    <tr><td>Вес P</td><td class="k">—</td><td>не отдельная сила, а имя для действия тела на опору</td></tr>
+    <tr><td>Инерции</td><td class="k">никакой</td><td>не сила, а поправка за неинерциальность системы</td></tr>
+  </table>
+</section>
+
+<!-- ================= S3 ================= -->
+<section id="s3">
+  <h2>Сила нормальной реакции опоры</h2>
+  <p class="lead">Опора всегда отвечает перпендикулярно своей поверхности — отсюда слово «нормальная». Величина же подстраивается под ситуацию: опора выдаёт ровно столько, сколько нужно, чтобы тело её не продавило. Поэтому N далеко не всегда равна mg.</p>
+
+  <div class="card">
+    <canvas id="c3" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <button class="btn small sel" id="m3a">горизонталь</button>
+      <button class="btn small" id="m3b">наклонная</button>
+      <button class="btn small" id="m3c">выпуклый мост</button>
+      <div class="ctrl"><label id="l3">угол α, °</label><input type="range" id="r3a" min="0" max="60" value="30"></div>
+    </div>
+    <div class="readout">
+      <span class="val amber">mg = <b id="o3mg">10.0</b> Н</span>
+      <span class="val green">N = <b id="o3N">10.0</b> Н</span>
+      <span class="val violet" id="o3f">N = mg</span>
+    </div>
+    <div id="o3st" class="status go">На горизонтали опора компенсирует силу тяжести полностью</div>
+  </div>
+
+  <span class="f">горизонталь: N = mg</span>
+  <span class="f">наклонная: N = mg·cos α</span>
+  <span class="f">выпуклый мост: N = mg − mv²/R</span>
+
+  <div class="note">
+    <span class="tag">Куда направлена N</span>
+    <p>Всегда <b>по внешней нормали к поверхности</b> — от опоры к телу. На наклонной плоскости это значит «вверх и в сторону от склона»: вектор N отклонён от вертикали ровно на угол α (на рисунке это показано пунктирной вертикалью и дугой). Вертикальной N бывает только на горизонтальной опоре.</p>
+    <p>Сила тяжести при этом остаётся строго вертикальной. Её раскладывают на нормальную составляющую mg·cos α, которую и уравновешивает N, и скатывающую mg·sin α, которую опора компенсировать не может — именно она разгоняет брусок вдоль склона.</p>
+  </div>
+
+  <div class="note nat">
+    <span class="tag">Природа силы</span>
+    <p>Электромагнитная. Тело своим весом сжимает верхний слой атомов опоры; сжатые связи отталкиваются и выталкивают тело обратно. Чем сильнее давит тело, тем больше деформация и тем больше N — <b>опора подстраивается автоматически</b>.</p>
+    <p>Именно поэтому у N нет собственной формулы: её всегда находят из второго закона Ньютона в проекциях, а не «по определению».</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Ловушка</span>
+    <p>«N = mg» верно только для горизонтальной неподвижной опоры. На наклонной остаётся лишь проекция, а на выпуклом мосту часть силы тяжести уходит на центростремительное ускорение — и N становится меньше. На достаточной скорости N обращается в ноль, и машина отрывается от моста.</p>
+  </div>
+</section>
+
+<!-- ================= S4 ================= -->
+<section id="s4">
+  <h2>Вес тела и невесомость</h2>
+  <p class="lead"><b>Вес</b> — это сила, с которой тело действует на опору или подвес. Она приложена не к телу, а к опоре, и это принципиально: вес и сила тяжести — разные силы, приложенные к разным объектам. Совпадают они по модулю только в покое.</p>
+
+  <div class="card">
+    <canvas id="c4" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>ускорение лифта a, м/с²</label><input type="range" id="r4a" min="-140" max="140" value="0"></div>
+      <button class="btn ghost" id="z4">поставить a = 0</button>
+    </div>
+    <div class="readout">
+      <span class="val amber">mg = <b id="o4mg">20.0</b> Н</span>
+      <span class="val violet">a = <b id="o4a">0.0</b> м/с²</span>
+      <span class="val green">P = m(g + a) = <b id="o4P">20.0</b> Н</span>
+      <span class="val blue">перегрузка P/mg = <b id="o4k">1.00</b></span>
+    </div>
+    <div id="o4st" class="status go">Лифт не ускоряется: вес равен силе тяжести</div>
+  </div>
+
+  <span class="f big">P = m(g + a)</span>
+  <span class="f">a вверх → перегрузка</span>
+  <span class="f">a = −g → невесомость, P = 0</span>
+
+  <div class="note">
+    <span class="tag">Почему P и mg — разные силы</span>
+    <p><b>Сила тяжести</b> приложена к телу, её источник — Земля, природа гравитационная. <b>Вес</b> приложен к опоре, его источник — само тело, природа электромагнитная (это давление тела на опору). Они просто равны по модулю в частном случае покоя или равномерного движения.</p>
+  </div>
+
+  <div class="note ok">
+    <span class="tag">Невесомость</span>
+    <p>Поставь a = −10 м/с², то есть свободное падение. Тело перестаёт давить на опору: P = 0. При этом <b>сила тяжести никуда не делась</b> — она и есть причина такого падения. Космонавты на МКС невесомы ровно по этой причине: станция всё время свободно падает на Землю, промахиваясь мимо неё.</p>
+  </div>
+</section>
+
+<!-- ================= S5 ================= -->
+<section id="s5">
+  <h2>Сила упругости и закон Гука</h2>
+  <p class="lead">Растянем или сожмём пружину — она стремится вернуться в исходное состояние. Возникающая сила направлена <b>против деформации</b> и при небольших деформациях пропорциональна ей.</p>
+
+  <div class="card">
+    <canvas id="c5" height="360" style="height:360px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>деформация x, см</label><input type="range" id="r5a" min="-60" max="60" value="30"></div>
+      <div class="ctrl"><label>жёсткость k, Н/м</label><input type="range" id="r5b" min="20" max="200" value="80"></div>
+    </div>
+    <div class="readout">
+      <span class="val">x = <b id="o5x">30</b> см</span>
+      <span class="val amber">k = <b id="o5k">80</b> Н/м</span>
+      <span class="val violet">F = −k·x, |F| = <b id="o5F">24.0</b> Н</span>
+    </div>
+    <div id="o5st" class="status go">Пружина растянута — сила упругости тянет обратно, влево</div>
+  </div>
+
+  <span class="f big">F = −k·x</span>
+  <span class="f">|F| = k·|x|</span>
+  <span class="f">[k] = Н/м</span>
+
+  <div class="note nat">
+    <span class="tag">Природа силы</span>
+    <p>Электромагнитная. Атомы в решётке сидят на дне «энергетической ямы»: чуть сдвинул — связи возвращают их назад. При малых смещениях дно ямы можно считать параболой, а возвращающая сила тогда получается <b>линейной</b> по смещению. Отсюда и линейность закона Гука.</p>
+    <p>Именно поэтому закон Гука работает только при малых деформациях: у большой деформации яма уже не парабола, линейность ломается, а потом тело и вовсе не возвращается в исходную форму.</p>
+  </div>
+
+  <div class="note ok">
+    <span class="tag">Наклон графика — это и есть k</span>
+    <p>Масштаб осей на графике зафиксирован (x до ±60 см, F до ±120 Н), поэтому жёсткость видна напрямую: при k = 20 Н/м прямая почти пологая, при k = 200 Н/м — крутая. Чем круче прямая F(x), тем больше силы нужно, чтобы получить ту же деформацию.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Про минус</span>
+    <p>Минус в F = −kx означает только одно: сила направлена <b>противоположно</b> смещению. Растянули вправо — тянет влево. В расчётах по модулю его опускают, но при записи проекций забывать про него нельзя.</p>
+  </div>
+</section>
+
+<!-- ================= S6 ================= -->
+<section id="s6">
+  <h2>Сила натяжения нити</h2>
+  <p class="lead">Нить умеет только <b>тянуть</b> и только <b>вдоль себя</b>. Толкать она не может — это главное её отличие от стержня. Если нить считается невесомой и нерастяжимой, а блок идеальным, то натяжение по всей длине одинаково.</p>
+
+  <div class="card">
+    <canvas id="c6" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>m₁, кг</label><input type="range" id="r6a" min="5" max="50" value="30"></div>
+      <div class="ctrl"><label>m₂, кг</label><input type="range" id="r6b" min="5" max="50" value="15"></div>
+      <button class="btn" id="p6">пауза</button>
+      <button class="btn ghost" id="z6">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val violet">a = (m₁−m₂)g/(m₁+m₂) = <b id="o6a">3.33</b> м/с²</span>
+      <span class="val blue">T = 2m₁m₂g/(m₁+m₂) = <b id="o6T">20.0</b> Н</span>
+      <span class="val amber">m₁g = <b id="o6g1">30.0</b> Н, m₂g = <b id="o6g2">15.0</b> Н</span>
+    </div>
+    <div id="o6st" class="status go">Натяжение одинаково с обеих сторон блока</div>
+  </div>
+
+  <span class="f">нить нерастяжима ⟹ ускорения тел равны по модулю</span>
+  <span class="f">невесомая нить и идеальный блок ⟹ T одинаково по всей длине</span>
+
+  <div class="note nat">
+    <span class="tag">Природа силы</span>
+    <p>Это та же упругость, только при растяжении и с очень большой жёсткостью. Нить чуть-чуть удлиняется, межатомные связи растягиваются и тянут обратно. Растяжение настолько мало, что мы называем нить нерастяжимой, но <b>без него натяжения бы не возникло</b>.</p>
+    <p>Отсюда же понятно, почему T одинаково у невесомой нити: если бы натяжения на концах отличались, у кусочка нити нулевой массы возникло бы бесконечное ускорение.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Проверка ответа</span>
+    <p>Натяжение всегда меньше веса опускающегося груза, но больше веса поднимающегося. Если у тебя вышло T больше обоих или меньше обоих — где-то ошибка в знаках.</p>
+  </div>
+</section>
+
+<!-- ================= S7 ================= -->
+<section id="s7">
+  <h2>Сила трения</h2>
+  <p class="lead">Пока тело покоится, трение <b>подстраивается</b> под внешнюю силу и гасит её ровно настолько, чтобы тело не поехало. Но у этой услужливости есть предел: μN. Как только приложенная сила его превысит, тело срывается, и дальше трение уже постоянно.</p>
+
+  <div class="card">
+    <canvas id="c7" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>приложенная сила F, Н</label><input type="range" id="r7a" min="0" max="80" value="20"></div>
+      <div class="ctrl"><label>коэффициент μ</label><input type="range" id="r7b" min="5" max="80" value="40"></div>
+      <button class="btn ghost" id="z7">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val">F = <b id="o7F">2.0</b> Н</span>
+      <span class="val green">N = mg = <b id="o7N">10.0</b> Н</span>
+      <span class="val amber">μN = <b id="o7max">4.0</b> Н — предел трения покоя</span>
+      <span class="val mag">F<sub>тр</sub> = <b id="o7f">2.0</b> Н</span>
+    </div>
+    <div id="o7st" class="status go">Трение покоя: F_тр = F, тело неподвижно</div>
+  </div>
+
+  <span class="f big">F<sub>тр покоя</sub> = F, пока F ≤ μN</span>
+  <span class="f big">F<sub>тр скольж</sub> = μN</span>
+
+  <div class="note nat">
+    <span class="tag">Природа силы</span>
+    <p>Электромагнитная. Любая поверхность на микроуровне шероховата: выступы двух тел цепляются друг за друга, а в точках настоящего контакта атомы буквально <b>слипаются</b>, образуя связи. Чтобы сдвинуть тело, эти связи нужно рвать — вот и сопротивление.</p>
+    <p>Отсюда неочевидное следствие: сила трения почти не зависит от видимой площади соприкосновения. Прижми сильнее — вырастет не видимая площадь, а <b>истинная площадь контакта</b> выступов, пропорциональная силе прижатия N. Поэтому в формулу входит именно N.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Главная ошибка</span>
+    <p>Писать F<sub>тр</sub> = μN всегда. Эта формула верна только при <b>скольжении</b> либо в момент срыва. Для покоящегося тела трение равно приложенной силе и может быть сколь угодно малым — вплоть до нуля, если тело никто не толкает.</p>
+  </div>
+</section>
+
+<!-- ================= S8 ================= -->
+<section id="s8">
+  <h2>Тяготение и космические скорости</h2>
+  <p class="lead">Любые два тела притягиваются. Сила убывает как квадрат расстояния — и именно из этого закона получаются и ускорение свободного падения, и скорости, нужные для выхода на орбиту.</p>
+
+  <div class="card">
+    <canvas id="c8" height="420" style="height:420px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>скорость запуска (в долях первой космической)</label><input type="range" id="r8a" min="40" max="165" value="100"></div>
+      <button class="btn" id="z8">запустить заново</button>
+    </div>
+    <div class="readout">
+      <span class="val blue">v / v₁ = <b id="o8v">1.00</b></span>
+      <span class="val violet" id="o8t">траектория: окружность</span>
+    </div>
+    <div id="o8st" class="status go">Ровно первая космическая — круговая орбита</div>
+  </div>
+
+  <span class="f big">F = G·m₁m₂ / r²</span>
+  <span class="f big">g = GM / R²</span>
+  <span class="f big">v₁ = √(GM/R) ≈ 7,9 км/с</span>
+  <span class="f big">v₂ = √2·v₁ ≈ 11,2 км/с</span>
+
+  <div class="note nat">
+    <span class="tag">Природа силы</span>
+    <p>Гравитационная — второе из двух фундаментальных взаимодействий в школьной механике. В отличие от электрических сил, гравитация всегда только притягивает и не экранируется ничем.</p>
+    <p>Она невероятно слабая: чтобы почувствовать притяжение, нужна масса планеты. Два человека рядом притягиваются с силой порядка миллионных долей ньютона.</p>
+  </div>
+
+  <div class="note ok">
+    <span class="tag">Откуда берётся v₁</span>
+    <p>На круговой орбите роль центростремительной силы играет тяготение: GMm/R² = mv²/R. Масса спутника сокращается — и остаётся v₁ = √(GM/R). Поэтому <b>скорость орбиты не зависит от массы спутника</b>: кирпич и станция летят по одной орбите одинаково.</p>
+  </div>
+</section>
+
+<!-- ================= S9 ================= -->
+<section id="s9">
+  <h2>Неинерциальные системы и силы инерции</h2>
+  <p class="lead">Все законы Ньютона работают только в инерциальных системах. Но иногда удобно решать задачу в системе, которая сама ускоряется — например, связанной с разгоняющейся тележкой. Плата за это удобство — добавить <b>фиктивную силу инерции</b>.</p>
+
+  <div class="card">
+    <canvas id="c9" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <button class="btn small sel" id="m9a">взгляд с земли (ИСО)</button>
+      <button class="btn small" id="m9b">взгляд из тележки (НеИСО)</button>
+      <div class="ctrl"><label>ускорение тележки a, м/с²</label><input type="range" id="r9a" min="0" max="80" value="40"></div>
+    </div>
+    <div class="readout">
+      <span class="val violet">a = <b id="o9a">4.0</b> м/с²</span>
+      <span class="val amber">угол отклонения нити: <b id="o9ang">22</b>°</span>
+      <span class="val mag" id="o9fi">сила инерции: не вводится</span>
+    </div>
+    <div id="o9st" class="status go">В ИСО: нить отклонена, равнодействующая T и mg даёт ma</div>
+  </div>
+
+  <span class="f big">F<sub>ин</sub> = −m·a<sub>сист</sub></span>
+  <span class="f">tg α = a / g</span>
+
+  <div class="note warn">
+    <span class="tag">Природа силы: её нет</span>
+    <p>У силы инерции <b>нет источника</b> — нет второго тела, которое её создаёт, и нет пары по третьему закону. Это не физическое взаимодействие, а математическая поправка, которая позволяет писать привычное ma = ΣF в системе, где второй закон вообще-то не работает.</p>
+    <p>Проверка: переключись на взгляд с земли. Никакой дополнительной силы там нет, и всё прекрасно объясняется одними T и mg. Значит, сила инерции — свойство выбора системы отсчёта, а не природы.</p>
+  </div>
+
+  <div class="note ok">
+    <span class="tag">Когда её удобно вводить</span>
+    <p>Когда тело <b>покоится</b> относительно ускоряющейся системы: груз в разгоняющемся вагоне, человек на карусели. В такой системе задача превращается в статику: сумма всех сил, включая инерционную, равна нулю. Это часто короче, чем решать в земной системе.</p>
+  </div>
+</section>
+
+<!-- ================= S10 ================= -->
+<section id="s10">
+  <h2>Итог: все силы на одной странице</h2>
+
+  <table>
+    <tr><th>Сила</th><th>Формула</th><th>Направление</th><th>Природа</th></tr>
+    <tr><td>Тяжести</td><td class="k">mg</td><td>вертикально вниз, к центру Земли</td><td>гравитационная</td></tr>
+    <tr><td>Всемирного тяготения</td><td class="k">Gm₁m₂/r²</td><td>вдоль линии между телами</td><td>гравитационная</td></tr>
+    <tr><td>Реакции опоры N</td><td class="k">из II закона</td><td>перпендикулярно поверхности</td><td>электромагнитная</td></tr>
+    <tr><td>Упругости</td><td class="k">−kx</td><td>против деформации</td><td>электромагнитная</td></tr>
+    <tr><td>Натяжения T</td><td class="k">из II закона</td><td>вдоль нити, от тела</td><td>электромагнитная</td></tr>
+    <tr><td>Трения покоя</td><td class="k">= F, до μN</td><td>против попытки сдвига</td><td>электромагнитная</td></tr>
+    <tr><td>Трения скольжения</td><td class="k">μN</td><td>против скорости</td><td>электромагнитная</td></tr>
+    <tr><td>Вес P</td><td class="k">m(g + a)</td><td>на опору или подвес</td><td>электромагнитная</td></tr>
+    <tr><td>Инерции</td><td class="k">−ma</td><td>против ускорения системы</td><td>фиктивная</td></tr>
+  </table>
+
+  <h3>Как решать любую задачу динамики</h3>
+  <div class="note">
+    <span class="tag">Алгоритм</span>
+    <ul class="tight">
+      <li>Нарисовать тело отдельно и расставить <b>все</b> силы, действующие именно на него. Ничего своего не добавлять.</li>
+      <li>Проверить каждую силу: назвать тело-источник. Если источник не называется — силы нет.</li>
+      <li>Выбрать оси. Одну удобно направить вдоль ускорения.</li>
+      <li>Записать ma = ΣF в проекциях на каждую ось.</li>
+      <li>Добавить связи: нерастяжимая нить, качение без проскальзывания, тела движутся вместе.</li>
+      <li>Решить систему и проверить ответ на здравый смысл и на предельные случаи.</li>
+    </ul>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Пять типовых ошибок</span>
+    <ul class="tight">
+      <li>Считать N и mg парой третьего закона. Они приложены к одному телу.</li>
+      <li>Писать N = mg на наклонной плоскости или на движущейся опоре.</li>
+      <li>Применять F<sub>тр</sub> = μN к покоящемуся телу.</li>
+      <li>Путать вес и силу тяжести: они приложены к разным телам.</li>
+      <li>Вводить силу инерции в инерциальной системе отсчёта.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Динамика · законы Ньютона и силы. Все числа на панелях считаются вживую, g = 10 м/с².</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const TAU=Math.PI*2, G=10;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const fmt=(v,n)=>{const s=(+v).toFixed(n===undefined?1:n);return s.replace('-','−');};
+
+  function fit(cv){
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+    if(!w||!h) return null;
+    if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+    const ctx=cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    return {ctx,w,h};
+  }
+  function arrow(ctx,x1,y1,x2,y2,color,lw,head){
+    lw=lw||2; head=head||9;
+    const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy);
+    if(L<2) return;
+    const ux=dx/L,uy=dy/L;
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*head*.7,y2-uy*head*.7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ux*head-uy*head*.42,y2-uy*head+ux*head*.42);
+    ctx.lineTo(x2-ux*head+uy*head*.42,y2-uy*head-ux*head*.42);
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  }
+  function label(ctx,txt,x,y,color,size,align,baseline){
+    ctx.fillStyle=color;
+    ctx.font='600 '+(size||12)+'px ui-monospace,Menlo,monospace';
+    ctx.textAlign=align||'left';ctx.textBaseline=baseline||'middle';
+    ctx.fillText(txt,x,y);
+  }
+  function dot(ctx,x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=fill;ctx.fill();}
+  function hatch(ctx,x1,x2,y,step,col){
+    ctx.strokeStyle=col||'#c9c6bc';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
+    for(let x=x1;x<x2;x+=(step||11)){
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-8,y+9);ctx.stroke();
+    }
+  }
+  function box(ctx,cx,cy,w2,h2,fill){
+    ctx.fillStyle=fill||'#e9e7df';ctx.strokeStyle='#181820';ctx.lineWidth=2;
+    ctx.beginPath();ctx.rect(cx-w2,cy-h2,w2*2,h2*2);ctx.fill();ctx.stroke();
+  }
+  function spring(ctx,x1,y,x2,turns,amp,col){
+    ctx.strokeStyle=col||'#6d28d9';ctx.lineWidth=2.2;ctx.beginPath();
+    const n=turns||10, L=x2-x1;
+    ctx.moveTo(x1,y);
+    for(let i=0;i<=n*8;i++){
+      const t=i/(n*8), xx=x1+L*t, yy=y+Math.sin(t*n*TAU)*amp;
+      ctx.lineTo(xx,yy);
+    }
+    ctx.lineTo(x2,y);ctx.stroke();
+  }
+
+  /* ---------- навигация ---------- */
+  let cur='s1';
+  document.getElementById('nav').addEventListener('click',e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));
+    document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.go));
+    cur=b.dataset.go;
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  function modeBtns(list,st,key){
+    list.forEach(([id,val])=>{
+      document.getElementById(id).addEventListener('click',()=>{
+        st[key]=val;
+        list.forEach(([i2])=>document.getElementById(i2).classList.toggle('sel',i2===id));
+      });
+    });
+  }
+
+  /* ================= S1 ================= */
+  const S1={F1:3,F2:1,m:2,v:0,x:0};
+  ['r1a','r1b','r1c'].forEach((id,k)=>{
+    document.getElementById(id).addEventListener('input',e=>{
+      const v=+e.target.value/10;
+      if(k===0)S1.F1=v; else if(k===1)S1.F2=v; else S1.m=v;
+      S1.v=0;S1.x=0;
+    });
+  });
+  document.getElementById('z1').addEventListener('click',()=>{S1.v=0;S1.x=0;});
+
+  function drawS1(){
+    const g=fit(document.getElementById('c1')); if(!g) return;
+    const {ctx,w,h}=g;
+    const R=S1.F1-S1.F2, a=R/S1.m;
+    const y=h*0.40;
+    hatch(ctx,20,w*0.62,y+26,12);
+    const cx=clamp(w*0.16+S1.x*26,60,w*0.55);
+    const s=Math.max(22,Math.min(38,14+S1.m*5));
+    box(ctx,cx,y,s,s*0.78);
+    label(ctx,'m = '+S1.m.toFixed(1)+' кг',cx,y+s*0.78+34,'#6c6a78',12,'center');
+    arrow(ctx,cx+s,y,cx+s+S1.F1*22,y,'#1d4ed8',3,9);
+    label(ctx,'F₁',cx+s+S1.F1*22+12,y-12,'#1d4ed8',12,'center');
+    arrow(ctx,cx-s,y,cx-s-S1.F2*22,y,'#b7791f',3,9);
+    label(ctx,'F₂',cx-s-S1.F2*22-12,y-12,'#b7791f',12,'center');
+    if(Math.abs(R)>0.05){
+      arrow(ctx,cx,y-s-24,cx+R*22,y-s-24,'#d92b2b',3.4,10);
+      label(ctx,'R = '+fmt(R)+' Н',cx+R*11,y-s-40,'#d92b2b',12,'center');
+    } else {
+      label(ctx,'R = 0',cx,y-s-30,'#0e8a5f',13,'center');
+    }
+
+    // третий закон — справа
+    const bx=w*0.78, by=h*0.72;
+    label(ctx,'третий закон: силы рождаются парами',bx,by-72,'#6c6a78',12,'center');
+    box(ctx,bx-26,by,22,20,'#e9e7df');
+    box(ctx,bx+26,by,22,20,'#dfe6f5');
+    label(ctx,'A',bx-26,by,'#6c6a78',12,'center');
+    label(ctx,'B',bx+26,by,'#6c6a78',12,'center');
+    arrow(ctx,bx-4,by-32,bx+34,by-32,'#d92b2b',2.6,8);
+    label(ctx,'F(A на B)',bx+40,by-32,'#d92b2b',11,'left');
+    arrow(ctx,bx+4,by+32,bx-34,by+32,'#0e8a5f',2.6,8);
+    label(ctx,'F(B на A)',bx-40,by+32,'#0e8a5f',11,'right');
+
+    document.getElementById('o1R').textContent=fmt(R);
+    document.getElementById('o1a').textContent=fmt(a,2);
+    document.getElementById('o1v').textContent=fmt(S1.v);
+    const st=document.getElementById('o1st');
+    if(Math.abs(R)<0.05){st.className='status go';st.textContent='R = 0 — силы скомпенсированы, скорость не меняется (первый закон)';}
+    else {st.className='status zero';st.textContent='Равнодействующая не ноль — тело ускоряется, a = R/m (второй закон)';}
+  }
+
+  /* ================= S2 ================= */
+  const S2={load:0.35};
+  document.getElementById('r2a').addEventListener('input',e=>{S2.load=+e.target.value/100;});
+
+  function drawS2(){
+    const g=fit(document.getElementById('c2')); if(!g) return;
+    const {ctx,w,h}=g;
+    const comp=S2.load;
+    const y0=h*0.78;                 // нижний ряд атомов
+    const gap=62-40*comp;            // расстояние между рядами
+    const yTop=y0-gap;               // верхний ряд
+    const AR=8;
+
+    label(ctx,'что происходит внутри опоры на уровне атомов',w/2,20,'#6c6a78',12,'center');
+
+    const n=9, x0=w*0.5-150, dx=300/(n-1);
+    // решётка: вертикальные «пружинки» между рядами
+    for(let i=0;i<n;i++){
+      const x=x0+dx*i;
+      ctx.strokeStyle=comp>0.55?'#d99a9a':'#c9c6bc';ctx.lineWidth=1.8;
+      ctx.beginPath();
+      for(let k=0;k<=60;k++){
+        const t=k/60, yy=y0-gap*t, xx=x+Math.sin(t*6*TAU)*(4+3*comp);
+        k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);
+      }
+      ctx.stroke();
+      dot(ctx,x,yTop,AR,'#8fb8e8');
+      dot(ctx,x,y0,AR,'#b9b6ac');
+    }
+    hatch(ctx,x0-34,x0+300+34,y0+AR+2,12);
+    label(ctx,'атомы опоры',x0-46,yTop,'#8b8879',11,'right');
+
+    // тело стоит прямо на верхнем ряду
+    const bh=26, byc=yTop-AR-bh;
+    box(ctx,w*0.5,byc,86,bh,'#e9e7df');
+    label(ctx,'тело',w*0.5,byc,'#6c6a78',12,'center');
+
+    // давление тела вниз и реакция N вверх
+    const F=comp*10;
+    arrow(ctx,w*0.5-52,byc-bh-52,w*0.5-52,byc-bh-6,'#b7791f',3,9);
+    label(ctx,'давление тела',w*0.5-66,byc-bh-32,'#b7791f',11,'right');
+    const NL=Math.max(20,F*10);
+    arrow(ctx,w*0.5+118,yTop-AR,w*0.5+118,yTop-AR-NL,'#0e8a5f',3.2,10);
+    label(ctx,'N',w*0.5+134,yTop-AR-NL/2,'#0e8a5f',13,'left');
+    label(ctx,'сжатые связи выталкивают тело',w*0.5,h*0.94,'#8b8879',11,'center');
+
+    document.getElementById('o2d').textContent=Math.round(comp*100);
+    document.getElementById('o2n').textContent=fmt(F);
+    const st=document.getElementById('o2st');
+    if(comp<0.08){st.className='status go';st.textContent='Нагрузки почти нет — связи не деформированы, N ≈ 0';}
+    else if(comp<0.6){st.className='status zero';st.textContent='Атомы сближены — электронные оболочки отталкиваются сильнее, N растёт';}
+    else {st.className='status stop';st.textContent='Сильное сжатие: N велика, а при дальнейшем росте связи не выдержат';}
+  }
+
+  /* ================= S3 ================= */
+  const S3={mode:'flat',ang:30,v:0.6};
+  modeBtns([['m3a','flat'],['m3b','incl'],['m3c','bridge']],S3,'mode');
+  document.getElementById('r3a').addEventListener('input',e=>{
+    const v=+e.target.value;
+    if(S3.mode==='bridge') S3.v=v/60; else S3.ang=v;
+  });
+
+  function drawS3(){
+    const g=fit(document.getElementById('c3')); if(!g) return;
+    const {ctx,w,h}=g;
+    const m=1, mg=m*G;
+    let N=mg, txt='N = mg', st='status go', msg='';
+    const lbl=document.getElementById('l3');
+
+    if(S3.mode==='flat'){
+      lbl.textContent='угол α — только для наклонной';
+      const y=h*0.62, cx=w*0.45;
+      hatch(ctx,cx-160,cx+160,y,13);
+      box(ctx,cx,y-26,36,26);
+      arrow(ctx,cx,y-26,cx,y-26+mg*9,'#b7791f',3,9);
+      label(ctx,'mg',cx-14,y-26+mg*9-10,'#b7791f',13,'right');
+      arrow(ctx,cx,y-26,cx,y-26-mg*9,'#0e8a5f',3.2,10);
+      label(ctx,'N',cx+14,y-26-mg*9+10,'#0e8a5f',13,'left');
+      N=mg; txt='N = mg'; msg='На горизонтали опора компенсирует силу тяжести полностью';
+    } else if(S3.mode==='incl'){
+      lbl.textContent='угол α, °';
+      const A=S3.ang*Math.PI/180;
+      const ca=Math.cos(A), sa=Math.sin(A), ta=Math.tan(A);
+      N=mg*ca;
+      // длина основания подбирается так, чтобы вершина клина не вылезала за холст
+      const ox=w*0.20, oy=h*0.74;
+      const L=Math.min(w*0.44,340,(oy-h*0.13)/Math.max(0.05,ta));
+      const vx=ox+L, vy=oy-L*ta;
+      ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(vx,oy);ctx.lineTo(vx,vy);ctx.closePath();
+      ctx.fillStyle='#f4f2ec';ctx.fill();
+      ctx.strokeStyle='#c9c6bc';ctx.lineWidth=2;ctx.stroke();
+      hatch(ctx,ox-12,vx+18,oy,12);
+      // угол при основании
+      ctx.strokeStyle='#b9b6ac';ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.arc(ox,oy,46,-A,0);ctx.stroke();
+      label(ctx,'α = '+S3.ang+'°',ox+54,oy-16,'#6c6a78',12,'left');
+
+      // орты: вдоль склона вверх (ca,−sa); ВНЕШНЯЯ нормаль (−sa,−ca) — вверх и влево
+      const nx=-sa, ny=-ca;
+      const qx=ox+L*0.56, qy=oy-L*ta*0.56;           // точка касания на склоне
+      ctx.save();
+      ctx.translate(qx,qy);ctx.rotate(-A);
+      ctx.fillStyle='#e9e7df';ctx.strokeStyle='#181820';ctx.lineWidth=2;
+      ctx.beginPath();ctx.rect(-26,-38,52,38);ctx.fill();ctx.stroke();
+      ctx.restore();
+      const bxc=qx+nx*19, byc=qy+ny*19;              // центр бруска
+      const FS=9;                                    // масштаб стрелок, px на Н
+
+      // вертикаль для сравнения: N отклонена от неё ровно на α
+      ctx.setLineDash([4,5]);ctx.strokeStyle='#d3cfc3';ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.moveTo(bxc,byc);ctx.lineTo(bxc,byc-N*FS-14);ctx.stroke();
+      ctx.setLineDash([]);
+      if(S3.ang>=6){
+        ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.arc(bxc,byc,34,-Math.PI/2-A,-Math.PI/2);ctx.stroke();
+        label(ctx,'α',bxc-Math.sin(A/2)*46,byc-Math.cos(A/2)*46,'#a9a698',11,'center');
+      }
+
+      // разложение mg: нормальная составляющая mg·cos α и скатывающая mg·sin α
+      if(S3.ang>=6){
+        ctx.setLineDash([5,4]);
+        arrow(ctx,bxc,byc,bxc+sa*mg*ca*FS,byc+ca*mg*ca*FS,'#d9b25f',2,8);
+        arrow(ctx,bxc,byc,bxc-ca*mg*sa*FS,byc+sa*mg*sa*FS,'#d9b25f',2,8);
+        ctx.setLineDash([]);
+        label(ctx,'mg·cos α',bxc+sa*mg*ca*FS+8,byc+ca*mg*ca*FS+12,'#b7791f',11,'left');
+        label(ctx,'mg·sin α',bxc-ca*mg*sa*FS-8,byc+sa*mg*sa*FS-12,'#b7791f',11,'right');
+      }
+
+      // N — строго перпендикулярно поверхности, наружу от опоры
+      arrow(ctx,bxc,byc,bxc+nx*N*FS,byc+ny*N*FS,'#0e8a5f',3.2,10);
+      label(ctx,'N',bxc+nx*(N*FS+18),byc+ny*(N*FS+18),'#0e8a5f',13,'center');
+      arrow(ctx,bxc,byc,bxc,byc+mg*FS,'#b7791f',3,9);
+      label(ctx,'mg',bxc-14,byc+mg*FS-10,'#b7791f',13,'right');
+      if(w>620){
+        label(ctx,'N ⟂ поверхности,',w*0.80,h*0.16,'#0e8a5f',12,'center');
+        label(ctx,'а не вертикали',w*0.80,h*0.23,'#0e8a5f',12,'center');
+        label(ctx,'N уравновешивает только mg·cos α',w*0.80,h*0.34,'#6c6a78',12,'center');
+        label(ctx,'mg·sin α не скомпенсирована —',w*0.80,h*0.41,'#6c6a78',12,'center');
+        label(ctx,'брусок скользит вниз по склону',w*0.80,h*0.48,'#6c6a78',12,'center');
+      }
+      txt='N = mg·cos α'; msg='Часть силы тяжести уходит вдоль склона — опоре достаётся лишь проекция';
+      st='status zero';
+    } else {
+      lbl.textContent='скорость v, отн. ед.';
+      const R=1.2, v=S3.v*3.6;
+      N=Math.max(0,mg-v*v/R);
+      const cx=w*0.45, cy=h*1.06, RR=Math.min(h*0.72,250);
+      ctx.strokeStyle='#c9c6bc';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,RR,-Math.PI*0.82,-Math.PI*0.18,false);ctx.stroke();
+      const px=cx, py=cy-RR;
+      box(ctx,px,py-20,30,20);
+      arrow(ctx,px,py-20,px,py-20+mg*11,'#b7791f',3,9);
+      label(ctx,'mg',px-14,py-20+mg*11,'#b7791f',13,'right');
+      if(N>0.05){
+        arrow(ctx,px,py-20,px,py-20-N*11,'#0e8a5f',3.2,10);
+        label(ctx,'N',px+14,py-20-N*11+8,'#0e8a5f',13,'left');
+      }
+      label(ctx,'v',px+52,py-34,'#1d4ed8',13,'center');
+      arrow(ctx,px+24,py-30,px+72,py-30,'#1d4ed8',2.6,8);
+      txt='N = mg − mv²/R';
+      if(N<=0.05){st='status stop';msg='N = 0 — на такой скорости тело отрывается от моста';}
+      else {st='status zero';msg='На выпуклом мосту часть mg тратится на поворот, поэтому N < mg';}
+    }
+
+    document.getElementById('o3mg').textContent=fmt(mg);
+    document.getElementById('o3N').textContent=fmt(N);
+    document.getElementById('o3f').textContent=txt;
+    const s=document.getElementById('o3st'); s.className=st; s.textContent=msg;
+  }
+
+  /* ================= S4 ================= */
+  const S4={a:0,t:0};
+  document.getElementById('r4a').addEventListener('input',e=>{S4.a=+e.target.value/10;});
+  document.getElementById('z4').addEventListener('click',()=>{S4.a=0;document.getElementById('r4a').value=0;});
+
+  function drawS4(){
+    const g=fit(document.getElementById('c4')); if(!g) return;
+    const {ctx,w,h}=g;
+    const m=2, mg=m*G, P=Math.max(0,m*(G+S4.a)), k=P/mg;
+    const cx=w*0.34, cy=h*0.5;
+    // кабина
+    ctx.strokeStyle='#c9c6bc';ctx.lineWidth=2.4;
+    ctx.strokeRect(cx-95,cy-120,190,240);
+    ctx.strokeStyle='#e0ddd4';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(cx,cy-120);ctx.lineTo(cx,cy-160);ctx.stroke();
+    // весы
+    ctx.fillStyle='#efedE6';ctx.fillRect(cx-52,cy+66,104,20);
+    ctx.strokeStyle='#b9b6ac';ctx.lineWidth=1.4;ctx.strokeRect(cx-52,cy+66,104,20);
+    box(ctx,cx,cy+40,32,26);
+    label(ctx,'m',cx,cy+40,'#6c6a78',12,'center');
+    arrow(ctx,cx,cy+40,cx,cy+40+mg*7,'#b7791f',3,9);
+    label(ctx,'mg',cx-14,cy+40+mg*7-6,'#b7791f',12,'right');
+    if(P>0.05){
+      arrow(ctx,cx,cy+40,cx,cy+40-P*7,'#0e8a5f',3.2,10);
+      label(ctx,'N',cx+14,cy+40-P*7+8,'#0e8a5f',12,'left');
+    }
+    if(Math.abs(S4.a)>0.05){
+      arrow(ctx,cx+120,cy,cx+120,cy-S4.a*9,'#6d28d9',3.4,10);
+      label(ctx,'a',cx+136,cy-S4.a*4.5,'#6d28d9',13,'left');
+    }
+
+    // шкала весов
+    const bx=w*0.70, bw=Math.min(210,w*0.24), by=h*0.5;
+    label(ctx,'показание весов P',bx,by-64,'#6c6a78',12,'left');
+    ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;ctx.strokeRect(bx,by-38,bw,28);
+    ctx.fillStyle=P>mg?'rgba(217,43,43,.75)':'rgba(14,138,95,.75)';
+    ctx.fillRect(bx,by-38,bw*clamp(P/(mg*2.4),0,1),28);
+    // отметка mg
+    const mk=bx+bw*(mg/(mg*2.4));
+    ctx.strokeStyle='#181820';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(mk,by-44);ctx.lineTo(mk,by-4);ctx.stroke();
+    label(ctx,'mg',mk,by+8,'#181820',11,'center');
+    label(ctx,fmt(P)+' Н',bx+bw+10,by-24,P>mg?'#d92b2b':'#0e8a5f',14,'left');
+
+    document.getElementById('o4mg').textContent=fmt(mg);
+    document.getElementById('o4a').textContent=fmt(S4.a);
+    document.getElementById('o4P').textContent=fmt(P);
+    document.getElementById('o4k').textContent=fmt(k,2);
+    const st=document.getElementById('o4st');
+    if(Math.abs(S4.a)<0.06){st.className='status go';st.textContent='Лифт не ускоряется: вес равен силе тяжести, P = mg';}
+    else if(P<=0.06){st.className='status stop';st.textContent='Невесомость: P = 0, тело не давит на опору, хотя mg никуда не делась';}
+    else if(S4.a>0){st.className='status zero';st.textContent='Ускорение вверх — перегрузка, вес больше силы тяжести';}
+    else {st.className='status zero';st.textContent='Ускорение вниз — вес меньше силы тяжести';}
+  }
+
+  /* ================= S5 ================= */
+  const S5={x:0.30,k:80};
+  document.getElementById('r5a').addEventListener('input',e=>{S5.x=+e.target.value/100;});
+  document.getElementById('r5b').addEventListener('input',e=>{S5.k=+e.target.value;});
+
+  function drawS5(){
+    const g=fit(document.getElementById('c5')); if(!g) return;
+    const {ctx,w,h}=g;
+    const F=-S5.k*S5.x;
+    const y=h*0.30, x0=w*0.10, L0=Math.min(150,(w-x0)*0.20);
+    // стена
+    ctx.strokeStyle='#181820';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(x0,y-46);ctx.lineTo(x0,y+46);ctx.stroke();
+    for(let yy=y-44;yy<y+46;yy+=11){ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x0-10,yy+9);ctx.stroke();}
+    const xe=x0+L0+S5.x*L0;
+    spring(ctx,x0,y,xe,11,11,'#6d28d9');
+    box(ctx,xe+26,y,26,24);
+    // положение равновесия
+    ctx.setLineDash([4,4]);ctx.strokeStyle='#b9b6ac';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(x0+L0,y-52);ctx.lineTo(x0+L0,y+52);ctx.stroke();ctx.setLineDash([]);
+    label(ctx,'недеформированная длина',x0+L0,y-62,'#a9a698',11,'center');
+    if(Math.abs(S5.x)>0.01){
+      const AMAX=Math.min(120,w*0.18);
+      const ax0=xe+26, atip=ax0+Math.sign(F)*Math.max(16,Math.min(Math.abs(F)*0.9,AMAX));
+      arrow(ctx,ax0,y+44,atip,y+44,'#6d28d9',3.2,10);
+      label(ctx,'F упр',atip+Math.sign(F)*14,y+44,'#6d28d9',12,F>0?'left':'right');
+    }
+
+    // график F(x) — масштаб осей ФИКСИРОВАН, поэтому наклон прямой меняется вместе с k
+    const gx=w*0.14, gy=h*0.88, gw=Math.min(w*0.72,540), gh=150;
+    const cx0=gx+gw/2, cy0=gy-gh/2;
+    const XMAX=0.6, FMAX=120;                  // м и Н на краю осей (k_max·x_max = 200·0.6)
+    const sx=(gw*0.42)/XMAX, sy=(gh/2)/FMAX;   // px на метр и px на ньютон
+    const X=(xx)=>cx0+xx*sx, Y=(FF)=>cy0-FF*sy;
+
+    // сетка
+    ctx.strokeStyle='#ece9e0';ctx.lineWidth=1;
+    [-0.6,-0.3,0.3,0.6].forEach(v=>{ctx.beginPath();ctx.moveTo(X(v),cy0-gh/2);ctx.lineTo(X(v),cy0+gh/2);ctx.stroke();});
+    [-120,-60,60,120].forEach(v=>{ctx.beginPath();ctx.moveTo(X(-XMAX),Y(v));ctx.lineTo(X(XMAX),Y(v));ctx.stroke();});
+    // оси
+    ctx.strokeStyle='#b9b6ac';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(gx,cy0);ctx.lineTo(gx+gw,cy0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx0,cy0-gh/2-12);ctx.lineTo(cx0,cy0+gh/2+12);ctx.stroke();
+    label(ctx,'x, см',gx+gw,cy0-8,'#8b8879',11,'right');
+    label(ctx,'F, Н',cx0+8,cy0-gh/2-18,'#8b8879',11,'left');
+    label(ctx,'−60',X(-0.6),cy0+14,'#a9a698',10,'center');
+    label(ctx,'60',X(0.6),cy0+14,'#a9a698',10,'center');
+    label(ctx,'120',cx0-8,Y(120),'#a9a698',10,'right');
+    label(ctx,'−120',cx0-8,Y(-120),'#a9a698',10,'right');
+
+    // прямая F = −kx: обрезаем по границам осей
+    const xlim=Math.min(XMAX,FMAX/S5.k);
+    ctx.strokeStyle='#6d28d9';ctx.lineWidth=2.6;
+    ctx.beginPath();ctx.moveTo(X(-xlim),Y(S5.k*xlim));ctx.lineTo(X(xlim),Y(-S5.k*xlim));ctx.stroke();
+    dot(ctx,X(S5.x),Y(F),5,'#6d28d9');
+    label(ctx,'F = −k·x',X(xlim)+10,Y(-S5.k*xlim)+14,'#6d28d9',12,'left');
+    label(ctx,'наклон = k',gx+gw,cy0-gh/2-18,'#a9a698',11,'right');
+
+    document.getElementById('o5x').textContent=Math.round(S5.x*100);
+    document.getElementById('o5k').textContent=S5.k;
+    document.getElementById('o5F').textContent=fmt(Math.abs(S5.k*S5.x));
+    const st=document.getElementById('o5st');
+    if(Math.abs(S5.x)<0.02){st.className='status go';st.textContent='Пружина не деформирована — силы упругости нет';}
+    else if(S5.x>0){st.className='status zero';st.textContent='Пружина растянута — сила упругости тянет обратно, влево';}
+    else {st.className='status zero';st.textContent='Пружина сжата — сила упругости выталкивает вправо';}
+  }
+
+  /* ================= S6 ================= */
+  const S6={m1:3,m2:1.5,t:0,play:true};
+  document.getElementById('r6a').addEventListener('input',e=>{S6.m1=+e.target.value/10;S6.t=0;});
+  document.getElementById('r6b').addEventListener('input',e=>{S6.m2=+e.target.value/10;S6.t=0;});
+  document.getElementById('p6').addEventListener('click',function(){S6.play=!S6.play;this.textContent=S6.play?'пауза':'продолжить';});
+  document.getElementById('z6').addEventListener('click',()=>{S6.t=0;});
+
+  function drawS6(){
+    const g=fit(document.getElementById('c6')); if(!g) return;
+    const {ctx,w,h}=g;
+    const M=S6.m1+S6.m2;
+    const a=(S6.m1-S6.m2)*G/M, T=2*S6.m1*S6.m2*G/M;
+    const cx=w*0.42, cy=h*0.16, R=26;
+    // блок
+    ctx.strokeStyle='#181820';ctx.lineWidth=2.4;
+    ctx.beginPath();ctx.arc(cx,cy,R,0,TAU);ctx.stroke();
+    dot(ctx,cx,cy,4,'#181820');
+    ctx.strokeStyle='#c9c6bc';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy-30);ctx.stroke();
+
+    const sh=clamp(a*S6.t*S6.t*0.5*10,-70,70);
+    const y1=cy+120+sh, y2=cy+120-sh;
+    ctx.strokeStyle='#181820';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx-R,y1);ctx.moveTo(cx+R,cy);ctx.lineTo(cx+R,y2);ctx.stroke();
+
+    const s1=clamp(S6.m1*7,16,30), s2=clamp(S6.m2*7,16,30);
+    box(ctx,cx-R,y1+s1,s1,s1*0.8);
+    box(ctx,cx+R,y2+s2,s2,s2*0.8);
+    label(ctx,'m₁',cx-R,y1+s1,'#6c6a78',12,'center');
+    label(ctx,'m₂',cx+R,y2+s2,'#6c6a78',12,'center');
+
+    arrow(ctx,cx-R,y1+s1,cx-R,y1+s1+S6.m1*G*3.4,'#b7791f',2.6,8);
+    arrow(ctx,cx+R,y2+s2,cx+R,y2+s2+S6.m2*G*3.4,'#b7791f',2.6,8);
+    arrow(ctx,cx-R-34,y1+6,cx-R-34,y1+6-T*3.4,'#1d4ed8',2.8,9);
+    label(ctx,'T',cx-R-48,y1-8,'#1d4ed8',12,'right');
+    arrow(ctx,cx+R+34,y2+6,cx+R+34,y2+6-T*3.4,'#1d4ed8',2.8,9);
+    label(ctx,'T',cx+R+48,y2-8,'#1d4ed8',12,'left');
+
+    label(ctx,'одна и та же нить — одно и то же T',w*0.80,h*0.30,'#1d4ed8',12,'center');
+    label(ctx,'нить нерастяжима: |a₁| = |a₂|',w*0.80,h*0.38,'#6d28d9',12,'center');
+
+    document.getElementById('o6a').textContent=fmt(a,2);
+    document.getElementById('o6T').textContent=fmt(T);
+    document.getElementById('o6g1').textContent=fmt(S6.m1*G);
+    document.getElementById('o6g2').textContent=fmt(S6.m2*G);
+    const st=document.getElementById('o6st');
+    if(Math.abs(a)<0.06){st.className='status go';st.textContent='Массы равны — система покоится, T = m₁g = m₂g';}
+    else {st.className='status zero';st.textContent='T меньше веса опускающегося груза и больше веса поднимающегося';}
+  }
+
+  /* ================= S7 ================= */
+  const S7={F:2,mu:0.4,x:0,v:0};
+  document.getElementById('r7a').addEventListener('input',e=>{S7.F=+e.target.value/10;});
+  document.getElementById('r7b').addEventListener('input',e=>{S7.mu=+e.target.value/100;});
+  document.getElementById('z7').addEventListener('click',()=>{S7.x=0;S7.v=0;});
+
+  function drawS7(){
+    const g=fit(document.getElementById('c7')); if(!g) return;
+    const {ctx,w,h}=g;
+    const m=1, N=m*G, fmax=S7.mu*N;
+    const sliding=S7.F>fmax+1e-9;
+    const ftr=sliding?fmax:S7.F;
+
+    const y=h*0.20, cx=clamp(w*0.16+S7.x*20,60,w*0.62);
+    hatch(ctx,20,w*0.72,y+22,12);
+    box(ctx,cx,y,28,22);
+    arrow(ctx,cx+28,y,cx+28+S7.F*17,y,'#1d4ed8',3,9);
+    label(ctx,'F',cx+28+S7.F*17+12,y-12,'#1d4ed8',12,'center');
+    arrow(ctx,cx-28,y,cx-28-ftr*17,y,'#d61f69',3,9);
+    label(ctx,'F тр',cx-28-ftr*17-14,y-12,'#d61f69',12,'center');
+    arrow(ctx,cx,y-22,cx,y-22-N*4.4,'#0e8a5f',2.6,8);
+    label(ctx,'N',cx+12,y-22-N*4.4+8,'#0e8a5f',12,'left');
+    arrow(ctx,cx,y+22,cx,y+22+N*4.4,'#b7791f',2.6,8);
+    label(ctx,'mg',cx-12,y+22+N*4.4-6,'#b7791f',12,'right');
+
+    // график Fтр(F)
+    const gx=w*0.14, gy=h*0.92, gw=Math.min(w*0.70,520), gh=170;
+    ctx.strokeStyle='#b9b6ac';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx+gw,gy);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(gx,gy);ctx.lineTo(gx,gy-gh);ctx.stroke();
+    label(ctx,'F приложенная',gx+gw-2,gy+14,'#8b8879',11,'right');
+    label(ctx,'F тр',gx-8,gy-gh+4,'#8b8879',11,'right');
+    const X=(v)=>gx+v/8*gw, Y=(v)=>gy-v/8*gh;
+    ctx.strokeStyle='#d61f69';ctx.lineWidth=2.8;
+    ctx.beginPath();
+    ctx.moveTo(X(0),Y(0));ctx.lineTo(X(fmax),Y(fmax));ctx.lineTo(X(8),Y(fmax));
+    ctx.stroke();
+    ctx.setLineDash([4,4]);ctx.strokeStyle='#b7791f';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(X(fmax),Y(0));ctx.lineTo(X(fmax),Y(fmax));ctx.stroke();ctx.setLineDash([]);
+    label(ctx,'μN',X(fmax),Y(0)+14,'#b7791f',11,'center');
+    label(ctx,'покой',X(fmax*0.45),Y(fmax*0.75),'#8b8879',11,'center');
+    label(ctx,'скольжение',X(fmax+2.4),Y(fmax)-14,'#8b8879',11,'center');
+    dot(ctx,X(S7.F),Y(ftr),5,'#d61f69');
+
+    document.getElementById('o7F').textContent=fmt(S7.F);
+    document.getElementById('o7N').textContent=fmt(N);
+    document.getElementById('o7max').textContent=fmt(fmax);
+    document.getElementById('o7f').textContent=fmt(ftr);
+    const st=document.getElementById('o7st');
+    if(S7.F<0.05){st.className='status go';st.textContent='Никто не толкает — трения нет вообще, F_тр = 0';}
+    else if(!sliding){st.className='status go';st.textContent='Трение покоя: F_тр = F, тело неподвижно, μN ещё не достигнуто';}
+    else {st.className='status stop';st.textContent='Сорвалось: тело скользит, теперь F_тр = μN и больше не растёт';}
+  }
+
+  /* ================= S8 ================= */
+  const S8={vk:1.0,px:0,py:0,vx:0,vy:0,trail:[],state:''};
+  function resetS8(){
+    S8.px=1; S8.py=0; S8.vx=0; S8.vy=-S8.vk; S8.trail=[]; S8.state='';
+  }
+  document.getElementById('r8a').addEventListener('input',e=>{S8.vk=+e.target.value/100;resetS8();});
+  document.getElementById('z8').addEventListener('click',resetS8);
+  resetS8();
+
+  function stepS8(dt){
+    if(S8.state) return;
+    const steps=14, h=dt/steps*4.5;
+    for(let i=0;i<steps;i++){
+      const r=Math.hypot(S8.px,S8.py);
+      if(r<0.22){S8.state='fall';return;}
+      if(r>6.5){S8.state='escape';return;}
+      const f=-1/(r*r*r);
+      S8.vx+=f*S8.px*h; S8.vy+=f*S8.py*h;
+      S8.px+=S8.vx*h;   S8.py+=S8.vy*h;
+    }
+    S8.trail.push([S8.px,S8.py]);
+    if(S8.trail.length>1400) S8.trail.shift();
+  }
+  function drawS8(){
+    const g=fit(document.getElementById('c8')); if(!g) return;
+    const {ctx,w,h}=g;
+    let rmax=1.05;
+    S8.trail.forEach(([x,y])=>{const rr=Math.hypot(x,y); if(rr>rmax) rmax=rr;});
+    const rr0=Math.hypot(S8.px,S8.py); if(rr0>rmax) rmax=rr0;
+    const cx=w*0.44, cy=h*0.5, S=Math.min(h*0.40,150)/Math.min(rmax,3.2);
+    // планета
+    ctx.fillStyle='#dfe6f5';ctx.beginPath();ctx.arc(cx,cy,S*0.22,0,TAU);ctx.fill();
+    ctx.strokeStyle='#1d4ed8';ctx.lineWidth=1.6;ctx.stroke();
+    label(ctx,'M',cx,cy,'#1d4ed8',13,'center');
+    ctx.setLineDash([3,5]);ctx.strokeStyle='#e0ddd4';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(cx,cy,S,0,TAU);ctx.stroke();ctx.setLineDash([]);
+
+    ctx.strokeStyle='rgba(109,40,217,.55)';ctx.lineWidth=2;
+    ctx.beginPath();
+    S8.trail.forEach(([x,y],i)=>{const X=cx+x*S,Y=cy+y*S;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);});
+    ctx.stroke();
+    const X=cx+S8.px*S, Y=cy+S8.py*S;
+    dot(ctx,X,Y,7,'#6d28d9');
+    const r=Math.hypot(S8.px,S8.py);
+    if(r>0.2){
+      const ux=-S8.px/r, uy=-S8.py/r, fl=clamp(60/(r*r),12,70);
+      arrow(ctx,X,Y,X+ux*fl,Y+uy*fl,'#d92b2b',2.6,9);
+    }
+    label(ctx,'точка запуска',cx+S+8,cy,'#a9a698',11,'left');
+
+    const st=document.getElementById('o8st'), tp=document.getElementById('o8t');
+    let t='';
+    if(S8.state==='fall'){st.className='status stop';st.textContent='Скорость мала — тело падает обратно на планету';t='траектория: падение';}
+    else if(S8.state==='escape'){st.className='status zero';st.textContent='Скорость не меньше второй космической — тело улетает и не возвращается';t='траектория: улетает';}
+    else if(Math.abs(S8.vk-1)<0.03){st.className='status go';st.textContent='Ровно первая космическая — круговая орбита';t='траектория: окружность';}
+    else if(S8.vk<1){st.className='status zero';st.textContent='Меньше первой космической — вытянутый эллипс, перигей близко к планете';t='траектория: эллипс';}
+    else {st.className='status go';st.textContent='Больше первой, но меньше второй — вытянутый эллипс наружу';t='траектория: эллипс';}
+    document.getElementById('o8v').textContent=fmt(S8.vk,2);
+    tp.textContent=t;
+  }
+
+  /* ================= S9 ================= */
+  const S9={mode:'iso',a:4};
+  modeBtns([['m9a','iso'],['m9b','neiso']],S9,'mode');
+  document.getElementById('r9a').addEventListener('input',e=>{S9.a=+e.target.value/10;});
+
+  function drawS9(){
+    const g=fit(document.getElementById('c9')); if(!g) return;
+    const {ctx,w,h}=g;
+    const m=1, mg=m*G;
+    const A=Math.atan2(S9.a,G);
+    const cx=w*0.40, top=h*0.20, bot=h*0.66, L=Math.min((bot-top)*0.62,110);
+
+    // корпус тележки
+    ctx.strokeStyle='#181820';ctx.lineWidth=2.4;
+    ctx.beginPath();
+    ctx.moveTo(cx-130,top);ctx.lineTo(cx+130,top);
+    ctx.moveTo(cx-130,top);ctx.lineTo(cx-130,bot);
+    ctx.moveTo(cx+130,top);ctx.lineTo(cx+130,bot);
+    ctx.moveTo(cx-130,bot);ctx.lineTo(cx+130,bot);
+    ctx.stroke();
+    // колёса и земля
+    ctx.strokeStyle='#181820';ctx.lineWidth=2;
+    [[cx-80],[cx+80]].forEach(([wx])=>{ctx.beginPath();ctx.arc(wx,bot+16,15,0,TAU);ctx.stroke();});
+    hatch(ctx,20,w-20,bot+32,13);
+
+    // нить и шарик
+    const bx=cx-Math.sin(A)*L, by=top+Math.cos(A)*L;
+    ctx.strokeStyle='#181820';ctx.lineWidth=1.8;
+    ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(bx,by);ctx.stroke();
+    ctx.setLineDash([4,4]);ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,top+L);ctx.stroke();ctx.setLineDash([]);
+    dot(ctx,bx,by,11,'#e9e7df');
+    ctx.strokeStyle='#181820';ctx.lineWidth=2;ctx.beginPath();ctx.arc(bx,by,11,0,TAU);ctx.stroke();
+    label(ctx,'α = '+fmt(A*180/Math.PI,0)+'°',cx+16,top+30,'#6c6a78',12,'left');
+
+    // силы на шарике
+    const T=m*Math.hypot(G,S9.a);
+    const tx=(cx-bx)/L, ty=(top-by)/L;
+    arrow(ctx,bx,by,bx+tx*T*7,by+ty*T*7,'#1d4ed8',3,9);
+    label(ctx,'T',bx+tx*T*7-14,by+ty*T*7-4,'#1d4ed8',12,'right');
+    arrow(ctx,bx,by,bx,by+mg*7,'#b7791f',3,9);
+    label(ctx,'mg',bx-14,by+mg*7-8,'#b7791f',12,'right');
+
+    // ускорение тележки
+    arrow(ctx,cx-130,top-40,cx-130+S9.a*14,top-40,'#6d28d9',3,9);
+    label(ctx,'a тележки',cx-130+S9.a*7,top-58,'#6d28d9',12,'center');
+
+    const st=document.getElementById('o9st'), fi=document.getElementById('o9fi');
+    if(S9.mode==='iso'){
+      arrow(ctx,bx,by,bx+m*S9.a*8,by,'#d92b2b',3.2,10);
+      label(ctx,'R = ma',bx+m*S9.a*8+14,by+14,'#d92b2b',12,'left');
+      label(ctx,'наблюдатель стоит на земле',w*0.80,h*0.30,'#6c6a78',12,'center');
+      label(ctx,'шарик ускоряется вместе с тележкой',w*0.80,h*0.38,'#6c6a78',12,'center');
+      fi.textContent='сила инерции: не вводится';
+      st.className='status go';
+      st.textContent='В ИСО: сил всего две, их равнодействующая и разгоняет шарик';
+    } else {
+      arrow(ctx,bx,by,bx-m*S9.a*8,by,'#d61f69',3.2,10);
+      label(ctx,'F ин',bx-m*S9.a*8-14,by+14,'#d61f69',12,'right');
+      label(ctx,'наблюдатель едет в тележке',w*0.80,h*0.30,'#6c6a78',12,'center');
+      label(ctx,'шарик для него неподвижен: сумма сил = 0',w*0.80,h*0.38,'#6c6a78',12,'center');
+      fi.textContent='сила инерции: F = ma = '+fmt(m*S9.a)+' Н';
+      st.className='status zero';
+      st.textContent='В НеИСО: добавили фиктивную F_ин = −ma, и задача стала статикой';
+    }
+    document.getElementById('o9a').textContent=fmt(S9.a);
+    document.getElementById('o9ang').textContent=fmt(A*180/Math.PI,0);
+  }
+
+  /* ================= цикл ================= */
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    if(cur==='s1'){
+      const a=(S1.F1-S1.F2)/S1.m;
+      S1.v+=a*dt; S1.x+=S1.v*dt;
+      if(S1.x>16||S1.x<-4){S1.x=0;S1.v=0;}
+      drawS1();
+    }
+    else if(cur==='s2') drawS2();
+    else if(cur==='s3') drawS3();
+    else if(cur==='s4') drawS4();
+    else if(cur==='s5') drawS5();
+    else if(cur==='s6'){ if(S6.play){S6.t+=dt; if(Math.abs((S6.m1-S6.m2)*G/(S6.m1+S6.m2))*S6.t*S6.t*5>70) S6.t=0;} drawS6(); }
+    else if(cur==='s7'){
+      const fmax=S7.mu*G;
+      if(S7.F>fmax){ const a=(S7.F-fmax)/1; S7.v+=a*dt; S7.x+=S7.v*dt; if(S7.x>22){S7.x=0;S7.v=0;} }
+      else {S7.v=0;S7.x=0;}
+      drawS7();
+    }
+    else if(cur==='s8'){ stepS8(dt); drawS8(); }
+    else if(cur==='s9') drawS9();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

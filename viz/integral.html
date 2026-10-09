@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Как работает интеграл</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:ital,wght@0,400;0,500;0,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f2e8; --paper-line:#d8cdb6; --ink:#2b3247; --ink-soft:#565f78;
+    --pencil-red:#a6383f; --accent-fill:#eadfc4; --panel:#fffdf7;
+    --cA:#2b5f7a; --cB:#a6383f; --cC:#5a7a4a; --cD:#6b4a6f; --cE:#8a4a15;
+    --shadow:0 1px 0 rgba(43,50,71,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:repeating-linear-gradient(0deg,transparent,transparent 27px,var(--paper-line) 27px,var(--paper-line) 28px),var(--paper);
+    color:var(--ink);font-family:'Source Serif 4',Georgia,serif;line-height:1.6;padding:0 0 70px;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:0 26px;}
+
+  header.hero{padding:52px 26px 36px;border-bottom:2px solid var(--ink);
+    background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0));}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--pencil-red);margin-bottom:13px;display:flex;align-items:center;gap:10px;}
+  .eyebrow::before{content:"";width:25px;height:2px;background:var(--pencil-red);}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(30px,4.6vw,46px);
+    line-height:1.06;margin:0 0 14px;letter-spacing:-.01em;}
+  h1 em{font-style:italic;font-weight:500;color:var(--pencil-red);}
+  .sub{font-size:17.5px;color:var(--ink-soft);max-width:660px;margin:0;}
+  nav.toc{margin-top:26px;padding-top:20px;border-top:1px dashed var(--paper-line);
+    display:flex;flex-wrap:wrap;gap:8px 17px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  nav.toc a{color:var(--ink-soft);text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
+  nav.toc a:hover{color:var(--pencil-red);border-color:var(--pencil-red);}
+
+  section{padding:44px 26px;border-bottom:1px solid var(--paper-line);scroll-margin-top:16px;}
+  section:last-of-type{border-bottom:none;}
+  .sec-head{display:flex;align-items:baseline;gap:15px;margin-bottom:14px;}
+  .sec-num{font-family:'IBM Plex Mono',monospace;font-size:13.5px;color:var(--pencil-red);
+    border:1.5px solid var(--pencil-red);border-radius:50%;width:29px;height:29px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  h2{font-family:'Fraunces',serif;font-weight:600;font-size:26px;margin:0;}
+  h3{font-family:'Fraunces',serif;font-weight:600;font-size:18.5px;margin:26px 0 9px;}
+  p{margin:0 0 13px;font-size:16.5px;}
+  .lede{font-size:17px;color:var(--ink-soft);}
+  ul{font-size:16.5px;margin:0 0 13px;padding-left:22px;}
+  li{margin-bottom:5px;}
+  .fm{font-family:'IBM Plex Mono',monospace;}
+
+  .callout{background:var(--accent-fill);border:1px solid #c9b98a;border-radius:3px;
+    padding:15px 17px;margin:17px 0;font-size:15.5px;}
+  .callout b{color:var(--pencil-red);}
+  .callout.blue{background:#e3ebe6;border-color:#a9c2b3;}
+  .callout.blue b{color:var(--cA);}
+
+  .derive{background:var(--panel);border:1px solid var(--paper-line);border-radius:4px;
+    padding:15px 17px;margin:13px 0 18px;box-shadow:var(--shadow);}
+  .derive .d-lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--ink-soft);margin-bottom:7px;display:block;}
+  .derive .st{margin:5px 0;font-family:'IBM Plex Mono',monospace;font-size:15px;}
+  .derive .st.big{font-size:17px;margin-top:8px;}
+
+  .app{background:var(--panel);border:1px solid var(--paper-line);border-radius:4px;
+    padding:20px;box-shadow:var(--shadow);margin:18px 0;}
+  canvas{width:100%;height:auto;display:block;touch-action:none;}
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:center;}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr;}}
+
+  .rd{font-family:'IBM Plex Mono',monospace;}
+  .rd-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+    border-bottom:1px dashed var(--paper-line);gap:10px;}
+  .rd-row:last-child{border-bottom:none;}
+  .rd-k{font-size:12.5px;color:var(--ink-soft);}
+  .rd-v{font-size:18px;font-weight:500;white-space:nowrap;}
+  .rd-v.a{color:var(--cA);} .rd-v.b{color:var(--cB);}
+  .rd-v.c{color:var(--cC);} .rd-v.d{color:var(--cD);}
+  .note-box{margin-top:12px;padding:9px 11px;background:var(--accent-fill);border-radius:3px;
+    font-size:12.5px;font-family:'IBM Plex Mono',monospace;line-height:1.55;}
+
+  .ctl{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:13px;
+    padding-top:13px;border-top:1px dashed var(--paper-line);}
+  .ctl-lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.07em;color:var(--ink-soft);}
+  button{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--paper);
+    border:1px solid var(--ink-soft);border-radius:3px;padding:6px 11px;cursor:pointer;color:var(--ink);}
+  button:hover{background:var(--accent-fill);border-color:var(--pencil-red);}
+  button.active{background:var(--pencil-red);color:#fff;border-color:var(--pencil-red);}
+  input[type=range]{accent-color:var(--pencil-red);vertical-align:middle;flex:1;min-width:130px;}
+  .grp{display:flex;gap:6px;flex-wrap:wrap;}
+
+  table.t{width:100%;border-collapse:collapse;margin:16px 0;background:var(--panel);box-shadow:var(--shadow);}
+  table.t th,table.t td{border:1px solid var(--paper-line);padding:8px 9px;font-size:14.5px;}
+  table.t th{font-family:'IBM Plex Mono',monospace;font-size:12.5px;background:var(--accent-fill);text-align:left;}
+  table.t td{font-family:'IBM Plex Mono',monospace;}
+  table.t td.n{width:34px;color:var(--ink-soft);text-align:center;}
+  .tcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media(max-width:760px){.tcols{grid-template-columns:1fr;}}
+  .figrow svg{width:100%;height:auto;display:block;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Математика для физики · интеграл</div>
+    <h1>Как работает <em>интеграл</em></h1>
+    <p class="sub">Не «какие формулы применять», а откуда вообще берётся механизм. Почему площадь под кривой считается через первообразную, хотя на первый взгляд эти вещи никак не связаны.</p>
+    <nav class="toc">
+      <a href="#s1">1. Задача о площади</a>
+      <a href="#s2">2. Прямоугольники</a>
+      <a href="#s3">3. Предел суммы</a>
+      <a href="#s4">4. Механизм</a>
+      <a href="#s5">5. Ньютон–Лейбниц</a>
+      <a href="#s6">6. Откуда берётся C</a>
+      <a href="#s7">7. Таблица и свойства</a>
+      <a href="#s8">8. Интеграл в физике</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="s1">
+  <div class="sec-head"><div class="sec-num">1</div><h2>Задача о площади</h2></div>
+  <p class="lede">Площади простых фигур мы считать умеем. И даже их комбинаций. А что делать с кривой границей?</p>
+
+  <div class="app figrow">
+    <svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg">
+      <rect x="30" y="70" width="90" height="90" fill="#c8d9c2" stroke="#2b3247" stroke-width="1.8"/>
+      <text x="75" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#565f78" text-anchor="middle">a²</text>
+      <rect x="150" y="60" width="60" height="100" fill="#bcd0dd" stroke="#2b3247" stroke-width="1.8"/>
+      <text x="180" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#565f78" text-anchor="middle">a·b</text>
+      <circle cx="285" cy="110" r="50" fill="#e5bfc1" stroke="#2b3247" stroke-width="1.8"/>
+      <text x="285" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#565f78" text-anchor="middle">πR²</text>
+      <polygon points="360,160 470,160 415,62" fill="none" stroke="#2b3247" stroke-width="1.8"/>
+      <text x="415" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#565f78" text-anchor="middle">½·a·h</text>
+      <polygon points="505,160 615,160 595,68 525,68" fill="none" stroke="#2b3247" stroke-width="1.8"/>
+      <text x="560" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#565f78" text-anchor="middle">½(a+b)·h</text>
+      <text x="655" y="118" font-family="Fraunces, serif" font-size="34" fill="#a6383f">?</text>
+      <path d="M 700 160 C 730 60, 760 165, 790 95 S 840 60, 870 130 L 870 160 Z"
+            fill="#e5bfc1" fill-opacity="0.55" stroke="#a6383f" stroke-width="2.4"/>
+      <line x1="695" y1="160" x2="878" y2="160" stroke="#2b3247" stroke-width="1.6"/>
+      <text x="786" y="182" font-family="IBM Plex Mono, monospace" font-size="13" fill="#a6383f" text-anchor="middle">формулы нет</text>
+    </svg>
+  </div>
+
+  <p>Для криволинейной границы готовой формулы не существует — и не может существовать, потому что кривых бесконечно много. Значит нужен не ответ, а <b>способ</b>: процедура, которая сработает для любой функции.</p>
+</section>
+
+<section id="s2">
+  <div class="sec-head"><div class="sec-num">2</div><h2>Идея: подогнать прямоугольниками</h2></div>
+  <p>Разрежем фигуру на узкие вертикальные полоски и каждую заменим прямоугольником — их площади мы считать умеем. Двигайте ползунок и смотрите, что происходит с зазорами.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c1" width="660" height="380"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">число полосок n</span><span class="rd-v" id="v1n">6</span></div>
+          <div class="rd-row"><span class="rd-k">ширина Δx</span><span class="rd-v a" id="v1dx">1.000</span></div>
+          <div class="rd-row"><span class="rd-k">сумма прямоугольников</span><span class="rd-v c" id="v1s">—</span></div>
+          <div class="rd-row"><span class="rd-k">точная площадь</span><span class="rd-v b">12.0867</span></div>
+          <div class="rd-row"><span class="rd-k">ошибка</span><span class="rd-v d" id="v1e">—</span></div>
+        </div>
+        <div class="note-box" id="n1">Зазоры между прямоугольниками и графиком хорошо видны</div>
+        <div class="ctl">
+          <span class="ctl-lbl">n</span>
+          <input type="range" id="s1r" min="2" max="150" value="6">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:6px;">
+          <span class="ctl-lbl">высота по</span>
+          <div class="grp">
+            <button data-m="left" class="active">левому краю</button>
+            <button data-m="mid">середине</button>
+            <button data-m="right">правому краю</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Обратите внимание на два факта сразу.</b> Во-первых, чем больше полосок, тем меньше ошибка — и она стремится к нулю, а не к какому-то остатку. Во-вторых, при большом n становится <b>неважно</b>, берём мы высоту по левому краю, по правому или по середине: все три суммы сходятся к одному и тому же числу. Именно поэтому предел существует и определён однозначно.
+  </div>
+</section>
+
+<section id="s3">
+  <div class="sec-head"><div class="sec-num">3</div><h2>Предел суммы — это и есть интеграл</h2></div>
+
+  <div class="derive">
+    <span class="d-lbl">Как записывается</span>
+    <div class="st">площадь одной полоски ≈ f(x<sub>i</sub>) · Δx &nbsp;<span style="color:#565f78">(высота × ширина)</span></div>
+    <div class="st">вся площадь ≈ сумма: &nbsp; Σ f(x<sub>i</sub>) · Δx</div>
+    <div class="st" style="margin-top:8px;">устремляем Δx → 0, то есть n → ∞</div>
+    <div class="st big">Σ f(x<sub>i</sub>)·Δx &nbsp;→&nbsp; <b>∫<sub>a</sub><sup>b</sup> f(x) dx</b></div>
+  </div>
+
+  <div class="callout blue">
+    <b>Значок интеграла — это растянутая буква S,</b> от слова «сумма». А <span class="fm">dx</span> — это бывшая <span class="fm">Δx</span> после предельного перехода. То есть запись <span class="fm">∫f(x)dx</span> буквально читается как «сумма произведений f(x) на бесконечно узкую ширину». Никакой новой сущности в обозначении нет — это протокол той самой процедуры из прошлого раздела.
+  </div>
+
+  <p>Определение получено. Но пользы от него пока мало: считать предел бесконечной суммы вручную — работа тяжёлая. Нужен обходной путь, и он существует.</p>
+</section>
+
+<section id="s4">
+  <div class="sec-head"><div class="sec-num">4</div><h2>Механизм: почему работает первообразная</h2></div>
+  <p class="lede">Это главный раздел. Здесь становится понятно, каким образом задача о площади вдруг сводится к задаче о производной.</p>
+
+  <p>Сделаем неожиданный ход: будем считать площадь не сразу до конца, а <b>накапливать</b> её. Обозначим через <span class="fm">A(x)</span> площадь, набранную от начала до текущей точки <span class="fm">x</span>. Это уже не число, а функция.</p>
+
+  <p>Ведите ползунок и следите за нижним графиком — там строится <span class="fm">A(x)</span>.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c2" width="660" height="470"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">правая граница x</span><span class="rd-v" id="v2x">2.00</span></div>
+          <div class="rd-row"><span class="rd-k">высота графика f(x)</span><span class="rd-v b" id="v2f">—</span></div>
+          <div class="rd-row"><span class="rd-k">накоплено A(x)</span><span class="rd-v c" id="v2A">—</span></div>
+          <div class="rd-row"><span class="rd-k">наклон A(x) в этой точке</span><span class="rd-v d" id="v2k">—</span></div>
+        </div>
+        <div class="note-box" id="n2">Сравните две последние строки — они совпадают</div>
+        <div class="ctl">
+          <span class="ctl-lbl">x</span>
+          <input type="range" id="s2r" min="10" max="600" value="200">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:6px;">
+          <div class="grp">
+            <button data-x2="157">вершина f</button>
+            <button data-x2="450">впадина f</button>
+            <button data-x2="600">конец</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Что показывает картинка</span>
+    <div class="st">где f(x) большая — площадь набирается быстро, A(x) круто растёт</div>
+    <div class="st">где f(x) маленькая — A(x) растёт полого</div>
+    <div class="st" style="margin-top:8px;">то есть <b>скорость роста площади равна высоте графика</b></div>
+    <div class="st big">A′(x) = f(x)</div>
+  </div>
+
+  <div class="callout">
+    <b>Вот и весь механизм.</b> Функция накопленной площади — это функция, производная которой равна <span class="fm">f</span>. Но такую функцию мы уже умеем называть: это <b>первообразная</b>. Значит, чтобы найти площадь, не нужно суммировать бесконечно много полосок — достаточно подобрать функцию, которая при дифференцировании даёт <span class="fm">f</span>.
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Почему A′ = f — рассуждение на пальцах</span>
+    <div class="st">сдвинем правую границу на маленькое Δx</div>
+    <div class="st">добавится узкая полоска: ΔA ≈ f(x) · Δx</div>
+    <div class="st">делим на Δx: &nbsp; ΔA/Δx ≈ f(x)</div>
+    <div class="st">устремляем Δx → 0 и получаем ровно определение производной</div>
+    <div class="st big">A′(x) = f(x)</div>
+  </div>
+
+  <div class="callout blue">
+    <b>Интегрирование — это дифференцирование наоборот.</b> Не потому, что кто-то так решил, а потому, что накопленная площадь оказалась первообразной. Две совершенно разные задачи — «найти наклон» и «найти площадь» — оказались обратными друг другу. Это и называют основной теоремой анализа.
+  </div>
+</section>
+
+<section id="s5">
+  <div class="sec-head"><div class="sec-num">5</div><h2>Формула Ньютона–Лейбница</h2></div>
+  <p>Осталось перевести вывод в рабочую формулу. Площадь от <span class="fm">a</span> до <span class="fm">b</span> — это накопленное к моменту <span class="fm">b</span> минус накопленное к моменту <span class="fm">a</span>.</p>
+
+  <div class="derive">
+    <span class="d-lbl">Формула</span>
+    <div class="st big">∫<sub>a</sub><sup>b</sup> f(x) dx = F(b) − F(a), &nbsp; где F′(x) = f(x)</div>
+  </div>
+
+  <p>Двигайте границы. Сверху закрашивается площадь, снизу отмечается разность значений первообразной — это всегда одно и то же число.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c3" width="660" height="470"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">a</span><span class="rd-v a" id="v3a">1.00</span></div>
+          <div class="rd-row"><span class="rd-k">b</span><span class="rd-v a" id="v3b">4.50</span></div>
+          <div class="rd-row"><span class="rd-k">F(b)</span><span class="rd-v d" id="v3Fb">—</span></div>
+          <div class="rd-row"><span class="rd-k">F(a)</span><span class="rd-v d" id="v3Fa">—</span></div>
+          <div class="rd-row"><span class="rd-k">F(b) − F(a)</span><span class="rd-v c" id="v3d">—</span></div>
+          <div class="rd-row"><span class="rd-k">площадь под графиком</span><span class="rd-v b" id="v3S">—</span></div>
+        </div>
+        <div class="note-box">Две последние строки совпадают всегда</div>
+        <div class="ctl">
+          <span class="ctl-lbl">a</span><input type="range" id="s3a" min="0" max="580" value="100">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:6px;">
+          <span class="ctl-lbl">b</span><input type="range" id="s3b" min="20" max="600" value="450">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Почему это работает без всяких сумм.</b> Мы не считаем площадь — мы берём готовую функцию накопления и смотрим её приращение. Вся тяжёлая работа спрятана в том, что кто-то один раз нашёл первообразную. Отсюда и практический смысл таблицы интегралов: это таблица уже найденных первообразных.
+  </div>
+</section>
+
+<section id="s6">
+  <div class="sec-head"><div class="sec-num">6</div><h2>Откуда берётся константа C</h2></div>
+  <p>Если границы не заданы, ищут не число, а саму первообразную — и записывают <span class="fm">∫f(x)dx = F(x) + C</span>. Разберёмся, откуда взялась C.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c4" width="660" height="400"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">C</span><span class="rd-v d" id="v4C">0.0</span></div>
+          <div class="rd-row"><span class="rd-k">точка x</span><span class="rd-v" id="v4x">2.50</span></div>
+          <div class="rd-row"><span class="rd-k">наклон в точке x</span><span class="rd-v b" id="v4k">—</span></div>
+        </div>
+        <div class="note-box">Меняйте C — наклон не меняется ни на одной кривой</div>
+        <div class="ctl">
+          <span class="ctl-lbl">C</span><input type="range" id="s4c" min="-30" max="30" value="0">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:6px;">
+          <span class="ctl-lbl">x</span><input type="range" id="s4x" min="20" max="580" value="250">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Рассуждение</span>
+    <div class="st">производная константы равна нулю: (C)′ = 0</div>
+    <div class="st">значит (F(x) + C)′ = F′(x) + 0 = f(x)</div>
+    <div class="st big">⇒ первообразная не одна, их <b>бесконечное семейство</b></div>
+  </div>
+
+  <div class="callout">
+    <b>Геометрически это сдвиг по вертикали.</b> Все кривые семейства получаются друг из друга подъёмом или опусканием, а вертикальный сдвиг не меняет наклон. Поэтому в каждой точке x у всех кривых касательные параллельны — и производная у всех одна и та же.
+  </div>
+
+  <div class="callout blue">
+    <b>А в определённом интеграле C исчезает.</b> Подставьте <span class="fm">F(x) + C</span> в формулу Ньютона–Лейбница: <span class="fm">(F(b)+C) − (F(a)+C) = F(b) − F(a)</span>. Константа сократилась. Поэтому в задачах на площадь неважно, какую именно первообразную вы взяли.
+  </div>
+</section>
+
+<section id="s7">
+  <div class="sec-head"><div class="sec-num">7</div><h2>Таблица и свойства</h2></div>
+  <p>Таблица интегралов — это таблица производных, прочитанная справа налево. Проверить любую строку можно продифференцировав правый столбец.</p>
+
+  <div class="tcols">
+    <table class="t">
+      <tr><th></th><th>f(x)</th><th>∫f(x)dx</th></tr>
+      <tr><td class="n">1</td><td>k</td><td>kx + C</td></tr>
+      <tr><td class="n">2</td><td>x<sup>n</sup> &nbsp;(n ≠ −1)</td><td>x<sup>n+1</sup>/(n+1) + C</td></tr>
+      <tr><td class="n">3</td><td>1/x</td><td>ln|x| + C</td></tr>
+      <tr><td class="n">4</td><td>e<sup>x</sup></td><td>e<sup>x</sup> + C</td></tr>
+      <tr><td class="n">5</td><td>a<sup>x</sup></td><td>a<sup>x</sup>/ln a + C</td></tr>
+      <tr><td class="n">6</td><td>sin x</td><td>−cos x + C</td></tr>
+    </table>
+    <table class="t">
+      <tr><th></th><th>f(x)</th><th>∫f(x)dx</th></tr>
+      <tr><td class="n">7</td><td>cos x</td><td>sin x + C</td></tr>
+      <tr><td class="n">8</td><td>1/cos²x</td><td>tg x + C</td></tr>
+      <tr><td class="n">9</td><td>1/sin²x</td><td>−ctg x + C</td></tr>
+      <tr><td class="n">10</td><td>1/√(1−x²)</td><td>arcsin x + C</td></tr>
+      <tr><td class="n">11</td><td>1/(1+x²)</td><td>arctg x + C</td></tr>
+      <tr><td class="n">12</td><td>1/√(x²+a)</td><td>ln|x+√(x²+a)| + C</td></tr>
+    </table>
+  </div>
+
+  <h3>Свойства</h3>
+  <table class="t">
+    <tr><th>свойство</th><th>запись</th></tr>
+    <tr><td>сумма и разность</td><td>∫(u ± v)dx = ∫u dx ± ∫v dx</td></tr>
+    <tr><td>вынос константы</td><td>∫C·u dx = C·∫u dx</td></tr>
+    <tr><td>интегрирование по частям</td><td>∫u dv = u·v − ∫v du</td></tr>
+  </table>
+
+  <div class="callout">
+    <b>Проверка ответа встроена в саму тему.</b> Нашли интеграл — продифференцируйте результат. Должна получиться подынтегральная функция. Это единственный раздел математики, где проверка ответа делается почти мгновенно, и грех этим не пользоваться.
+  </div>
+</section>
+
+<section id="s8">
+  <div class="sec-head"><div class="sec-num">8</div><h2>Интеграл в физике</h2></div>
+  <p class="lede">Скорость — производная координаты. Значит координата — интеграл скорости. И площадь под графиком скорости равна пройденному пути.</p>
+
+  <p>Разберём равнозамедленное движение <span class="fm">v(t) = 20 − 4t</span>. Ведите ползунок времени.</p>
+
+  <div class="app">
+    <div class="grid2">
+      <div><canvas id="c5" width="660" height="400"></canvas></div>
+      <div>
+        <div class="rd">
+          <div class="rd-row"><span class="rd-k">t</span><span class="rd-v" id="v5t">0.00</span></div>
+          <div class="rd-row"><span class="rd-k">v = 20 − 4t</span><span class="rd-v b" id="v5v">20.00</span></div>
+          <div class="rd-row"><span class="rd-k">площадь под графиком</span><span class="rd-v c" id="v5S">0.00</span></div>
+          <div class="rd-row"><span class="rd-k">путь по формуле</span><span class="rd-v a" id="v5F">0.00</span></div>
+        </div>
+        <div class="note-box" id="n5">Площадь и путь — одно и то же число</div>
+        <div class="ctl">
+          <span class="ctl-lbl">t</span><input type="range" id="s5r" min="0" max="500" value="0">
+        </div>
+        <div class="ctl" style="border-top:none;padding-top:6px;">
+          <div class="grp">
+            <button data-t5="125">1,25 с</button>
+            <button data-t5="250">2,5 с</button>
+            <button data-t5="500">5 с</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="derive">
+    <span class="d-lbl">Два способа — один ответ</span>
+    <div class="st"><b>геометрия:</b> фигура — трапеция, S = ½·(20 + v)·t</div>
+    <div class="st"><b>интеграл:</b> s = ∫₀<sup>t</sup>(20 − 4t)dt = 20t − 2t²</div>
+    <div class="st" style="margin-top:7px;">при t = 5 с оба дают <b>50 м</b></div>
+  </div>
+
+  <div class="callout blue">
+    <b>Здесь трапеция, а в общем случае?</b> Если бы скорость менялась не по прямой, а по кривой, готовой формулы площади не было бы — и пришлось бы честно брать интеграл. Ровно та ситуация, с которой мы начали первый раздел. Формулы вроде <span class="fm">s = v₀t + at²/2</span> — это просто заранее взятые интегралы от линейной скорости.
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var INK='#2b3247',SOFT='#8a8f9e',GRID='#e2d9c4',PAPER='#fffdf7',
+      cA='#2b5f7a',cB='#a6383f',cC='#5a7a4a',cD='#6b4a6f',cE='#8a4a15';
+
+  var f=function(x){return 2+Math.sin(x)+0.6*Math.sin(2*x);};
+  var F=function(x){return 2*x-Math.cos(x)-0.3*Math.cos(2*x);};
+  var XA=0, XB=6;
+
+  function arrow(ctx,x1,y1,x2,y2,color,w){
+    var dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy); if(L<1)return;
+    var ux=dx/L,uy=dy/L,h=Math.min(10,L*0.4);
+    ctx.strokeStyle=color;ctx.lineWidth=w||1.5;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*h*0.6,y2-uy*h*0.6);ctx.stroke();
+    ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ux*h-uy*h*0.4,y2-uy*h+ux*h*0.4);
+    ctx.lineTo(x2-ux*h+uy*h*0.4,y2-uy*h-ux*h*0.4);
+    ctx.closePath();ctx.fill();
+  }
+  function dash(ctx,x1,y1,x2,y2,color,w){
+    ctx.strokeStyle=color;ctx.lineWidth=w||1.1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+  }
+  function lab(ctx,t,x,y,color,size,align){
+    ctx.font=(size||12.5)+'px IBM Plex Mono, monospace';ctx.fillStyle=color;
+    ctx.textAlign=align||'left';ctx.fillText(t,x,y);ctx.textAlign='left';
+  }
+  function clipRect(ctx,x,y,w,h,fn){ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();fn();ctx.restore();}
+
+  /* ===== 1. прямоугольники ===== */
+  (function(){
+    var cv=document.getElementById('c1');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=660,H=380;
+    var ox=70,oy=320,sx=93,sy=72;
+    var sl=document.getElementById('s1r'),mode='left';
+    var EXACT=F(XB)-F(XA);
+    function PX(x){return ox+x*sx;}
+    function PY(y){return oy-y*sy;}
+    function draw(){
+      var n=Number(sl.value), dx=(XB-XA)/n, sum=0;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=6;g++){ctx.beginPath();ctx.moveTo(PX(g),34);ctx.lineTo(PX(g),oy+16);ctx.stroke();}
+      for(var v=1;v<=4;v++){ctx.beginPath();ctx.moveTo(ox-16,PY(v));ctx.lineTo(W-26,PY(v));ctx.stroke();}
+
+      for(var i=0;i<n;i++){
+        var xl=XA+i*dx;
+        var xs=(mode==='left')?xl:(mode==='mid')?xl+dx/2:xl+dx;
+        var h=f(xs); sum+=h*dx;
+        var X=PX(xl), Ww=dx*sx, Y=PY(h);
+        ctx.fillStyle='rgba(90,122,74,0.28)';
+        ctx.fillRect(X,Y,Ww,oy-Y);
+        if(n<=60){ ctx.strokeStyle='rgba(43,50,71,0.45)';ctx.lineWidth=1;ctx.strokeRect(X,Y,Ww,oy-Y); }
+      }
+
+      clipRect(ctx,ox-18,28,W-ox-4,oy-28+18,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var t=XA;t<=XB+0.001;t+=0.01){var X=PX(t),Y=PY(f(t));t===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+
+      arrow(ctx,ox-16,oy,W-24,oy,INK,1.6);
+      arrow(ctx,ox,oy+16,ox,30,INK,1.6);
+      lab(ctx,'x',W-20,oy-8,INK,13);lab(ctx,'f(x)',ox+9,38,INK,13);
+      lab(ctx,'a',PX(XA),oy+20,SOFT,12.5,'center');
+      lab(ctx,'b',PX(XB),oy+20,SOFT,12.5,'center');
+
+      document.getElementById('v1n').textContent=n;
+      document.getElementById('v1dx').textContent=dx.toFixed(3);
+      document.getElementById('v1s').textContent=sum.toFixed(4);
+      var err=Math.abs(sum-EXACT);
+      document.getElementById('v1e').textContent=err.toFixed(4);
+      document.getElementById('n1').textContent =
+        n<=8  ? 'Зазоры между прямоугольниками и графиком хорошо видны' :
+        n<=30 ? 'Зазоры уменьшились, ошибка ' + err.toFixed(3) :
+                'Прямоугольники почти слились с графиком, ошибка ' + err.toFixed(4);
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-m]').forEach(function(b){
+      b.addEventListener('click',function(){
+        document.querySelectorAll('[data-m]').forEach(function(x){x.classList.remove('active');});
+        b.classList.add('active');mode=b.dataset.m;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 2. накопленная площадь ===== */
+  (function(){
+    var cv=document.getElementById('c2');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=660,H=470;
+    var ox=70,sx=93;
+    var topY=210, syF=48;
+    var botY=450, syA=14.5;
+    var sl=document.getElementById('s2r');
+    function PX(x){return ox+x*sx;}
+    function PYf(y){return topY-y*syF;}
+    function PYa(y){return botY-y*syA;}
+    function A(x){return F(x)-F(XA);}
+    function draw(){
+      var t=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=6;g++){ctx.beginPath();ctx.moveTo(PX(g),34);ctx.lineTo(PX(g),H-14);ctx.stroke();}
+
+      // ---- верх: f(x) с закраской
+      ctx.fillStyle='rgba(90,122,74,0.30)';
+      ctx.beginPath();ctx.moveTo(PX(XA),topY);
+      for(var u=XA;u<=t+0.001;u+=0.01) ctx.lineTo(PX(u),PYf(f(u)));
+      ctx.lineTo(PX(t),topY);ctx.closePath();ctx.fill();
+      clipRect(ctx,ox-18,30,W-ox-4,topY-30+16,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var u2=XA;u2<=XB+0.001;u2+=0.01){var X=PX(u2),Y=PYf(f(u2));u2===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+      arrow(ctx,ox-16,topY,W-24,topY,INK,1.5);
+      lab(ctx,'x',W-20,topY-8,INK,12.5);
+      lab(ctx,'f(x)',36,44,cB,13);
+      ctx.strokeStyle=cC;ctx.lineWidth=2.6;
+      ctx.beginPath();ctx.moveTo(PX(t),topY);ctx.lineTo(PX(t),PYf(f(t)));ctx.stroke();
+      ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PX(t),PYf(f(t)),5.5,0,7);ctx.fill();
+
+      dash(ctx,ox-10,238,W-30,238,'#d8cdb6',1.2);
+
+      // ---- низ: A(x)
+      lab(ctx,'A(x) — накопленная площадь',36,266,cC,13);
+      arrow(ctx,ox-16,botY,W-24,botY,INK,1.5);
+      lab(ctx,'x',W-20,botY-8,INK,12.5);
+      clipRect(ctx,ox-18,252,W-ox-4,H-256,function(){
+        ctx.strokeStyle=cC;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var u3=XA;u3<=XB+0.001;u3+=0.01){var X=PX(u3),Y=PYa(A(u3));u3===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+        // касательная, её наклон = f(t)
+        var k=f(t)*syA/sx;
+        ctx.strokeStyle=cD;ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(PX(t)-78,PYa(A(t))+k*78);
+        ctx.lineTo(PX(t)+78,PYa(A(t))-k*78);
+        ctx.stroke();
+      });
+      ctx.fillStyle=cC;ctx.beginPath();ctx.arc(PX(t),PYa(A(t)),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(t),PYa(A(t)),2.6,0,7);ctx.fill();
+      dash(ctx,PX(t),PYf(f(t)),PX(t),PYa(A(t)),SOFT,1.1);
+      lab(ctx,'наклон = f(x)',PX(t)+12,PYa(A(t))-16,cD,12);
+
+      document.getElementById('v2x').textContent=t.toFixed(2);
+      document.getElementById('v2f').textContent=f(t).toFixed(4);
+      document.getElementById('v2A').textContent=A(t).toFixed(4);
+      document.getElementById('v2k').textContent=f(t).toFixed(4);
+      document.getElementById('n2').textContent =
+        f(t)>2.8 ? 'f(x) большая — A(x) растёт круто' :
+        f(t)<1.4 ? 'f(x) маленькая — A(x) растёт полого'
+                 : 'Сравните две последние строки — они совпадают';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-x2]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.x2;draw();});
+    });
+    draw();
+  })();
+
+  /* ===== 3. Ньютон-Лейбниц ===== */
+  (function(){
+    var cv=document.getElementById('c3');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=660,H=470;
+    var ox=70,sx=93;
+    var topY=200, syF=46;
+    var botY=440, syF2=15.5, F0=-2;
+    var sa=document.getElementById('s3a'), sb=document.getElementById('s3b');
+    function PX(x){return ox+x*sx;}
+    function PYf(y){return topY-y*syF;}
+    function PYF(y){return botY-(y-F0)*syF2;}
+    function draw(){
+      var a=Number(sa.value)/100, b=Number(sb.value)/100;
+      if(b<a+0.2){ b=a+0.2; sb.value=Math.round(b*100); }
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=6;g++){ctx.beginPath();ctx.moveTo(PX(g),30);ctx.lineTo(PX(g),H-14);ctx.stroke();}
+
+      ctx.fillStyle='rgba(166,56,63,0.26)';
+      ctx.beginPath();ctx.moveTo(PX(a),topY);
+      for(var u=a;u<=b+0.001;u+=0.01) ctx.lineTo(PX(u),PYf(f(u)));
+      ctx.lineTo(PX(b),topY);ctx.closePath();ctx.fill();
+      clipRect(ctx,ox-18,26,W-ox-4,topY-26+16,function(){
+        ctx.strokeStyle=cB;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var u2=XA;u2<=XB+0.001;u2+=0.01){var X=PX(u2),Y=PYf(f(u2));u2===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+      arrow(ctx,ox-16,topY,W-24,topY,INK,1.5);
+      lab(ctx,'f(x)',36,42,cB,13);
+      lab(ctx,'a',PX(a),topY+19,cA,12.5,'center');
+      lab(ctx,'b',PX(b),topY+19,cA,12.5,'center');
+      ctx.strokeStyle=cA;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(PX(a),topY-6);ctx.lineTo(PX(a),topY+6);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(PX(b),topY-6);ctx.lineTo(PX(b),topY+6);ctx.stroke();
+
+      dash(ctx,ox-10,232,W-30,232,'#d8cdb6',1.2);
+
+      lab(ctx,'F(x) — первообразная',36,258,cD,13);
+      arrow(ctx,ox-16,PYF(0),W-24,PYF(0),INK,1.4);
+      clipRect(ctx,ox-18,246,W-ox-4,H-250,function(){
+        ctx.strokeStyle=cD;ctx.lineWidth=2.8;ctx.beginPath();
+        for(var u3=XA;u3<=XB+0.001;u3+=0.01){var X=PX(u3),Y=PYF(F(u3));u3===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+        ctx.stroke();
+      });
+      var Ya=PYF(F(a)), Yb=PYF(F(b));
+      dash(ctx,PX(a),Ya,PX(b)+46,Ya,SOFT,1.2);
+      dash(ctx,PX(b),Yb,PX(b)+46,Yb,SOFT,1.2);
+      ctx.fillStyle=cD;
+      ctx.beginPath();ctx.arc(PX(a),Ya,5.5,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(PX(b),Yb,5.5,0,7);ctx.fill();
+      var bx=PX(b)+40;
+      arrow(ctx,bx,Ya,bx,Yb,cC,2.6);
+      lab(ctx,'F(b)−F(a)',bx+8,(Ya+Yb)/2+4,cC,12.5);
+      lab(ctx,'F(a)',PX(a)-8,Ya+4,cD,12,'right');
+      lab(ctx,'F(b)',PX(b)-8,Yb-8,cD,12,'right');
+
+      var S=F(b)-F(a);
+      document.getElementById('v3a').textContent=a.toFixed(2);
+      document.getElementById('v3b').textContent=b.toFixed(2);
+      document.getElementById('v3Fa').textContent=F(a).toFixed(4);
+      document.getElementById('v3Fb').textContent=F(b).toFixed(4);
+      document.getElementById('v3d').textContent=S.toFixed(4);
+      document.getElementById('v3S').textContent=S.toFixed(4);
+    }
+    sa.addEventListener('input',draw);
+    sb.addEventListener('input',draw);
+    draw();
+  })();
+
+  /* ===== 4. семейство F(x)+C ===== */
+  (function(){
+    var cv=document.getElementById('c4');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=660,H=400;
+    var ox=70,sx=93, cy=250, sy=13;
+    var sc=document.getElementById('s4c'), sxx=document.getElementById('s4x');
+    function PX(x){return ox+x*sx;}
+    function PY(y){return cy-y*sy;}
+    function draw(){
+      var C=Number(sc.value)/10, xp=Number(sxx.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=6;g++){ctx.beginPath();ctx.moveTo(PX(g),24);ctx.lineTo(PX(g),H-16);ctx.stroke();}
+      arrow(ctx,ox-16,cy,W-24,cy,INK,1.4);
+      lab(ctx,'x',W-20,cy-8,INK,12.5);
+      lab(ctx,'F(x) + C',36,40,cD,13);
+
+      var fam=[-3,-2,-1,0,1,2,3];
+      clipRect(ctx,ox-18,20,W-ox-4,H-30,function(){
+        fam.forEach(function(cc){
+          ctx.strokeStyle='rgba(107,74,111,0.30)';ctx.lineWidth=1.8;ctx.beginPath();
+          for(var u=XA;u<=XB+0.001;u+=0.02){var X=PX(u),Y=PY(F(u)+cc);u===XA?ctx.moveTo(X,Y):ctx.lineTo(X,Y);}
+          ctx.stroke();
+          // касательные во всех кривых — параллельны
+          var k=f(xp)*sy/sx;
+          ctx.strokeStyle='rgba(43,95,122,0.55)';ctx.lineWidth=1.4;
+          ctx.beginPath();
+          ctx.moveTo(PX(xp)-46,PY(F(xp)+cc)+k*46);
+          ctx.lineTo(PX(xp)+46,PY(F(xp)+cc)-k*46);
+          ctx.stroke();
+          ctx.fillStyle='rgba(107,74,111,0.5)';
+          ctx.beginPath();ctx.arc(PX(xp),PY(F(xp)+cc),3.4,0,7);ctx.fill();
+        });
+        // выделенная кривая
+        ctx.strokeStyle=cD;ctx.lineWidth=3;ctx.beginPath();
+        for(var u2=XA;u2<=XB+0.001;u2+=0.02){var X2=PX(u2),Y2=PY(F(u2)+C);u2===XA?ctx.moveTo(X2,Y2):ctx.lineTo(X2,Y2);}
+        ctx.stroke();
+        var k2=f(xp)*sy/sx;
+        ctx.strokeStyle=cA;ctx.lineWidth=2.6;
+        ctx.beginPath();
+        ctx.moveTo(PX(xp)-58,PY(F(xp)+C)+k2*58);
+        ctx.lineTo(PX(xp)+58,PY(F(xp)+C)-k2*58);
+        ctx.stroke();
+      });
+      ctx.fillStyle=cD;ctx.beginPath();ctx.arc(PX(xp),PY(F(xp)+C),6,0,7);ctx.fill();
+      ctx.fillStyle=PAPER;ctx.beginPath();ctx.arc(PX(xp),PY(F(xp)+C),2.6,0,7);ctx.fill();
+      dash(ctx,PX(xp),24,PX(xp),H-16,SOFT,1.1);
+
+      document.getElementById('v4C').textContent=(C>=0?'+':'')+C.toFixed(1);
+      document.getElementById('v4x').textContent=xp.toFixed(2);
+      document.getElementById('v4k').textContent=f(xp).toFixed(4);
+    }
+    sc.addEventListener('input',draw);
+    sxx.addEventListener('input',draw);
+    draw();
+  })();
+
+  /* ===== 5. физика: путь под v(t) ===== */
+  (function(){
+    var cv=document.getElementById('c5');if(!cv)return;
+    var ctx=cv.getContext('2d'),W=660,H=400;
+    var ox=80,oy=330,sx=104,sy=13.5;
+    var sl=document.getElementById('s5r');
+    var V=function(t){return 20-4*t;};
+    function PX(t){return ox+t*sx;}
+    function PY(v){return oy-v*sy;}
+    function draw(){
+      var t=Number(sl.value)/100;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle=GRID;ctx.lineWidth=1;
+      for(var g=0;g<=5;g++){ctx.beginPath();ctx.moveTo(PX(g),34);ctx.lineTo(PX(g),oy+16);ctx.stroke();}
+      for(var v=5;v<=20;v+=5){ctx.beginPath();ctx.moveTo(ox-16,PY(v));ctx.lineTo(W-26,PY(v));ctx.stroke();}
+
+      if(t>0.01){
+        ctx.fillStyle='rgba(90,122,74,0.30)';
+        ctx.beginPath();
+        ctx.moveTo(PX(0),oy);ctx.lineTo(PX(0),PY(20));
+        ctx.lineTo(PX(t),PY(V(t)));ctx.lineTo(PX(t),oy);
+        ctx.closePath();ctx.fill();
+      }
+      ctx.strokeStyle=cB;ctx.lineWidth=2.8;
+      ctx.beginPath();ctx.moveTo(PX(0),PY(20));ctx.lineTo(PX(5),PY(0));ctx.stroke();
+
+      arrow(ctx,ox-16,oy,W-24,oy,INK,1.6);
+      arrow(ctx,ox,oy+16,ox,30,INK,1.6);
+      lab(ctx,'t, с',W-30,oy-8,INK,13);
+      lab(ctx,'v, м/с',ox+9,38,INK,13);
+      for(var g2=1;g2<=5;g2++) lab(ctx,''+g2,PX(g2),oy+19,SOFT,11.5,'center');
+      lab(ctx,'20',ox-9,PY(20)+4,SOFT,11.5,'right');
+      lab(ctx,'10',ox-9,PY(10)+4,SOFT,11.5,'right');
+
+      if(t>0.01){
+        ctx.strokeStyle=cC;ctx.lineWidth=2.4;
+        ctx.beginPath();ctx.moveTo(PX(t),oy);ctx.lineTo(PX(t),PY(V(t)));ctx.stroke();
+        ctx.fillStyle=cB;ctx.beginPath();ctx.arc(PX(t),PY(V(t)),5.5,0,7);ctx.fill();
+        lab(ctx,'S = '+(20*t-2*t*t).toFixed(2)+' м',PX(t/2)-30,PY(V(t)/2)+6,'#3c5a33',13);
+      }
+
+      var S=20*t-2*t*t;
+      document.getElementById('v5t').textContent=t.toFixed(2);
+      document.getElementById('v5v').textContent=V(t).toFixed(2);
+      document.getElementById('v5S').textContent=S.toFixed(2);
+      document.getElementById('v5F').textContent=S.toFixed(2);
+      document.getElementById('n5').textContent = t>4.9
+        ? 'Тело остановилось: v = 0, путь 50 м'
+        : 'Площадь и путь — одно и то же число';
+    }
+    sl.addEventListener('input',draw);
+    document.querySelectorAll('[data-t5]').forEach(function(b){
+      b.addEventListener('click',function(){sl.value=b.dataset.t5;draw();});
+    });
+    draw();
+  })();
+})();
+</script>
+
+<!-- site-backlink -->
+<a href="index.html" aria-label="Все визуализации"
+   style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;
+          display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;
+          background:rgba(24,24,32,.88);color:#fff;text-decoration:none;
+          font:500 12px/1 'JetBrains Mono',Menlo,Consolas,monospace;letter-spacing:.06em;
+          box-shadow:0 8px 20px -10px rgba(24,24,32,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">
+  <span aria-hidden="true" style="font-size:15px">←</span> ВСЕ ВИЗУАЛИЗАЦИИ
+</a>
+</body>
+</html>

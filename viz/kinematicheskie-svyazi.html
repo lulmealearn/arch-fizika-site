@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кинематические связи: нити и блоки</title>
+<style>
+  :root{
+    --bg:#f7f6f2; --paper:#fff; --ink:#181820; --muted:#6c6a78; --line:#e2dfd6;
+    --violet:#6d28d9; --magenta:#d61f69; --blue:#1d4ed8; --red:#d92b2b;
+    --green:#0e8a5f; --amber:#b7791f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 "Charter","Georgia","PT Serif",serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 18px 80px}
+
+  header.top{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:18px}
+  .eyebrow{font:600 12px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--violet)}
+  h1{font-size:clamp(26px,4.4vw,40px);line-height:1.12;margin:10px 0 6px;font-weight:700;letter-spacing:-.01em}
+  header.top p{margin:0;color:var(--muted);max-width:72ch}
+
+  nav.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px;position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:20;border-bottom:1px solid var(--line)}
+  .chip{font:600 12.5px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--muted);cursor:pointer;transition:.15s}
+  .chip:hover{border-color:var(--violet);color:var(--violet)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  section{display:none;animation:fade .25s ease}
+  section.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  h2{font-size:clamp(21px,3vw,29px);margin:0 0 6px;letter-spacing:-.01em}
+  h3{font-size:18px;margin:22px 0 8px}
+  .lead{color:var(--muted);margin:0 0 18px;max-width:74ch}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;margin:16px 0}
+  canvas{width:100%;display:block;border-radius:10px;background:#fcfcfa;touch-action:pan-y}
+
+  .controls{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;margin-top:14px}
+  .ctrl{display:flex;align-items:center;gap:10px;flex:1 1 230px}
+  .ctrl label{font:600 12px/1 ui-monospace,Menlo,monospace;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+  input[type=range]{flex:1;accent-color:var(--violet);min-width:100px}
+  button.btn{font:600 13px/1 ui-monospace,Menlo,monospace;padding:10px 14px;border-radius:9px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:.15s}
+  button.btn.ghost{background:transparent;color:var(--ink)}
+  button.btn:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+  button.btn.small{padding:7px 11px;font-size:12px}
+  button.btn.sel{background:var(--violet);border-color:var(--violet);color:#fff}
+
+  .readout{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .val{font:600 13px/1 ui-monospace,"JetBrains Mono",Menlo,monospace;border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:#fbfaf6}
+  .val.blue{color:var(--blue);border-color:#c7d5f7}
+  .val.red{color:var(--red);border-color:#f3ccc9}
+  .val.green{color:var(--green);border-color:#bfe6d5}
+  .val.violet{color:var(--violet);border-color:#ddd0f7}
+  .val.amber{color:var(--amber);border-color:#f0dfba}
+  .val.lock{background:#eefaf4;border-color:#bfe6d5;color:var(--green)}
+
+  .note{border-left:3px solid var(--violet);background:#f4f0ff;padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0}
+  .note.warn{border-color:var(--magenta);background:#fdf0f6}
+  .note.ok{border-color:var(--green);background:#eefaf4}
+  .note.amb{border-color:var(--amber);background:#fdf7ea}
+  .note .tag{font:700 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--violet);display:block;margin-bottom:6px}
+  .note.warn .tag{color:var(--magenta)}
+  .note.ok .tag{color:var(--green)}
+  .note.amb .tag{color:var(--amber)}
+  .note p{margin:0}
+  .note p+p{margin-top:8px}
+
+  .f{font:600 15px/1.7 ui-monospace,"JetBrains Mono",Menlo,monospace;background:#f4f2ec;border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:inline-block;margin:6px 8px 6px 0}
+  .f.big{font-size:19px;border-color:var(--magenta);background:#fdf2f7}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f2f0ea;font:700 12px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  td.k{font:600 13px ui-monospace,Menlo,monospace}
+
+  ol.steps{counter-reset:st;list-style:none;padding:0;margin:16px 0}
+  ol.steps li{position:relative;padding:12px 14px 12px 52px;border:1px solid var(--line);border-radius:12px;background:var(--paper);margin-bottom:10px}
+  ol.steps li::before{counter-increment:st;content:counter(st);position:absolute;left:14px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font:700 13px/26px ui-monospace,Menlo,monospace;text-align:center}
+  ol.steps b{color:var(--violet)}
+
+  ul.tight{margin:8px 0 0;padding-left:20px}
+  ul.tight li{margin:6px 0}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font:600 12px ui-monospace,Menlo,monospace;color:var(--muted)}
+  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-3px}
+  .status{font:700 13px/1.45 ui-monospace,Menlo,monospace;letter-spacing:.04em;padding:11px 14px;border-radius:9px;display:inline-block;margin-top:12px;border:1px solid}
+  .status.go{color:var(--green);border-color:#bfe6d5;background:#eefaf4}
+  .status.stop{color:var(--red);border-color:#f3ccc9;background:#fdf0ee}
+  .status.zero{color:var(--amber);border-color:#f0dfba;background:#fdf7ea}
+  footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Урок 8 · динамика</div>
+  <h1>Кинематические связи: нити и блоки</h1>
+  <p>Второй закон Ньютона для каждого тела даёт меньше уравнений, чем неизвестных. Недостающие уравнения приносят сами нити: из того, что они невесомы и нерастяжимы, следуют жёсткие связи между силами и между ускорениями. Разберём, что именно даёт каждое из этих двух слов, чем отличаются блоки и как всё это собирается в готовый алгоритм.</p>
+</header>
+
+<nav class="chips" id="nav">
+  <button class="chip on" data-go="s1">1 · Невесомая нить</button>
+  <button class="chip" data-go="s2">2 · Нерастяжимая нить</button>
+  <button class="chip" data-go="s3">3 · Неподвижный блок</button>
+  <button class="chip" data-go="s4">4 · Подвижный блок</button>
+  <button class="chip" data-go="s5">5 · Связь ускорений</button>
+  <button class="chip" data-go="s6">6 · Алгоритм</button>
+  <button class="chip" data-go="s7">7 · Итог</button>
+</nav>
+
+<!-- ============ S1 ============ -->
+<section id="s1" class="on">
+  <h2>Что даёт невесомость нити</h2>
+  <p class="lead">Возьмём кусочек нити между двумя сечениями. На него действуют натяжения с обоих концов и собственный вес. Второй закон для кусочка: T<sub>верх</sub> − T<sub>низ</sub> − mg = ma. Если масса нити ноль, то весь правый кусок исчезает — и натяжения с двух сторон обязаны быть равны. Крути массу и смотри, что происходит.</p>
+
+  <div class="card">
+    <canvas id="c1" height="400" style="height:400px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>масса нити, кг</label><input type="range" id="r1a" min="0" max="60" value="0"></div>
+      <div class="ctrl"><label>груз M, кг</label><input type="range" id="r1b" min="10" max="50" value="20"></div>
+    </div>
+    <div class="readout">
+      <span class="val amber">m<sub>нити</sub> = <b id="o1m">0.0</b> кг</span>
+      <span class="val blue">T вверху = <b id="o1t1">20.0</b> Н</span>
+      <span class="val">T в середине = <b id="o1t2">20.0</b> Н</span>
+      <span class="val red">T внизу = <b id="o1t3">20.0</b> Н</span>
+    </div>
+    <div id="o1st" class="status go">Нить невесома: натяжение одно и то же в любом сечении</div>
+  </div>
+
+  <span class="f big">m<sub>нити</sub> = 0 &nbsp;⇒&nbsp; T = const по всей нити</span>
+
+  <div class="note ok">
+    <span class="tag">Что это даёт на практике</span>
+    <p>Можно писать <b>одну букву T</b> на всю нить, а не отдельное натяжение у каждого конца. Нить, перекинутая через идеальный блок, тянет оба своих конца с одинаковой силой — даже если концы идут в совершенно разные стороны.</p>
+    <p>Важная оговорка: одна и та же буква — только внутри <b>одной</b> нити. Если в системе две разные нити, у них независимые натяжения T₁ и T₂, и путать их нельзя.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Чего невесомость не даёт</span>
+    <p>Она ничего не говорит про <b>ускорения</b>. Равенство натяжений — это утверждение про силы. Связь между ускорениями тел приносит второе свойство, нерастяжимость, и это отдельная история.</p>
+  </div>
+</section>
+
+<!-- ============ S2 ============ -->
+<section id="s2">
+  <h2>Что даёт нерастяжимость нити</h2>
+  <p class="lead">Нерастяжимая нить имеет <b>постоянную длину</b>. Значит если выписать эту длину через координаты тел, получится равенство, в котором слева стоит константа. Продифференцируем его дважды по времени — и получим связь ускорений. Двигай груз и следи за суммой длин.</p>
+
+  <div class="card">
+    <canvas id="c2" height="400" style="height:400px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>сдвигаем груз A вниз, м</label><input type="range" id="r2a" min="-40" max="40" value="0"></div>
+    </div>
+    <div class="readout">
+      <span class="val blue">длина слева: <b id="o2l">3.0</b> м</span>
+      <span class="val red">длина справа: <b id="o2r">3.0</b> м</span>
+      <span class="val lock">сумма = <b id="o2s">6.0</b> м — не меняется</span>
+    </div>
+    <div id="o2st" class="status go">Сколько нити ушло с одной стороны, столько прибавилось с другой</div>
+  </div>
+
+  <h3>Как это превращается в уравнение</h3>
+  <p>Выбираем ось X (удобно вниз) и ноль на оси блока — она неподвижна. Тогда x<sub>A</sub> и x<sub>B</sub> — это ровно длины вертикальных кусков нити, и полная длина записывается через координаты тел:</p>
+  <span class="f big">L = x<sub>A</sub> + πR + x<sub>B</sub> = const</span>
+  <p>Дифференцируем дважды. Константа πR исчезает — она не меняется со временем, а производная константы равна нулю:</p>
+  <span class="f big">L̈ = a<sub>Ax</sub> + a<sub>Bx</sub> = 0 &nbsp;⇒&nbsp; a<sub>Ax</sub> = −a<sub>Bx</sub></span>
+
+  <div class="note ok">
+    <span class="tag">Почему именно так, а не «на глаз»</span>
+    <p>В простой схеме связь видна и без формул. Но стоит добавить подвижный блок — и интуиция начинает врать: там появляется коэффициент 2, а в более хитрых системах бывает и 3, и 4. Метод «выписать длину и дважды продифференцировать» <b>никогда не ошибается</b> и работает одинаково для любой схемы.</p>
+    <p>Куски нити, лежащие на блоках, всегда дают константу вроде πR и после дифференцирования пропадают. Поэтому их можно смело писать одним символом и не считать точно.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Про знаки</span>
+    <p>Минус в ответе не означает ошибку. Он означает, что ускорения направлены в <b>разные стороны</b> вдоль выбранной оси. Если бы вы заранее нарисовали стрелки правильно, минус ушёл бы — но угадывать не нужно, формула разберётся сама.</p>
+  </div>
+</section>
+
+<!-- ============ S3 ============ -->
+<section id="s3">
+  <h2>Неподвижный блок: меняет направление, и только</h2>
+  <p class="lead">Неподвижный блок закреплён на опоре, его ось никуда не едет. Идеальный блок невесом и вращается без трения, поэтому нить просто проскальзывает по нему, не теряя натяжения. Единственное, что он делает, — <b>разворачивает</b> направление силы.</p>
+
+  <div class="card">
+    <canvas id="c3" height="380" style="height:380px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>угол, под которым тянем, °</label><input type="range" id="r3a" min="0" max="170" value="0"></div>
+      <div class="ctrl"><label>груз M, кг</label><input type="range" id="r3b" min="10" max="50" value="20"></div>
+    </div>
+    <div class="readout">
+      <span class="val lock">T = Mg = <b id="o3t">20.0</b> Н — выигрыша в силе нет</span>
+      <span class="val violet">сила на ось блока: <b id="o3n">40.0</b> Н</span>
+      <span class="val">угол между ветвями: <b id="o3a">0</b>°</span>
+    </div>
+    <div id="o3st" class="status go">Тянем вертикально вниз: сила на ось равна 2Mg</div>
+  </div>
+
+  <span class="f big">T<sub>слева</sub> = T<sub>справа</sub> = Mg</span>
+  <span class="f">выигрыша в силе нет</span>
+  <span class="f">выигрыша в пути нет</span>
+
+  <div class="note">
+    <span class="tag">Зачем он тогда нужен</span>
+    <p>Ради удобства направления. Тянуть верёвку <b>вниз</b>, используя собственный вес, гораздо проще, чем поднимать груз руками вверх. Физического выигрыша нет: чтобы поднять груз на метр, надо вытянуть метр верёвки, и сила всё та же Mg.</p>
+    <p>А вот на <b>ось</b> блока действует сила, равная векторной сумме двух натяжений. Когда ветви параллельны, она равна 2T, при разведённых ветвях — меньше. Это отдельный частый вопрос в задачах: «с какой силой блок давит на потолок».</p>
+  </div>
+</section>
+
+<!-- ============ S4 ============ -->
+<section id="s4">
+  <h2>Подвижный блок: выигрыш в силе вдвое</h2>
+  <p class="lead">Подвижный блок едет вместе с грузом. Груз подвешен к его оси через обойму, а нить огибает блок снизу: один её конец закреплён на потолке, за второй мы тянем вверх. Получается, что груз держат <b>две ветви</b> нити сразу — отсюда и выигрыш.</p>
+
+  <div class="card">
+    <canvas id="c4" height="460" style="height:460px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>вытягиваем нить на Δl, м</label><input type="range" id="r4a" min="0" max="40" value="0"></div>
+      <div class="ctrl"><label>груз M, кг</label><input type="range" id="r4b" min="10" max="50" value="20"></div>
+    </div>
+    <div class="readout">
+      <span class="val blue">T = Mg/2 = <b id="o4t">10.0</b> Н</span>
+      <span class="val amber">вытянули Δl = <b id="o4l">0.0</b> м</span>
+      <span class="val violet">блок поднялся на <b id="o4h">0.0</b> м</span>
+      <span class="val lock">всегда ровно вдвое меньше</span>
+    </div>
+    <div id="o4st" class="status go">Две ветви держат груз, каждая натянута вдвое слабее</div>
+  </div>
+
+  <span class="f big">2T = Mg &nbsp;⇒&nbsp; T = Mg/2</span>
+  <span class="f">верно, пока груз покоится или поднимается равномерно</span>
+  <span class="f big">Δl<sub>конца</sub> = 2·Δh<sub>блока</sub></span>
+  <span class="f big">v<sub>конца</sub> = 2·v<sub>блока</sub>, a<sub>конца</sub> = 2·a<sub>блока</sub></span>
+
+  <div class="note ok">
+    <span class="tag">Золотое правило механики</span>
+    <p>Выиграли в силе вдвое — ровно вдвое проиграли в перемещении. Работа не изменилась: A = T·Δl = (Mg/2)·2Δh = Mg·Δh. Никакой блок не создаёт энергию, он только перераспределяет силу и путь.</p>
+    <p>Именно из этого правила растёт двойка в кинематической связи. Скорость и ускорение конца нити вдвое больше, чем у самого блока, — и это тот самый коэффициент, который интуиция чаще всего теряет.</p>
+  </div>
+
+  <div class="note amb">
+    <span class="tag">Почему на невесомый блок сумма сил всегда ноль</span>
+    <p>Для блока второй закон звучит как ΣF = m<sub>бл</sub>·a. Масса идеального блока равна нулю, поэтому <b>при любом ускорении</b> правая часть ноль, и силы на блоке обязаны компенсироваться точно. Две ветви тянут его вверх с суммарной силой 2T — значит вниз на него действует ровно 2T со стороны груза.</p>
+    <p>Это работает даже когда блок разгоняется. Невесомое тело не «сопротивляется» ускорению, поэтому баланс сил на нём не нарушается никогда.</p>
+  </div>
+
+  <h3>Сравнение блоков</h3>
+  <table>
+    <tr><th></th><th>неподвижный</th><th>подвижный</th></tr>
+    <tr><td>ось</td><td>закреплена</td><td>движется вместе с грузом</td></tr>
+    <tr><td>натяжение</td><td class="k">T = Mg</td><td class="k">T = Mg/2</td></tr>
+    <tr><td>выигрыш в силе</td><td>нет</td><td>в 2 раза</td></tr>
+    <tr><td>перемещение конца нити</td><td class="k">= Δh груза</td><td class="k">= 2Δh груза</td></tr>
+    <tr><td>зачем нужен</td><td>сменить направление силы</td><td>уменьшить нужную силу</td></tr>
+  </table>
+</section>
+
+<!-- ============ S5 ============ -->
+<section id="s5">
+  <h2>Связь ускорений: разбор схемы с двумя блоками</h2>
+  <p class="lead">Теперь соберём всё вместе на системе из конспекта: неподвижный блок наверху, подвижный блок с грузом m₂, груз m₁ на свободном конце. Двигай массы и смотри, как система реагирует.</p>
+
+  <div class="card">
+    <canvas id="c5" height="480" style="height:480px"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>m₁, кг</label><input type="range" id="r5a" min="5" max="60" value="10"></div>
+      <div class="ctrl"><label>m₂, кг</label><input type="range" id="r5b" min="5" max="60" value="30"></div>
+      <button class="btn" id="p5">пауза</button>
+      <button class="btn ghost" id="z5">сброс</button>
+    </div>
+    <div class="readout">
+      <span class="val blue">a₁ = <b id="o5a1">0.00</b> м/с²</span>
+      <span class="val red">a₂ = <b id="o5a2">0.00</b> м/с²</span>
+      <span class="val violet">T = <b id="o5t">0.0</b> Н</span>
+      <span class="val lock">a₁ = −2a₂ всегда</span>
+    </div>
+    <div id="o5st" class="status go"></div>
+    <div class="legend">
+      <span><i style="background:#1d4ed8"></i>груз m₁ на свободном конце</span>
+      <span><i style="background:#d92b2b"></i>груз m₂ на подвижном блоке</span>
+      <span><i style="background:#0e8a5f"></i>нить постоянной длины</span>
+    </div>
+  </div>
+
+  <h3>Вывод связи</h3>
+  <p>Ось X направим вниз, ноль возьмём на потолке. Нить закреплена на потолке, идёт вниз к подвижному блоку, огибает его <b>снизу</b>, поднимается к неподвижному блоку, огибает его <b>сверху</b> и опускается к грузу m₁. Выписываем её полную длину:</p>
+  <span class="f">L = (x<sub>б2</sub> − 0) + πR + (x<sub>б2</sub> − x<sub>б1</sub>) + πR + (x₁ − x<sub>б1</sub>)</span>
+  <span class="f big">L = 2x<sub>б2</sub> − 2x<sub>б1</sub> + x₁ + 2πR</span>
+  <p>Дифференцируем дважды. Константа 2πR исчезает, неподвижный блок неподвижен, поэтому a<sub>б1</sub> = 0, а подвижный блок движется вместе с грузом, значит a<sub>б2</sub> = a₂:</p>
+  <span class="f big">2a₂ + a₁ = 0 &nbsp;⇒&nbsp; a₁ = −2a₂</span>
+
+  <h3>Система уравнений</h3>
+  <span class="f">m₁g − T = m₁a₁</span>
+  <span class="f">m₂g − 2T = m₂a₂</span>
+  <span class="f">a₁ = −2a₂</span>
+  <p>Три уравнения, три неизвестных. Решаем:</p>
+  <span class="f big">a₂ = g·(m₂ − 2m₁)/(4m₁ + m₂)</span>
+  <span class="f big">a₁ = −2g·(m₂ − 2m₁)/(4m₁ + m₂)</span>
+  <span class="f">T = 3g·m₁m₂/(4m₁ + m₂)</span>
+
+  <div class="note ok">
+    <span class="tag">Проверка на здравый смысл</span>
+    <p>Поставь m₂ = 2m₁. Числитель обнуляется, оба ускорения равны нулю — система в равновесии. И это правильно: подвижный блок даёт выигрыш вдвое, поэтому груз m₁ уравновешивает вдвое более тяжёлый m₂. Любая формула из такой задачи обязана проходить эту проверку.</p>
+  </div>
+
+  <div class="note warn">
+    <span class="tag">Сверься с конспектом</span>
+    <p>В раздаточном листе в финальной формуле для a₁ₓ потерян минус: там записано a₁ₓ = 2g(m₂ − 2m₁)/(4m₁ + m₂), хотя строкой выше стоит верное a₁ₓ = −2a₂ₓ. Правильный ответ — с минусом, и физически это понятно: когда m₂ тяжёлый и опускается, груз m₁ обязан подниматься.</p>
+  </div>
+</section>
+
+<!-- ============ S6 ============ -->
+<section id="s6">
+  <h2>Алгоритм решения задач на нити и блоки</h2>
+
+  <ol class="steps">
+    <li><b>Выберите ось и ноль.</b> Одну ось на всю задачу, обычно X вниз, ноль на потолке или на неподвижной опоре. Все координаты и все проекции дальше считаются только на неё.</li>
+    <li><b>Расставьте буквы натяжений.</b> Одна нить — одна буква. Разные нити — разные буквы. Нить через идеальный блок сохраняет свою букву по обе стороны.</li>
+    <li><b>Нарисуйте силы для каждого тела отдельно.</b> Груз: mg вниз и натяжения. Подвижный блок: натяжения вверх и сила со стороны груза вниз.</li>
+    <li><b>Используйте невесомость блоков.</b> Для каждого идеального блока сумма сил равна нулю. Отсюда получается, что на подвижный блок с двумя ветвями действует вверх 2T, и ровно 2T передаётся его грузу.</li>
+    <li><b>Запишите второй закон в проекциях</b> для каждого груза. Получится на одно уравнение меньше, чем неизвестных, — так и должно быть.</li>
+    <li><b>Выпишите длину каждой нити через координаты</b> и продифференцируйте дважды. Куски на блоках — константы, они пропадут. Каждая нить даёт одно уравнение связи.</li>
+    <li><b>Решите систему и проверьте ответ.</b> Подставьте частные случаи: равновесие, ноль одной из масс, очень тяжёлый груз. Если предел абсурден — ищите ошибку в знаках.</li>
+  </ol>
+
+  <div class="note">
+    <span class="tag">Как считать уравнения</span>
+    <p>Неизвестные — это ускорения всех тел плюс натяжения всех нитей. Уравнения — второй закон для каждого тела плюс по одной связи на каждую нерастяжимую нить. Если посчитать и то и другое, сразу видно, хватает ли уравнений, или вы что-то забыли.</p>
+  </div>
+
+  <div class="note amb">
+    <span class="tag">Частый короткий путь</span>
+    <p>Если подвижных блоков нет, связь всегда простая: ускорения равны по модулю. Двойки и тройки появляются ровно там, где есть подвижные блоки, и коэффициент равен числу ветвей нити, которые держат этот блок.</p>
+  </div>
+</section>
+
+<!-- ============ S7 ============ -->
+<section id="s7">
+  <h2>Итог</h2>
+
+  <h3>Два свойства нити</h3>
+  <table>
+    <tr><th>свойство</th><th>что из него следует</th><th>про что это</th></tr>
+    <tr><td>Невесомость</td><td class="k">T одинаково по всей нити</td><td>про силы</td></tr>
+    <tr><td>Нерастяжимость</td><td class="k">L = const ⇒ связь ускорений</td><td>про ускорения</td></tr>
+  </table>
+
+  <h3>Два типа блоков</h3>
+  <span class="f big">неподвижный: T = Mg, только меняет направление</span>
+  <span class="f big">подвижный: T = Mg/2, конец нити идёт вдвое быстрее</span>
+  <span class="f">идеальный блок: масса ноль ⇒ ΣF = 0 на нём всегда</span>
+
+  <h3>Метод связи</h3>
+  <span class="f big">L через координаты → продифференцировать дважды → L̈ = 0</span>
+
+  <div class="note warn">
+    <span class="tag">Типичные ошибки</span>
+    <ul class="tight">
+      <li>Писать разные натяжения по разные стороны одного идеального блока.</li>
+      <li>Использовать одну и ту же букву T для двух разных нитей.</li>
+      <li>Забывать двойку у подвижного блока — и в силе, и в ускорении.</li>
+      <li>Угадывать связь ускорений «на глаз» вместо того, чтобы выписать длину нити.</li>
+      <li>Менять направление оси посреди решения.</li>
+      <li>Пугаться минуса в ответе: он означает лишь противоположное направление.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Урок 8 · динамика. Все панели считают величины вживую по формулам из конспекта.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const TAU=Math.PI*2, G=10;
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const fmt=(v,n)=>{const s=(+v).toFixed(n===undefined?1:n);return s.replace('-','−');};
+
+  function fit(cv){
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+    if(!w||!h) return null;
+    if(cv.width!==w*dpr||cv.height!==h*dpr){cv.width=w*dpr;cv.height=h*dpr;}
+    const ctx=cv.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    return {ctx,w,h};
+  }
+  function arrow(ctx,x1,y1,x2,y2,color,lw,head){
+    lw=lw||2; head=head||9;
+    const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy);
+    if(L<2) return;
+    const ux=dx/L,uy=dy/L;
+    ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*head*.7,y2-uy*head*.7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-ux*head-uy*head*.42,y2-uy*head+ux*head*.42);
+    ctx.lineTo(x2-ux*head+uy*head*.42,y2-uy*head-ux*head*.42);
+    ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  }
+  // сдвигает подпись так, чтобы она не вылезала за край холста
+  function fitX(ctx,txt,x,align){
+    const W=ctx.canvas.clientWidth||1e9, tw=ctx.measureText(txt).width;
+    const x0=align==='center'?x-tw/2:(align==='right'?x-tw:x);
+    if(x0<4) return x+(4-x0);
+    if(x0+tw>W-4) return x-(x0+tw-(W-4));
+    return x;
+  }
+  function label(ctx,txt,x,y,color,size,align,baseline){
+    align=align||'left';
+    ctx.fillStyle=color;
+    ctx.font='600 '+(size||12)+'px ui-monospace,Menlo,monospace';
+    ctx.textAlign=align;ctx.textBaseline=baseline||'middle';
+    ctx.fillText(txt,fitX(ctx,txt,x,align),y);
+  }
+  function labelBg(ctx,txt,x,y,color,size,align){
+    size=size||12; align=align||'left';
+    ctx.font='600 '+size+'px ui-monospace,Menlo,monospace';
+    const tw=ctx.measureText(txt).width;
+    x=fitX(ctx,txt,x,align);
+    const x0=align==='center'?x-tw/2:(align==='right'?x-tw:x);
+    ctx.fillStyle='rgba(252,252,250,.92)';
+    ctx.fillRect(x0-4,y-size*0.7,tw+8,size*1.4);
+    label(ctx,txt,x,y,color,size,align);
+  }
+  function dot(ctx,x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=fill;ctx.fill();}
+  function ceiling(ctx,x1,x2,y){
+    ctx.strokeStyle='#181820';ctx.lineWidth=2.4;
+    ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
+    ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.4;
+    for(let x=x1+6;x<x2;x+=13){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-9,y-9);ctx.stroke();}
+  }
+  // блок: обод с жёлобом по окружности радиуса R, ступица, ось
+  function pulley(ctx,x,y,R,col){
+    col=col||'#181820';
+    ctx.fillStyle='#e4e1d7';ctx.strokeStyle=col;ctx.lineWidth=2.2;
+    ctx.beginPath();ctx.arc(x,y,R,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#f8f7f3';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.arc(x,y,R*0.56,0,TAU);ctx.fill();ctx.stroke();
+  }
+  // обойма: жёсткая планка от оси блока к опоре или к грузу
+  function strap(ctx,x,y1,y2,col){
+    const r=4.5, yA=Math.min(y1,y2), yB=Math.max(y1,y2);
+    ctx.fillStyle='#d3d0c5';ctx.strokeStyle=col||'#181820';ctx.lineWidth=1.6;
+    ctx.beginPath();
+    ctx.arc(x,yA,r,Math.PI,0);
+    ctx.lineTo(x+r,yB);
+    ctx.arc(x,yB,r,0,Math.PI);
+    ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  function axle(ctx,x,y,col){dot(ctx,x,y,3.6,col||'#181820');}
+  function ropeStyle(ctx){ctx.strokeStyle='#0e8a5f';ctx.lineWidth=2.6;ctx.lineCap='round';ctx.lineJoin='round';}
+  function anchor(ctx,x,y){dot(ctx,x,y,3.4,'#181820');}
+  function load(ctx,x,y,s,col,txt){
+    ctx.fillStyle=col||'#dbe6f5';ctx.strokeStyle='#181820';ctx.lineWidth=2;
+    ctx.beginPath();ctx.rect(x-s/2,y,s,s*0.78);ctx.fill();ctx.stroke();
+    if(txt) label(ctx,txt,x,y+s*0.39,'#181820',13,'center');
+  }
+
+  let cur='s1';
+  document.getElementById('nav').addEventListener('click',e=>{
+    const b=e.target.closest('.chip'); if(!b) return;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));
+    document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.go));
+    cur=b.dataset.go;
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+  function toggler(id,st){
+    const b=document.getElementById(id);
+    b.addEventListener('click',()=>{st.play=!st.play;b.textContent=st.play?'пауза':'продолжить';});
+  }
+
+  /* ===== S1: невесомость ===== */
+  const S1={mn:0,M:2.0};
+  document.getElementById('r1a').addEventListener('input',e=>S1.mn=+e.target.value/10);
+  document.getElementById('r1b').addEventListener('input',e=>S1.M=+e.target.value/10);
+
+  function drawS1(){
+    const g=fit(document.getElementById('c1')); if(!g) return;
+    const {ctx,w,h}=g;
+    const M=S1.M, mn=S1.mn;
+    const T3=M*G, T2=M*G+mn*G*0.5, T1=M*G+mn*G;   // низ, середина, верх
+
+    const cx=w*0.30, top=40, bot=h-92;
+    ceiling(ctx,cx-90,cx+90,top);
+    ctx.strokeStyle=mn>0.05?'#b7791f':'#181820';
+    ctx.lineWidth=mn>0.05?(2.4+mn*1.4):2.2;
+    ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,bot);ctx.stroke();
+    load(ctx,cx,bot,52,'#dbe6f5','M');
+    label(ctx,'M = '+fmt(M)+' кг',cx,bot+62,'#181820',12,'center');
+
+    // сечения
+    const levels=[[top+52,T1,'верхнее сечение','#1d4ed8'],
+                  [(top+bot)/2,T2,'середина','#6c6a78'],
+                  [bot-24,T3,'нижнее сечение','#d92b2b']];
+    levels.forEach(([y,T,nm,col])=>{
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#dcd9d0';ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.moveTo(cx-70,y);ctx.lineTo(cx+150,y);ctx.stroke();ctx.setLineDash([]);
+      dot(ctx,cx,y,5,col);
+      label(ctx,nm,cx-78,y,'#a9a698',11,'right');
+      label(ctx,'T = '+fmt(T)+' Н',cx+46,y-13,col,12,'left');
+      arrow(ctx,cx+30,y,cx+30,y-26,col,2.2,8);
+    });
+
+    // столбики натяжения
+    const bx=w*0.74, by0=h-70, by1=54, bw=Math.min(54,w*0.06);
+    const mx=Math.max(T1,1);
+    [[T1,'верх','#1d4ed8'],[T2,'середина','#6c6a78'],[T3,'низ','#d92b2b']].forEach(([T,nm,col],i)=>{
+      const x=bx+(i-1)*(bw+22);
+      ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1;ctx.strokeRect(x-bw/2,by1,bw,by0-by1);
+      ctx.globalAlpha=0.75; ctx.fillStyle=col;
+      ctx.fillRect(x-bw/2,by0-(by0-by1)*clamp(T/mx,0,1),bw,(by0-by1)*clamp(T/mx,0,1));
+      ctx.globalAlpha=1;
+      label(ctx,nm,x,by1-16,'#6c6a78',11,'center');
+      label(ctx,fmt(T,0),x,by0+18,col,12,'center');
+    });
+
+    document.getElementById('o1m').textContent=fmt(mn);
+    document.getElementById('o1t1').textContent=fmt(T1);
+    document.getElementById('o1t2').textContent=fmt(T2);
+    document.getElementById('o1t3').textContent=fmt(T3);
+    const st=document.getElementById('o1st');
+    if(mn<0.05){st.className='status go';st.textContent='Нить невесома: натяжение одно и то же в любом сечении — можно писать одну букву T';}
+    else {st.className='status stop';st.textContent='Нить тяжёлая: вверху она держит ещё и собственный вес, поэтому T вверху больше на '+fmt(mn*G)+' Н';}
+  }
+
+  /* ===== S2: нерастяжимость ===== */
+  const S2={d:0};
+  document.getElementById('r2a').addEventListener('input',e=>S2.d=+e.target.value/10);
+
+  function drawS2(){
+    const g=fit(document.getElementById('c2')); if(!g) return;
+    const {ctx,w,h}=g;
+    const cx=w*0.42, top=44, R=32;
+    const SC=34;                     // пикселей на метр
+    const base=3.0;
+    const lA=base+S2.d, lB=base-S2.d;
+
+    ceiling(ctx,cx-120,cx+120,top);
+    const yP=top+36+R;
+    const xL=cx-R, xR=cx+R;
+    const yA=yP+lA*SC, yB=yP+lB*SC;
+
+    pulley(ctx,cx,yP,R);
+    strap(ctx,cx,top,yP);
+    axle(ctx,cx,yP);
+    // нить: A вверх -> через ВЕРХ блока -> вниз к B
+    ropeStyle(ctx);
+    ctx.beginPath();ctx.moveTo(xL,yA);ctx.lineTo(xL,yP);
+    ctx.arc(cx,yP,R,Math.PI,0,false);
+    ctx.lineTo(xR,yB);ctx.stroke();
+
+    load(ctx,xL,yA,44,'#dbe6f5','A');
+    load(ctx,xR,yB,44,'#f7ddd8','B');
+
+    // размерные линии
+    ctx.setLineDash([3,4]);ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(xL-46,yP);ctx.lineTo(xL,yP);ctx.moveTo(xL-46,yA);ctx.lineTo(xL-22,yA);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(xR+46,yP);ctx.lineTo(xR,yP);ctx.moveTo(xR+46,yB);ctx.lineTo(xR+22,yB);ctx.stroke();
+    ctx.setLineDash([]);
+    arrow(ctx,xL-38,yP,xL-38,yA,'#1d4ed8',2,8); arrow(ctx,xL-38,yA,xL-38,yP,'#1d4ed8',2,8);
+    arrow(ctx,xR+38,yP,xR+38,yB,'#d92b2b',2,8); arrow(ctx,xR+38,yB,xR+38,yP,'#d92b2b',2,8);
+    label(ctx,'x_A = '+fmt(lA)+' м',xL-48,(yP+yA)/2,'#1d4ed8',12,'right');
+    label(ctx,'x_B = '+fmt(lB)+' м',xR+48,(yP+yB)/2,'#d92b2b',12,'left');
+    label(ctx,'кусок на блоке — πR, константа',cx+R+12,yP-R-4,'#a9a698',11,'left');
+    label(ctx,'0 — ось блока',xL-48,yP-12,'#a9a698',11,'right');
+    label(ctx,'L = x_A + πR + x_B = const',w*0.5,h-18,'#0e8a5f',13,'center');
+
+    document.getElementById('o2l').textContent=fmt(lA);
+    document.getElementById('o2r').textContent=fmt(lB);
+    document.getElementById('o2s').textContent=fmt(lA+lB);
+    const st=document.getElementById('o2st');
+    if(Math.abs(S2.d)<0.05){st.className='status go';st.textContent='Исходное положение. Сдвинь груз и следи за суммой длин';}
+    else {st.className='status zero';st.textContent='Одна сторона удлинилась на '+fmt(Math.abs(S2.d))+' м, другая ровно на столько же укоротилась — сумма прежняя';}
+  }
+
+  /* ===== S3: неподвижный блок ===== */
+  const S3={ang:0,M:2.0};
+  document.getElementById('r3a').addEventListener('input',e=>S3.ang=+e.target.value);
+  document.getElementById('r3b').addEventListener('input',e=>S3.M=+e.target.value/10);
+
+  function drawS3(){
+    const g=fit(document.getElementById('c3')); if(!g) return;
+    const {ctx,w,h}=g;
+    const M=S3.M, T=M*G;
+    const th=S3.ang*Math.PI/180;              // угол между ветвями
+    const cx=w*0.44, top=40, R=32;
+    ceiling(ctx,cx-150,cx+150,top);
+    const yP=top+78+R;
+    pulley(ctx,cx,yP,R);
+    strap(ctx,cx,top,yP);
+    axle(ctx,cx,yP);
+
+    // левая ветвь вертикально вниз к грузу; правая — под углом th к вертикали
+    const yL=yP+118;
+    const dx=Math.sin(th), dy=Math.cos(th);
+    const tx=cx+R*Math.cos(th), ty=yP-R*Math.sin(th);   // точка схода с блока
+    // не даём ветви упереться в потолок
+    const Lb=dy<-0.05?Math.min(125,(ty-top-14)/(-dy)):125;
+    ropeStyle(ctx);
+    ctx.beginPath();ctx.moveTo(cx-R,yL);ctx.lineTo(cx-R,yP);
+    ctx.arc(cx,yP,R,Math.PI,-th,false);          // обхват через ВЕРХ блока
+    ctx.lineTo(tx+dx*Lb,ty+dy*Lb);ctx.stroke();
+
+    load(ctx,cx-R,yL,46,'#dbe6f5','M');
+    labelBg(ctx,'T = '+fmt(T)+' Н',cx-R-14,yP+64,'#1d4ed8',12,'right');
+
+    arrow(ctx,tx+dx*(Lb-46),ty+dy*(Lb-46),tx+dx*Lb,ty+dy*Lb,'#d92b2b',2.8,10);
+    const ex=tx+dx*Lb, ey=ty+dy*Lb;
+    labelBg(ctx,'тянем: T = '+fmt(T)+' Н',ex+(dx>=0.2?12:-12),ey+16,'#d92b2b',12,dx>=0.2?'left':'right');
+
+    // сила со стороны нити на ось = векторная сумма двух натяжений
+    const sx=(0+dx)*T, sy=(1+dy)*T;
+    const Fax=Math.hypot(sx,sy);
+    const sc=Math.min(2.4,96/Math.max(Fax,1));
+    if(Fax>0.4){
+      arrow(ctx,cx,yP,cx+sx*sc,yP+sy*sc,'#6d28d9',3.2,10);
+      labelBg(ctx,'на ось: '+fmt(Fax)+' Н',Math.max(cx+R+12,cx+sx*sc+12),Math.max(yP+sy*sc,yP+R+14),'#6d28d9',12,'left');
+    } else {
+      labelBg(ctx,'на ось: почти ноль',cx+20,yP+R+18,'#6d28d9',12,'left');
+    }
+    label(ctx,'угол между ветвями '+fmt(S3.ang,0)+'°',w*0.5,h-18,'#6c6a78',12,'center');
+
+    document.getElementById('o3t').textContent=fmt(T);
+    document.getElementById('o3n').textContent=fmt(Fax);
+    document.getElementById('o3a').textContent=fmt(S3.ang,0);
+    const st=document.getElementById('o3st');
+    if(S3.ang<8){st.className='status go';st.textContent='Ветви параллельны: сила на ось максимальна и равна 2T = '+fmt(2*T)+' Н';}
+    else if(S3.ang<150){st.className='status zero';st.textContent='Ветви разведены: натяжение всё то же T = '+fmt(T)+' Н, а нагрузка на ось упала до '+fmt(Fax)+' Н';}
+    else {st.className='status stop';st.textContent='Ветви почти противоположны: они гасят друг друга, и ось почти не нагружена';}
+  }
+
+  /* ===== S4: подвижный блок ===== */
+  const S4={dl:0,M:2.0};
+  document.getElementById('r4a').addEventListener('input',e=>S4.dl=+e.target.value/20);
+  document.getElementById('r4b').addEventListener('input',e=>S4.M=+e.target.value/10);
+
+  function drawS4(){
+    const g=fit(document.getElementById('c4')); if(!g) return;
+    const {ctx,w,h}=g;
+    const M=S4.M, T=M*G/2;
+    const SC=40;                       // пикселей на метр
+    const dh=S4.dl/2;                  // блок поднимается вдвое меньше, чем вытянули нить
+    const top=56, R=34;
+    const xB=Math.max(150,w*0.42);     // ось подвижного блока
+    const xFix=xB-R, xPull=xB+R;       // ветви касаются блока слева и справа
+    const yP0=top+206, yP=yP0-dh*SC;   // центр блока
+    const yE0=yP0-100, yE=yE0-S4.dl*SC;// свободный конец нити (за него тянем вверх)
+    const k=64/(M*G);                  // масштаб сил: Mg всегда 64 px, T — вдвое короче
+
+    // потолок только над закреплённым концом
+    ceiling(ctx,xFix-70,xFix+30,top);
+
+    // блок, обойма вниз к грузу
+    const yHook=yP+R+44;
+    pulley(ctx,xB,yP,R,'#d92b2b');
+    strap(ctx,xB,yP,yHook);
+    axle(ctx,xB,yP);
+
+    // нить: потолок -> вниз по левой стороне -> ПОД блоком -> вверх по правой стороне -> свободный конец
+    ropeStyle(ctx);
+    ctx.beginPath();ctx.moveTo(xFix,top);ctx.lineTo(xFix,yP);
+    ctx.arc(xB,yP,R,Math.PI,0,true);
+    ctx.lineTo(xPull,yE);ctx.stroke();
+    anchor(ctx,xFix,top);
+    ctx.fillStyle='#fff';ctx.strokeStyle='#d61f69';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(xPull,yE,4.5,0,TAU);ctx.fill();ctx.stroke();
+
+    // груз на обойме
+    const s=64, lh=s*0.78, yc=yHook+lh/2;
+    load(ctx,xB,yHook,s,'#f7ddd8','');
+    dot(ctx,xB,yc,3.4,'#181820');
+    label(ctx,'M',xB-s/2-10,yc,'#181820',13,'right');
+
+    // силы на блок со стороны нити: две ветви тянут вверх по T
+    arrow(ctx,xFix,yP,xFix,yP-T*k,'#1d4ed8',3,9);
+    arrow(ctx,xPull,yP,xPull,yP-T*k,'#1d4ed8',3,9);
+    labelBg(ctx,'T',xFix-10,yP-T*k/2,'#1d4ed8',13,'right');
+    labelBg(ctx,'T',xPull+10,yP-T*k/2,'#1d4ed8',13,'left');
+    // сила руки на свободный конец
+    arrow(ctx,xPull,yE,xPull,yE-T*k,'#d61f69',3,9);
+    labelBg(ctx,'F = T',xPull+10,yE-T*k*0.6,'#d61f69',13,'left');
+    // силы на груз: сила тяжести и натяжение обоймы 2T
+    arrow(ctx,xB-14,yc,xB-14,yc+M*G*k,'#d92b2b',3,9);
+    labelBg(ctx,'Mg = '+fmt(M*G)+' Н',xB-22,yc+M*G*k-8,'#d92b2b',12,'right');
+    arrow(ctx,xB+14,yc,xB+14,yc-2*T*k,'#6d28d9',3,9);
+    labelBg(ctx,'2T',xB+20,yc-2*T*k+6,'#6d28d9',12,'left');
+
+    // перемещения
+    ctx.setLineDash([4,4]);ctx.strokeStyle='#c9c6bc';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(xFix-60,yP0);ctx.lineTo(xB,yP0);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(xPull,yE0);ctx.lineTo(xPull+74,yE0);ctx.stroke();
+    ctx.setLineDash([]);
+    arrow(ctx,xFix-50,yP0,xFix-50,yP,'#6d28d9',2.4,8);
+    label(ctx,'Δh = '+fmt(dh)+' м',xFix-50,yP0+14,'#6d28d9',12,'center');
+    arrow(ctx,xPull+64,yE0,xPull+64,yE,'#b7791f',2.4,8);
+    label(ctx,'Δl = '+fmt(S4.dl)+' м',xPull+64,yE0+14,'#b7791f',12,'center');
+    label(ctx,'вытянули вдвое больше, чем поднялся блок',w*0.5,h-16,'#6c6a78',12,'center');
+
+    document.getElementById('o4t').textContent=fmt(T);
+    document.getElementById('o4l').textContent=fmt(S4.dl);
+    document.getElementById('o4h').textContent=fmt(dh);
+    const st=document.getElementById('o4st');
+    if(S4.dl<0.05){st.className='status go';st.textContent='Груз держат две ветви: каждая натянута силой Mg/2 = '+fmt(T)+' Н';}
+    else {st.className='status zero';st.textContent='Вытянули '+fmt(S4.dl)+' м нити — блок с грузом поднялся только на '+fmt(dh)+' м';}
+  }
+
+  /* ===== S5: система с двумя блоками ===== */
+  const S5={m1:1.0,m2:3.0,t:0,play:true};
+  // геометрия по вертикали (px); смещение подвижного блока d ограничено, чтобы тела не сталкивались
+  const L5={top:42,R:28,yFixP:42+44+28,yMov0:250,yM10:224,SCm:15,dMin:-66,dMax:25};
+  document.getElementById('r5a').addEventListener('input',e=>{S5.m1=+e.target.value/10;S5.t=0;});
+  document.getElementById('r5b').addEventListener('input',e=>{S5.m2=+e.target.value/10;S5.t=0;});
+  toggler('p5',S5);
+  document.getElementById('z5').addEventListener('click',()=>{S5.t=0;});
+
+  function accS5(){
+    const m1=S5.m1, m2=S5.m2;
+    const a2=G*(m2-2*m1)/(4*m1+m2);
+    return {a2, a1:-2*a2, T:3*G*m1*m2/(4*m1+m2)};
+  }
+
+  function drawS5(){
+    const g=fit(document.getElementById('c5')); if(!g) return;
+    const {ctx,w,h}=g;
+    const m1=S5.m1, m2=S5.m2;
+    const {a1,a2,T}=accS5();
+    const {top,R,yFixP,SCm}=L5;
+
+    const xMov=Math.max(140,w*0.38);   // подвижный блок
+    const xFix=xMov+2*R;               // неподвижный: его левая сторона ровно над правой стороной подвижного
+    const xM1=xFix+R;                  // груз m1 висит на правой ветви неподвижного блока
+
+    const d=0.5*a2*S5.t*S5.t*SCm;      // смещение подвижного блока вниз, px
+    const yMovP=L5.yMov0+d;
+    const yM1=L5.yM10-2*d;             // связь: конец нити смещается вдвое больше и в другую сторону
+
+    // ось X и координаты
+    const xAx=Math.min(w*0.10,xMov-120);
+    ctx.setLineDash([3,5]);ctx.strokeStyle='#e2dfd6';ctx.lineWidth=1.2;
+    [[yFixP],[yMovP],[yM1]].forEach(([y])=>{ctx.beginPath();ctx.moveTo(xAx,y);ctx.lineTo(w*0.94,y);ctx.stroke();});
+    ctx.setLineDash([]);
+    ctx.strokeStyle='#0e8a5f';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(xAx,top);ctx.lineTo(xAx,h-24);ctx.stroke();
+    arrow(ctx,xAx,h-44,xAx,h-22,'#0e8a5f',1.6,8);
+    label(ctx,'X',xAx-10,h-30,'#0e8a5f',13,'right');
+    label(ctx,'0',xAx-10,top,'#0e8a5f',12,'right');
+    label(ctx,'x_б1',xAx+6,yFixP-8,'#6c6a78',11,'left');
+    label(ctx,'x_б2',xAx+6,yMovP-8,'#d92b2b',11,'left');
+    label(ctx,'x₁',xAx+6,yM1-8,'#1d4ed8',11,'left');
+
+    ceiling(ctx,xMov-R-50,xM1+70,top);
+
+    // неподвижный блок на обойме
+    pulley(ctx,xFix,yFixP,R);
+    strap(ctx,xFix,top,yFixP);
+    axle(ctx,xFix,yFixP);
+    label(ctx,'неподвижный',xFix+R+12,yFixP-R-4,'#6c6a78',11,'left');
+
+    // подвижный блок с обоймой, на которой висит m2
+    const yHook=yMovP+R+30;
+    pulley(ctx,xMov,yMovP,R,'#d92b2b');
+    strap(ctx,xMov,yMovP,yHook);
+    axle(ctx,xMov,yMovP,'#d92b2b');
+    label(ctx,'подвижный',xMov-R-12,yMovP+8,'#d92b2b',11,'right');
+
+    // одна нить: потолок -> ПОД подвижным блоком -> вверх -> ЧЕРЕЗ ВЕРХ неподвижного -> вниз к m1
+    ropeStyle(ctx);
+    ctx.beginPath();
+    ctx.moveTo(xMov-R,top);
+    ctx.lineTo(xMov-R,yMovP);
+    ctx.arc(xMov,yMovP,R,Math.PI,0,true);
+    ctx.lineTo(xFix-R,yFixP);
+    ctx.arc(xFix,yFixP,R,Math.PI,0,false);
+    ctx.lineTo(xFix+R,yM1);
+    ctx.stroke();
+    anchor(ctx,xMov-R,top);
+
+    // грузы
+    const s2=64, lh2=52*0.78, yc2=yHook+lh2/2;
+    ctx.fillStyle='#f7ddd8';ctx.strokeStyle='#181820';ctx.lineWidth=2;
+    ctx.beginPath();ctx.rect(xMov-s2/2,yHook,s2,lh2);ctx.fill();ctx.stroke();
+    label(ctx,'m₂',xMov-26,yc2,'#181820',13,'center');
+    const s1=50, lh1=46*0.78, yc1=yM1+lh1/2;
+    ctx.fillStyle='#dbe6f5';
+    ctx.beginPath();ctx.rect(xM1-s1/2,yM1,s1,lh1);ctx.fill();ctx.stroke();
+    label(ctx,'m₁',xM1-13,yc1,'#181820',13,'center');
+
+    // силы (единый масштаб)
+    const k=50/Math.max(m1*G,m2*G,2*T);
+    // на подвижный блок: две ветви вверх по T
+    arrow(ctx,xMov-R,yMovP,xMov-R,yMovP-T*k,'#1d4ed8',2.6,8);
+    arrow(ctx,xMov+R,yMovP,xMov+R,yMovP-T*k,'#1d4ed8',2.6,8);
+    labelBg(ctx,'T',xMov-R-9,yMovP-T*k*0.55,'#1d4ed8',12,'right');
+    labelBg(ctx,'T',xMov+R+9,yMovP-T*k*0.55,'#1d4ed8',12,'left');
+    // на m2: тяжесть и обойма 2T
+    arrow(ctx,xMov-8,yc2,xMov-8,yc2+m2*G*k,'#d92b2b',2.6,8);
+    labelBg(ctx,'m₂g',xMov-16,yc2+m2*G*k-6,'#d92b2b',12,'right');
+    arrow(ctx,xMov+12,yc2,xMov+12,yc2-2*T*k,'#6d28d9',2.6,8);
+    labelBg(ctx,'2T',xMov+18,Math.max(yc2-2*T*k+6,yMovP+R+8),'#6d28d9',12,'left');
+    // на m1: нить вверх T, тяжесть вниз
+    arrow(ctx,xM1,yM1,xM1,yM1-T*k,'#1d4ed8',2.6,8);
+    labelBg(ctx,'T',xM1+8,yM1-T*k*0.55,'#1d4ed8',12,'left');
+    arrow(ctx,xM1+4,yc1,xM1+4,yc1+m1*G*k,'#d92b2b',2.6,8);
+    labelBg(ctx,'m₁g',xM1+12,yc1+m1*G*k-6,'#d92b2b',12,'left');
+
+    // ускорения (проекции на X, положительные — вниз)
+    const asc=7;
+    if(Math.abs(a1)>0.04){
+      arrow(ctx,xM1+56,yc1,xM1+56,yc1+a1*asc,'#1d4ed8',3,10);
+      label(ctx,'a₁',xM1+66,yc1+a1*asc/2,'#1d4ed8',13,'left');
+    }
+    if(Math.abs(a2)>0.04){
+      arrow(ctx,xMov-58,yc2,xMov-58,yc2+a2*asc,'#d92b2b',3,10);
+      label(ctx,'a₂',xMov-68,yc2+a2*asc/2,'#d92b2b',13,'right');
+    }
+
+    document.getElementById('o5a1').textContent=fmt(a1,2);
+    document.getElementById('o5a2').textContent=fmt(a2,2);
+    document.getElementById('o5t').textContent=fmt(T);
+    const st=document.getElementById('o5st');
+    if(Math.abs(a2)<0.04){st.className='status go';st.textContent='m₂ = 2m₁ — система в равновесии: подвижный блок ровно вдвое усиливает натяжение';}
+    else if(a2>0){st.className='status stop';st.textContent='m₂ перевешивает и опускается, а m₁ поднимается вдвое быстрее по модулю';}
+    else {st.className='status zero';st.textContent='m₁ перевешивает: он опускается, а блок с m₂ поднимается вдвое медленнее';}
+  }
+  function stepS5(dt){
+    const {a2}=accS5();
+    if(Math.abs(a2)<0.04){S5.t=0;return;}
+    S5.t+=dt;
+    const d=0.5*a2*S5.t*S5.t*L5.SCm;
+    if(d>L5.dMax||d<L5.dMin) S5.t=0;   // дошли до края — начинаем заново
+  }
+
+  /* ===== цикл ===== */
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000); last=now;
+    if(cur==='s1') drawS1();
+    else if(cur==='s2') drawS2();
+    else if(cur==='s3') drawS3();
+    else if(cur==='s4') drawS4();
+    else if(cur==='s5'){ if(S5.play) stepS5(dt); drawS5(); }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+<!-- site-backlink -->
+<a href="index.html" aria-label="Все визуализации"
+   style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;
+          display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;
+          background:rgba(24,24,32,.88);color:#fff;text-decoration:none;
+          font:500 12px/1 'JetBrains Mono',Menlo,Consolas,monospace;letter-spacing:.06em;
+          box-shadow:0 8px 20px -10px rgba(24,24,32,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">
+  <span aria-hidden="true" style="font-size:15px">←</span> ВСЕ ВИЗУАЛИЗАЦИИ
+</a>
+</body>
+</html>
