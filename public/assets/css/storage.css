@@ -34,6 +34,9 @@
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; }
 .chip .count { color: var(--muted); }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-dark); }
+.chip:disabled { cursor: default; color: var(--faint); background: transparent; border-style: dashed; }
+.chip:disabled .dot { opacity: .45; }
+.chip:disabled:hover { border-color: var(--line); }
 .chip[aria-pressed="true"] .count { color: var(--violet-soft); }
 .chip--tag { border-style: dashed; border-color: var(--line-2); background: transparent; }
 .chip--tag[aria-pressed="true"] { background: var(--violet-tint); border: 1px solid var(--violet); color: var(--violet-ink); }

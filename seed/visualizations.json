@@ -1,11 +1,47 @@
 {
   "sections": [
-    { "id": "matematika",  "label": "Математика",  "color": "#6d28d9", "tint": "#ede7fb", "ink": "#5b21b6" },
-    { "id": "kinematika",  "label": "Кинематика",  "color": "#1d4ed8", "tint": "#e2e8fa", "ink": "#1e40af" },
-    { "id": "dinamika",    "label": "Динамика",    "color": "#0e8a5f", "tint": "#dcefe6", "ink": "#0b6b4a" },
-    { "id": "elektrostatika", "label": "Электростатика", "color": "#d61f69", "tint": "#fae1eb", "ink": "#a3164f" },
-    { "id": "tok",         "label": "Постоянный ток", "color": "#d92b2b", "tint": "#f9e0e0", "ink": "#a61f1f" },
-    { "id": "termodinamika", "label": "МКТ и термодинамика", "color": "#b7791f", "tint": "#f6ead3", "ink": "#7a4f0e" }
+    {
+      "id": "matematika",
+      "label": "Математика",
+      "color": "#6d28d9",
+      "tint": "#ede7fb",
+      "ink": "#5b21b6"
+    },
+    {
+      "id": "mekhanika",
+      "label": "Механика",
+      "color": "#1d4ed8",
+      "tint": "#e2e8fa",
+      "ink": "#1e40af"
+    },
+    {
+      "id": "mkt-termodinamika",
+      "label": "МКТ и термодинамика",
+      "color": "#b7791f",
+      "tint": "#f6ead3",
+      "ink": "#7a4f0e"
+    },
+    {
+      "id": "elektrodinamika",
+      "label": "Электродинамика",
+      "color": "#d61f69",
+      "tint": "#fae1eb",
+      "ink": "#a3164f"
+    },
+    {
+      "id": "optika",
+      "label": "Оптика",
+      "color": "#0e8a5f",
+      "tint": "#dcefe6",
+      "ink": "#0b6b4a"
+    },
+    {
+      "id": "kvanty",
+      "label": "Кванты",
+      "color": "#d92b2b",
+      "tint": "#f9e0e0",
+      "ink": "#a61f1f"
+    }
   ],
   "items": [
     {
@@ -13,7 +49,10 @@
       "title": "Тригонометрический круг: откуда берутся синус и косинус",
       "description": "Точка бежит по кругу и рисует синусоиду. Опорные точки и весь круг целиком на одной картинке.",
       "section": "matematika",
-      "tags": ["тригонометрия", "графики"],
+      "tags": [
+        "тригонометрия",
+        "графики"
+      ],
       "parts": "3 раздела",
       "file": "trigonometricheskij-krug.html",
       "cover": null
@@ -23,7 +62,10 @@
       "title": "Предел и производная",
       "description": "От секущей к касательной: предел, производная по определению, таблица и правила, производная в физике.",
       "section": "matematika",
-      "tags": ["анализ", "для физики"],
+      "tags": [
+        "анализ",
+        "для физики"
+      ],
       "parts": "12 разделов",
       "file": "predel-i-proizvodnaya.html",
       "cover": null
@@ -33,7 +75,10 @@
       "title": "Интеграл: площадь под графиком",
       "description": "Прямоугольники, предел суммы, первообразная и формула Ньютона–Лейбница. В конце — как набирать dA, dF, dm.",
       "section": "matematika",
-      "tags": ["анализ", "для физики"],
+      "tags": [
+        "анализ",
+        "для физики"
+      ],
       "parts": "8 разделов",
       "file": "integral.html",
       "cover": null
@@ -42,8 +87,11 @@
       "id": "ravnomernoe-i-ravnoperemennoe",
       "title": "Равномерное и равнопеременное движение",
       "description": "Скорость и ускорение, разгон или торможение, чем путь отличается от перемещения.",
-      "section": "kinematika",
-      "tags": ["графики", "ЕГЭ"],
+      "section": "mekhanika",
+      "tags": [
+        "графики",
+        "ЕГЭ"
+      ],
       "parts": "7 разделов",
       "file": "ravnomernoe-i-ravnoperemennoe.html",
       "cover": null
@@ -52,8 +100,11 @@
       "id": "brosok-pod-uglom",
       "title": "Бросок под углом к горизонту",
       "description": "Симулятор баллистики: меняешь угол и скорость броска и смотришь, как меняется траектория.",
-      "section": "kinematika",
-      "tags": ["симулятор", "ЕГЭ"],
+      "section": "mekhanika",
+      "tags": [
+        "симулятор",
+        "ЕГЭ"
+      ],
       "parts": "симулятор",
       "file": "brosok-pod-uglom.html",
       "cover": null
@@ -62,8 +113,10 @@
       "id": "dvizhenie-po-okruzhnosti",
       "title": "Движение по окружности",
       "description": "Период и угловая скорость, v = ωr, центростремительное, тангенциальное и полное ускорение.",
-      "section": "kinematika",
-      "tags": ["ЕГЭ"],
+      "section": "mekhanika",
+      "tags": [
+        "ЕГЭ"
+      ],
       "parts": "8 разделов",
       "file": "dvizhenie-po-okruzhnosti.html",
       "cover": null
@@ -72,8 +125,11 @@
       "id": "kinematicheskie-svyazi",
       "title": "Нити и блоки: кинематические связи",
       "description": "Невесомая и нерастяжимая нить, подвижный и неподвижный блок, связь ускорений и алгоритм решения задач.",
-      "section": "kinematika",
-      "tags": ["задачи", "ЕГЭ"],
+      "section": "mekhanika",
+      "tags": [
+        "задачи",
+        "ЕГЭ"
+      ],
       "parts": "7 разделов",
       "file": "kinematicheskie-svyazi.html",
       "cover": null
@@ -82,8 +138,10 @@
       "id": "dinamika",
       "title": "Законы Ньютона и силы",
       "description": "Три закона, природа сил, вес и невесомость, трение, тяготение и неинерциальные системы отсчёта.",
-      "section": "dinamika",
-      "tags": ["ЕГЭ"],
+      "section": "mekhanika",
+      "tags": [
+        "ЕГЭ"
+      ],
       "parts": "10 разделов",
       "file": "dinamika.html",
       "cover": null

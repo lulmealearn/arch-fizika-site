@@ -4,13 +4,12 @@
   var DATA_URL = '/api/visualizations';
   var listEl = document.getElementById('list');
   var secEl = document.getElementById('chips-sections');
-  var tagEl = document.getElementById('chips-tags');
   var shownEl = document.getElementById('shown');
   var totalEl = document.getElementById('total');
   var filtersEl = document.querySelector('.filters');
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var state = { section: 'all', tag: null };
+  var state = { section: 'all' };
   var data = null, sectionsById = {};
 
   function el(tag, cls, text) {
@@ -43,30 +42,20 @@
     items.forEach(function (it) { counts[it.section] = (counts[it.section] || 0) + 1; });
 
     var defs = [{ id: 'all', label: 'Все', color: 'var(--ink)', n: items.length }].concat(
-      data.sections.filter(function (s) { return counts[s.id]; }).map(function (s) {
-        return { id: s.id, label: s.label, color: s.color, n: counts[s.id] };
+      data.sections.map(function (s) {
+        return { id: s.id, label: s.label, color: s.color, n: counts[s.id] || 0 };
       })
     );
     defs.forEach(function (d) {
       var b = el('button', 'chip');
       b.type = 'button';
+      if (!d.n) { b.disabled = true; b.title = 'Скоро'; }
       b.setAttribute('aria-pressed', String(state.section === d.id));
       if (d.id !== 'all') { var dot = el('span', 'dot'); dot.style.background = d.color; b.appendChild(dot); }
       b.appendChild(document.createTextNode(d.label + ' '));
       b.appendChild(el('span', 'count', String(d.n)));
       b.addEventListener('click', function () { state.section = d.id; writeHash(); render(true); });
       secEl.appendChild(b);
-    });
-
-    tagEl.textContent = '';
-    var tags = [];
-    items.forEach(function (it) { it.tags.forEach(function (t) { if (tags.indexOf(t) < 0) tags.push(t); }); });
-    tags.forEach(function (t) {
-      var b = el('button', 'chip chip--tag', t);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(state.tag === t));
-      b.addEventListener('click', function () { state.tag = state.tag === t ? null : t; render(true); });
-      tagEl.appendChild(b);
     });
   }
 
@@ -104,7 +93,7 @@
     renderChips();
     var all = data.items;
     var list = all.map(function (it, i) { return { it: it, num: pad(i + 1) }; }).filter(function (x) {
-      return (state.section === 'all' || x.it.section === state.section) && (!state.tag || x.it.tags.indexOf(state.tag) >= 0);
+      return state.section === 'all' || x.it.section === state.section;
     });
 
     listEl.textContent = '';
@@ -126,9 +115,9 @@
 
     if (!list.length) {
       var li = el('li', 'empty');
-      li.appendChild(el('div', null, 'По этому сочетанию фильтров пока ничего нет.'));
-      var reset = el('button', 'btn btn--small', 'Сбросить фильтры'); reset.type = 'button';
-      reset.addEventListener('click', function () { state.section = 'all'; state.tag = null; writeHash(); render(true); });
+      li.appendChild(el('div', null, 'В этом разделе пока ничего нет.'));
+      var reset = el('button', 'btn btn--small', 'Показать все'); reset.type = 'button';
+      reset.addEventListener('click', function () { state.section = 'all'; writeHash(); render(true); });
       li.appendChild(reset);
       listEl.appendChild(li);
     }
