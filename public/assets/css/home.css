@@ -169,3 +169,42 @@
   background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 20px 20px; }
 .toy .label { color: var(--muted); }
+
+/* ── ФЭФМ ── */
+.cover__chip img.fefm { height: 30px; width: 30px; border-radius: 7px; }
+.fact__logo--fefm { background: transparent; }
+.fact__logo--fefm img { max-width: 76px; max-height: 76px; border-radius: 16px; }
+@media (max-width: 520px) { .fact__logo--fefm img { max-width: 56px; max-height: 56px; border-radius: 12px; } }
+
+/* ── Снимки без обрезки, чтобы лупа попадала точно ── */
+.shot img { height: auto; object-fit: initial; }
+.schemes { align-items: flex-start; }
+.schemes figure { width: 46%; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 16px 30px -22px rgba(24, 24, 32, .5); transition: transform .4s var(--ease-out); }
+.schemes figure:first-child { transform: rotate(-3deg); }
+.schemes figure:last-child { transform: rotate(3deg); }
+.schemes figure img { display: block; width: 100%; height: auto; border: 0; border-radius: 0; box-shadow: none; transform: none; }
+@media (hover: hover) { .lift:hover .schemes figure { transform: rotate(0); } }
+
+/* ── Нарисованная таблица ученика ── */
+.sheet-fig { border-radius: 12px; border: 1px solid var(--line); overflow: hidden; box-shadow: 0 16px 30px -22px rgba(24, 24, 32, .5); background: var(--paper); transition: transform .4s var(--ease-out); }
+@media (hover: hover) { .lift:hover .sheet-fig { transform: rotate(0) scale(1.01); } }
+.fit { position: relative; overflow: hidden; }
+.fit > * { transform-origin: 0 0; width: max-content; }
+.st { width: 820px; font-family: var(--serif); font-size: 14px; color: var(--ink); background: var(--paper); }
+.st__head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--ink); color: var(--on-dark); font-family: var(--mono); font-size: 12px; letter-spacing: .06em; }
+.st__ex { padding: 3px 8px; border-radius: 6px; background: var(--violet); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.st table { width: 100%; border-collapse: collapse; }
+.st th { text-align: left; padding: 9px 10px; background: #eef0f6; border-bottom: 2px solid var(--ink); font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.st td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.st td:nth-child(2), .st td:nth-child(3), .st td:nth-child(4) { white-space: nowrap; font-family: var(--mono); font-size: 12px; }
+.st td:nth-child(5) { white-space: nowrap; font-family: var(--mono); font-size: 12px; min-width: 92px; }
+.st td:nth-child(6) { width: 38%; }
+.st td:nth-child(7) { width: 18%; background: #fffbea; }
+.st tr:nth-child(even) td:not(:nth-child(7)) { background: #fafaf7; }
+.st .ok { display: inline-flex; width: 20px; height: 20px; border-radius: 5px; background: #dcefe6; color: #0b6b4a; align-items: center; justify-content: center; font-size: 12px; }
+.st .late { display: inline-block; padding: 2px 6px; border-radius: 5px; background: #fbd9c9; color: #8a2c0a; font-size: 11px; }
+.st .pct { display: block; width: 72px; height: 6px; border-radius: 3px; background: var(--line); margin: 5px 0 4px; overflow: hidden; }
+.st .pct i { display: block; height: 100%; background: var(--violet); border-radius: 3px; }
+
+.free__mail { margin: 0; font-size: 16px; color: var(--violet-tint); }
+.free__mail a { color: var(--paper); }

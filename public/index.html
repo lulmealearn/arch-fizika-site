@@ -20,7 +20,6 @@
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 6h14M3 10h10M3 14h14"/></svg>
       <span class="txt">МЕНЮ</span>
     </button>
-    <a class="brand" href="./">Arch <b>/</b> Физика</a>
     <a class="btn btn--accent btn--small cta-text" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">Бесплатный урок <span class="arr" aria-hidden="true">→</span></a>
     <a class="icon-btn icon-btn--accent cta-icon" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener" aria-label="Написать в Telegram">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 7 3-4 5 4z"/><path d="M9 13l12-9"/></svg>
@@ -52,10 +51,10 @@
           <span class="cover__chip">10–11 класс</span>
           <span class="cover__chip">ЕГЭ на 90+</span>
           <span class="cover__chip">Олимпиады</span>
-          <span class="cover__chip cover__chip--light"><img src="assets/img/logo-mipt.png" alt="МФТИ" width="72" height="22">ФЭФМ</span>
+          <span class="cover__chip cover__chip--light"><img class="fefm" src="assets/img/logo-fefm.png" alt="" width="244" height="251">МФТИ · ФЭФМ</span>
         </div>
         <div class="cover__card">
-          <p><b>Артур</b>, студент МФТИ. Сначала показываю, как явление работает, потом выводим формулы. К каждому уроку — интерактивная визуализация.</p>
+          <p><b>Артур [Фамилия]</b>, студент МФТИ. Сначала показываю, как явление работает, потом выводим формулы. К каждому уроку — интерактивная визуализация.</p>
           <div class="cover__actions">
             <a class="btn btn--accent" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">Записаться на бесплатный урок <span class="arr" aria-hidden="true">→</span></a>
             <a class="btn" href="viz/index.html">Визуализации</a>
@@ -104,19 +103,43 @@
         </article>
         <article class="card feature lift" data-reveal="80">
           <h3 class="h3"><span class="mark mark--peach">Таблица</span> на каждого ученика: темы, дедлайны, % верных, мои заметки</h3>
-          <div class="shot tilt-l"><img src="assets/img/student-table.webp" alt="Таблица прогресса ученика: даты, процент верных, комментарии" loading="lazy" width="954" height="662"></div>
+          <figure class="zoomable sheet-fig tilt-l" data-zoom="html" tabindex="0" role="button" aria-label="Рассмотреть таблицу ученика крупнее">
+            <div class="fit" data-zoom-content>
+              <div class="st">
+                <div class="st__head"><span>Таблица ученика · 11 класс · цель ЕГЭ 90+</span><span class="st__ex">пример</span></div>
+                <table>
+                  <thead><tr><th>ДЗ</th><th>Сдано</th><th>В срок</th><th>Верных</th><th>%</th><th>Комментарий к ДЗ</th><th>Мои заметки</th></tr></thead>
+                  <tbody>
+                    <tr><td><b>ДЗ 6</b><br>Кинематика</td><td>19.08</td><td><span class="ok">✓</span></td><td>15 / 19</td><td><span class="pct"><i style="width: 79%"></i></span>79%</td><td>№4, №5 — чертежи верные, но cos 60° = 1/2, а не √3/2. №12 — потерян минус в проекции.</td><td>Повторить проекции на наклонной</td></tr>
+                    <tr><td><b>ДЗ 7</b><br>Динамика</td><td>25.08</td><td><span class="ok">✓</span></td><td>22 / 27</td><td><span class="pct"><i style="width: 81%"></i></span>81%</td><td>№10а: на наклонной N = mg cos α, а не mg. №16 верно, но решение вдвое длиннее нужного.</td><td>Дать 3 задачи на наклонную</td></tr>
+                    <tr><td><b>ДЗ 8</b><br>Импульс</td><td>27.08</td><td><span class="late">+1 день</span></td><td>4 / 5</td><td><span class="pct"><i style="width: 80%"></i></span>80%</td><td>№3: импульс — вектор. При упругом отскоке Δp = 2mv, а не 0. Остальное чисто.</td><td>Готов к пробнику по механике</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <figcaption class="zoom-hint"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M7 5v4M5 7h4"/></svg>Рассмотреть</figcaption>
+          </figure>
         </article>
       </div>
       <div class="bento">
         <article class="card feature lift" data-reveal="0">
           <h3 class="h3"><span class="mark mark--blue">Разбор ДЗ</span> — комментарий к каждой ошибке, а не просто «неверно»</h3>
-          <div class="shot tilt-r"><img src="assets/img/homework.webp" alt="Домашнее задание: задачи с чертежами" loading="lazy" width="1000" height="634"></div>
+          <figure class="zoomable shot tilt-r" data-zoom="img" data-full="assets/img/homework-full.webp" tabindex="0" role="button" aria-label="Рассмотреть домашнее задание крупнее">
+            <img src="assets/img/homework.webp" alt="Домашнее задание: задачи на бросок под углом и наклонную плоскость с чертежами" loading="lazy" width="1000" height="634">
+            <figcaption class="zoom-hint"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M7 5v4M5 7h4"/></svg>Рассмотреть</figcaption>
+          </figure>
         </article>
         <article class="card feature lift" data-reveal="80">
           <h3 class="h3"><span class="mark mark--sun">Моделируем</span> явления на уроке — так понимают физику законов, а не зубрят формулы</h3>
           <div class="schemes">
-            <img src="assets/img/scheme-bubble.webp" alt="Схема с урока: силы, действующие на пузырёк при кипении" loading="lazy" width="505" height="656">
-            <img src="assets/img/scheme-heat-engine.webp" alt="Схема с урока: тепловая машина и её КПД" loading="lazy" width="550" height="715">
+            <figure class="zoomable" data-zoom="img" tabindex="0" role="button" aria-label="Рассмотреть схему пузырька крупнее">
+              <img src="assets/img/scheme-bubble.webp" alt="Схема с урока: силы, действующие на пузырёк при кипении" loading="lazy" width="505" height="656">
+              <figcaption class="zoom-hint"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M7 5v4M5 7h4"/></svg>Рассмотреть</figcaption>
+            </figure>
+            <figure class="zoomable" data-zoom="img" tabindex="0" role="button" aria-label="Рассмотреть схему тепловой машины крупнее">
+              <img src="assets/img/scheme-heat-engine.webp" alt="Схема с урока: тепловая машина и её КПД" loading="lazy" width="550" height="715">
+              <figcaption class="zoom-hint"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14M7 5v4M5 7h4"/></svg>Рассмотреть</figcaption>
+            </figure>
           </div>
         </article>
       </div>
@@ -146,7 +169,7 @@
             <p><span class="mark mark--blue">Победитель и призёр</span> перечневых олимпиад по физике</p>
           </div>
           <div class="card fact lift" data-reveal="120">
-            <span class="fact__logo"><img src="assets/img/logo-mipt-bird.png" alt="МФТИ" loading="lazy" width="133" height="159"></span>
+            <span class="fact__logo fact__logo--fefm"><img src="assets/img/logo-fefm.png" alt="ФЭФМ МФТИ" loading="lazy" width="244" height="251"></span>
             <p><span class="mark mark--sun">Заканчиваю бакалавриат МФТИ</span> — Физтех-школа фотоники, электроники и молекулярной физики</p>
           </div>
         </div>
@@ -213,6 +236,8 @@
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M21 4L3 11l6 2 2 7 3-4 5 4z"/><path d="M9 13l12-9"/></svg>
           @Arch_Tutor_Bot
         </a>
+        <!-- Почта: заменить [почта@домен.ru] здесь и в подвале -->
+        <p class="free__mail">Или на почту: <a href="mailto:[почта@домен.ru]">[почта@домен.ru]</a></p>
         <div class="toy">
           <canvas id="throw" role="img" aria-label="Игрушка: бросок мяча под углом, угол задаётся касанием"></canvas>
           <span class="label" id="throw-hint">Пока думаешь — брось мяч: тапни по полю, чтобы задать угол</span>
@@ -228,8 +253,8 @@
   </main>
 
   <footer class="footer">
-    <span>© 2026 · Arch / Физика</span>
-    <a href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">@Arch_Tutor_Bot</a>
+    <span>© 2026 · Артур [Фамилия], репетитор по физике</span>
+    <span class="footer__contacts"><a href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">@Arch_Tutor_Bot</a><a href="mailto:[почта@домен.ru]">[почта@домен.ru]</a></span>
   </footer>
 </div>
 
@@ -237,7 +262,7 @@
   <button class="drawer__scrim" type="button" data-close-drawer tabindex="-1" aria-label="Закрыть меню"></button>
   <nav class="drawer__panel" aria-label="Разделы сайта">
     <div class="drawer__head">
-      <span class="brand">Arch <b>/</b> Физика</span>
+      <span class="label">Меню</span>
       <button class="icon-btn" type="button" data-close-drawer aria-label="Закрыть меню">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15"/></svg>
       </button>
@@ -252,11 +277,13 @@
     <div class="drawer__foot">
       <span class="label">Написать</span>
       <a class="btn btn--accent" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener" style="text-transform: none; letter-spacing: .02em">@Arch_Tutor_Bot</a>
+      <a class="drawer__mail" href="mailto:[почта@домен.ru]">[почта@домен.ru]</a>
     </div>
   </nav>
 </div>
 
 <script src="assets/js/main.js" defer></script>
 <script src="assets/js/home.js" defer></script>
+<script src="assets/js/zoom.js" defer></script>
 </body>
 </html>
