@@ -171,7 +171,6 @@
 .toy .label { color: var(--muted); }
 
 /* ── ФЭФМ ── */
-.cover__chip img.fefm { height: 30px; width: 30px; border-radius: 7px; }
 .fact__logo--fefm { background: transparent; }
 .fact__logo--fefm img { max-width: 76px; max-height: 76px; border-radius: 16px; }
 @media (max-width: 520px) { .fact__logo--fefm img { max-width: 56px; max-height: 56px; border-radius: 12px; } }
