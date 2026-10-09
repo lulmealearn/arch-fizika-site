@@ -1,5 +1,14 @@
+# Секреты и данные — только на компьютере/сервере, не в git
+.env
+storage/
+
+# Python
 __pycache__/
 *.pyc
+.venv/
+venv/
+
+# Системное и редакторы
 .DS_Store
 Thumbs.db
 .idea/

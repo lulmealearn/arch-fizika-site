@@ -73,4 +73,13 @@
     });
   };
   window.revealOnScroll();
+
+  /* ── Число визуализаций в меню и на главной берём с сервера ── */
+  var counters = document.querySelectorAll('[data-viz-count]');
+  if (counters.length && window.fetch) {
+    fetch('/api/visualizations').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return;
+      counters.forEach(function (el) { el.textContent = String(d.items.length); });
+    }).catch(function () { /* оставляем число из разметки */ });
+  }
 })();

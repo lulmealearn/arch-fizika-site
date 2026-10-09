@@ -1,9 +1,7 @@
-/* Хранилище: читает data/visualizations.json, рисует папки, фильтрует по разделу и тегу.
-   Список берётся из JSON, поэтому позже его можно отдавать с сервера (например, из MySQL)
-   тем же форматом, и страницу менять не придётся. */
+/* Хранилище: берёт список с сервера (/api/visualizations), рисует папки, фильтрует по разделу и тегу. */
 (function () {
   'use strict';
-  var DATA_URL = '../data/visualizations.json';
+  var DATA_URL = '/api/visualizations';
   var listEl = document.getElementById('list');
   var secEl = document.getElementById('chips-sections');
   var tagEl = document.getElementById('chips-tags');
@@ -140,7 +138,7 @@
   function fail() {
     listEl.textContent = '';
     var li = el('li', 'empty');
-    li.textContent = 'Не получилось загрузить список. Если открываешь файл с диска, запусти сайт через локальный сервер (см. README).';
+    li.textContent = 'Не получилось загрузить список. Обнови страницу через минуту.';
     listEl.appendChild(li);
   }
 
