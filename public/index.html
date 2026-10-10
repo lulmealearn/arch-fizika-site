@@ -266,26 +266,75 @@
       </div>
     </section>
 
-    <!-- Цены: в фокусе группы; индивидуальные занятия — мелкой строкой -->
+    <!-- Цены: сравнение, группа в фокусе, индивидуальные — отдельной карточкой ниже -->
     <section class="sec" id="prices" aria-labelledby="h-prices">
       <h2 class="banner" id="h-prices" data-reveal="0">Цены</h2>
+
+      <div class="vs">
+        <article class="vs__card vs__card--solo" data-reveal="0">
+          <span class="vs__badge vs__badge--no" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></span>
+          <h3 class="vs__title">Самостоятельно</h3>
+          <ul class="vs__list">
+            <li class="is-plus">бесплатно</li>
+            <li>нет готовых материалов</li>
+            <li>нет источника мотивации</li>
+            <li>нет обратной связи</li>
+          </ul>
+          <svg class="vs__doodle" viewBox="0 0 120 70" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 52C20 20 34 62 44 34S70 8 62 40 88 64 96 30 112 22 114 46"/><path d="M60 40c-8 6-14-6-4-10s14 8 4 12"/><text x="16" y="22" font-family="Jura, sans-serif" font-weight="700" font-size="20" fill="currentColor" stroke="none">?</text><text x="98" y="18" font-family="Jura, sans-serif" font-weight="700" font-size="16" fill="currentColor" stroke="none">?</text></svg>
+        </article>
+        <span class="vs__mid" aria-hidden="true">vs</span>
+        <article class="vs__card vs__card--me" data-reveal="80">
+          <span class="vs__badge vs__badge--yes" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>
+          <h3 class="vs__title">Занятия со мной</h3>
+          <ul class="vs__list">
+            <li>чёткий план подготовки</li>
+            <li>мотивация и поддержка</li>
+            <li>обратная связь и разбор ошибок прямо на занятии</li>
+            <li>записи, конспекты и домашние задания доступны в любое время</li>
+          </ul>
+          <svg class="vs__doodle" viewBox="0 0 120 70" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 62H32V48H56V34H80V20H104"/><path d="M84 8L108 8 108 30" /><path d="M66 32L108 8"/></svg>
+        </article>
+      </div>
+
       <article class="price" data-reveal="0">
+        <div class="formulas" aria-hidden="true">
+          <span style="left: 3%; top: 6%; font-size: 40px; transform: rotate(-5deg)">F = ma</span>
+          <span style="left: 30%; top: 78%; font-size: 36px; transform: rotate(4deg)">Q = cmΔt</span>
+          <span style="left: 48%; top: 2%; font-size: 34px; transform: rotate(-3deg)">pV = νRT</span>
+          <span style="left: 2%; top: 86%; font-size: 38px; transform: rotate(3deg)">E = mc²</span>
+          <span style="left: 84%; top: 90%; font-size: 34px; transform: rotate(-4deg)">U = IR</span>
+        </div>
         <div class="price__main">
           <span class="price__eyebrow">Групповая подготовка к ЕГЭ</span>
           <h3 class="price__title">Занятия в группе</h3>
           <p class="price__sub">полное погружение</p>
-          <p class="price__cost"><b>1500 ₽</b><span>/ час</span></p>
+          <div class="price__row">
+            <p class="price__cost"><b>1500 ₽</b><span>/ час</span></p>
+            <span class="price__sticker">Первое занятие<br>бесплатно</span>
+          </div>
           <a class="btn price__btn" href="https://t.me/Arch_Tutor_Bot" target="_blank" rel="noopener">Записаться в группу <span class="arr" aria-hidden="true">→</span></a>
         </div>
         <ul class="price__list">
-            <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Все теоретические и практические занятия вживую</span></li>
-            <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Личный куратор и домашние задания с проверкой эксперта</span></li>
-            <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Пробные варианты, конспекты, визуализации опытов</span></li>
-            <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Дорешка: присылаете непонятную задачу — разбираем</span></li>
-            <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Живое общение в группе: ученики учатся друг у друга</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Все теоретические и практические занятия вживую</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Личный куратор и домашние задания с проверкой эксперта</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Пробные варианты, конспекты, визуализации опытов</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Записи занятий и все материалы по пройденным темам — в любое время</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Дорешка: присылаете непонятную задачу — разбираем</span></li>
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Живое общение в группе: ученики учатся друг у друга</span></li>
         </ul>
       </article>
-      <p class="price__solo">Индивидуальные занятия — по договорённости, от 3500 ₽ в час.</p>
+
+      <article class="card solo" data-reveal="0">
+        <div class="solo__main">
+          <h3 class="solo__title">Индивидуальные занятия</h3>
+          <p class="solo__cost"><b>от 3500 ₽</b> / час · по договорённости</p>
+        </div>
+        <ul class="solo__list">
+          <li><span class="check" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span>Занятия один на один</span></li>
+          <li><span class="cross" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></span><span>Без записей занятий</span></li>
+          <li><span class="cross" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></span><span>Без дорешек</span></li>
+        </ul>
+      </article>
     </section>
 
     <!-- Бесплатное занятие -->
