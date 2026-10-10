@@ -21,3 +21,29 @@
   list.addEventListener('scroll', function () { if (!raf) raf = requestAnimationFrame(mark); }, { passive: true });
   mark();
 })();
+
+/* Длинные отзывы обрезаны на одной высоте; кнопка показывается, только если текст действительно не влез. */
+(function () {
+  'use strict';
+  var cards = document.querySelectorAll('.review--long');
+  function check() {
+    cards.forEach(function (c) {
+      var p = c.querySelector('p'), b = c.querySelector('.review__more');
+      if (!p || !b || c.classList.contains('is-open')) return;
+      b.hidden = p.scrollHeight <= p.clientHeight + 2;
+    });
+  }
+  cards.forEach(function (c) {
+    var b = c.querySelector('.review__more');
+    if (!b) return;
+    b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', function () {
+      var open = c.classList.toggle('is-open');
+      b.textContent = open ? 'Свернуть' : 'Читать полностью';
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+  check();
+  window.addEventListener('resize', check);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(check);
+})();
