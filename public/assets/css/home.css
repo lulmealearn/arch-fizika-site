@@ -554,3 +554,7 @@ html.is-pop-open { overflow: hidden; }
 /* выделения в тексте бесплатного занятия: белым и жирнее, с мягкой подложкой-маркером */
 .free__em { color: #fff; font-weight: 700; background: linear-gradient(transparent 58%, rgba(255, 255, 255, .22) 58%); padding: 0 .08em; }
 .free--dark .free__em { color: #f6dc8e; background: linear-gradient(transparent 58%, rgba(232, 196, 106, .22) 58%); }
+/* карточка группы: левый блок начинается на одной высоте со списком справа */
+.price { align-items: start; }
+.price__next { margin-top: 0; }
+.price__sub { margin-top: 6px; }
