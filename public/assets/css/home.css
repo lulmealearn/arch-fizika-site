@@ -119,9 +119,33 @@
 .science { flex: 2 1 300px; align-self: stretch; position: relative; overflow: hidden; background: var(--ink); color: var(--on-dark); border-color: var(--ink); display: flex; flex-direction: column; gap: 12px; }
 .science .eyebrow { color: var(--on-dark-accent); }
 .science p { margin: 0; color: var(--on-dark-2); font-size: 16px; }
-.science svg { position: absolute; right: -40px; bottom: -40px; opacity: .35; pointer-events: none; }
-.science .orbit { transform-origin: 80px 80px; animation: spin 24s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.science > *:not(.pcb) { position: relative; z-index: 1; }
+/* Микросхема: от чипа во все стороны бегут импульсы по дорожкам */
+/* по умолчанию (узкая невысокая карточка, телефон) — чип под текстом */
+.science { container: sci / inline-size; }
+.pcb { position: relative; display: block; width: 230px; height: 230px; margin: 0 auto -70px; pointer-events: none; }
+/* рядом с фактами карточка узкая и высокая — чип в правом нижнем углу */
+@media (min-width: 1100px) { .pcb { position: absolute; right: -34px; bottom: -26px; width: 250px; height: 250px; margin: 0; } }
+/* широкая карточка (планшет) — чип справа, текст не заходит под него */
+@container sci (min-width: 560px) {
+  .pcb { position: absolute; right: -40px; top: 50%; bottom: auto; margin: -125px 0 0; width: 250px; height: 250px; }
+  .science > *:not(.pcb) { max-width: calc(100% - 200px); }
+}
+.pcb__trace { stroke: #8b7bd8; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.pcb__pad { stroke: #8b7bd8; stroke-width: 2.4; fill: var(--ink); opacity: .7; }
+.pcb__body { fill: #2a2440; stroke: #c4b5fd; stroke-width: 2.6; }
+.pcb__core { fill: #c4b5fd; opacity: .9; }
+.pcb__pulse { fill: #e9e3ff; opacity: 0; display: none; }
+@supports (offset-path: path('M0 0')) {
+  .pcb__pulse { display: block; offset-rotate: 0deg; animation: chip-run linear infinite; }
+}
+@keyframes chip-run {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .pcb__pulse { animation: none; display: none; } }
 
 /* ── Почему доверяют ── */
 .trust { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px; }
