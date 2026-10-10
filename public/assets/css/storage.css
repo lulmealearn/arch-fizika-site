@@ -116,3 +116,7 @@
 .row { min-height: 0; }
 .row__text { gap: 12px; }
 .row__title { font-size: clamp(22px, 2.4vw, 30px); }
+
+/* Обложка-иконка: линия цвета сайта на листе в клетку */
+.sheet img.sheet__icon { object-fit: contain; padding: 8px 12px; transition: transform .38s var(--ease-out); }
+@media (hover: hover) { .row:hover .sheet__icon { transform: scale(1.06); } }

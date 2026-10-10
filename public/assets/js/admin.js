@@ -140,6 +140,10 @@
     var body = el('span', 'body'); body.style.background = s.tint;
     var sheet = el('span', 'sheet');
     if (it.cover) { var img = el('img'); img.src = '/' + it.cover; img.alt = ''; sheet.appendChild(img); }
+    else {  /* как в хранилище: иконка визуализации, иначе иконка раздела */
+      var ic = el('img', 'sheet__icon'), tries = ['/assets/icons/viz/' + (it.slug || it.id) + '.svg', '/assets/icons/viz/_' + it.section + '.svg'];
+      ic.alt = ''; ic.onerror = function () { tries.shift(); if (tries.length) ic.src = tries[0]; else ic.remove(); }; ic.src = tries[0]; sheet.appendChild(ic);
+    }
     folder.appendChild(tab); folder.appendChild(body); folder.appendChild(sheet);
 
     var text = el('div', 'adm-row__text');

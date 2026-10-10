@@ -14,6 +14,7 @@
 - `storage/` — база и загруженные файлы (`viz/`, `covers/`), в git не попадает.
 - `seed/` — стартовые 8 визуализаций и разделы; импортируются только в пустую базу.
 - Формат `/api/visualizations` = `{sections:[{id,label,color,tint,ink}], items:[{id,title,description,section,tags,parts,file,cover}]}` — от него зависит `public/assets/js/storage.js`.
+- Обложки в хранилище: загруженная через админку картинка, иначе иконка `public/assets/icons/viz/<slug>.svg`, иначе иконка раздела `_<раздел>.svg`. Иконки — минимализм, линия `#6d28d9`, рисуются скриптом `tools/make_icons.py` (новую иконку добавлять туда же, в том же стиле).
 - Визуализации отдаются с `CSP: sandbox` (без localStorage). Кнопка «← Все визуализации» добавляется при загрузке (`files.prepare_html`).
 
 ## Дизайн «Лабораторный журнал»

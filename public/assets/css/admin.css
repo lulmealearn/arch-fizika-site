@@ -149,3 +149,5 @@ textarea.input { resize: vertical; min-height: 84px; }
   font-family: var(--mono); font-size: 13px; box-shadow: 0 12px 30px -12px rgba(24, 24, 32, .6);
 }
 .toast.is-error { background: #a61f1f; }
+
+.sheet img.sheet__icon, .sheet .sheet__icon { object-fit: contain; padding: 2px 3px; }

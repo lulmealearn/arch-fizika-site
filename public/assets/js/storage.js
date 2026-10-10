@@ -59,6 +59,15 @@
     });
   }
 
+  /* Обложка по умолчанию: своя иконка визуализации → иконка раздела → подпись «обложка» */
+  function iconCover(sheet, base, it) {
+    var img = el('img', 'sheet__icon'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+    var tries = [base + it.id + '.svg', base + '_' + it.section + '.svg'];
+    img.onerror = function () { tries.shift(); if (tries.length) img.src = tries[0]; else { img.remove(); sheet.appendChild(el('span', 'ph', 'обложка')); } };
+    img.src = tries[0];
+    sheet.appendChild(img);
+  }
+
   function card(it, num, animate, delay) {
     var s = sectionsById[it.section] || { label: it.section, color: '#181820', tint: '#ece9e0', ink: '#181820' };
     var a = el('a', 'row');
@@ -71,7 +80,7 @@
     var body = el('div', 'folder__body'); body.style.background = s.tint;
     var sheet = el('div', 'sheet');
     if (it.cover) { var img = el('img'); img.src = '../' + it.cover; img.alt = ''; img.loading = 'lazy'; sheet.appendChild(img); }
-    else sheet.appendChild(el('span', 'ph', 'обложка'));
+    else iconCover(sheet, '../assets/icons/viz/', it);
     folder.appendChild(tab); folder.appendChild(body); folder.appendChild(sheet);
 
     var text = el('div', 'row__text');
