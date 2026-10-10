@@ -193,12 +193,33 @@ a.reviews-badge { color: var(--ink); text-decoration: none; transition: transfor
 .free__list .num { font-family: var(--mono); font-weight: 400; font-size: 12px; color: var(--muted); }
 .free__list .gift { color: #c2410c; }
 
-.toy { background: var(--paper); color: var(--ink); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.toy canvas { width: 100%; height: 200px; display: block; touch-action: pan-y; cursor: crosshair; border-radius: 10px;
-  background-color: var(--bg);
-  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 20px 20px; }
-.toy .label { color: var(--muted); line-height: 1.5; }
+/* Билет на пробное занятие: вырезы по бокам, перфорация, корешок с подарком — пробником с проверкой */
+.ticket {
+  --stub: 158px; --cut: calc(100% - var(--stub));
+  position: relative; display: flex; align-self: flex-start; width: min(100%, 470px); min-height: 172px; margin-top: 6px;
+  background: var(--paper); color: var(--ink); text-decoration: none; border-radius: 18px;
+  -webkit-mask: radial-gradient(circle 13px at var(--cut) 0, #0000 97%, #000) top / 100% 51% no-repeat, radial-gradient(circle 13px at var(--cut) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle 13px at var(--cut) 0, #0000 97%, #000) top / 100% 51% no-repeat, radial-gradient(circle 13px at var(--cut) 100%, #0000 97%, #000) bottom / 100% 51% no-repeat;
+  transform: rotate(-2deg); transition: transform .35s var(--ease-out);
+  filter: drop-shadow(0 18px 26px rgba(24, 24, 32, .32));
+}
+.ticket:hover { color: var(--ink); }
+.ticket:focus-visible { outline: 3px solid var(--paper); outline-offset: 6px; }
+.ticket__main { flex: 1 1 auto; min-width: 0; padding: 18px 18px 16px 22px; display: flex; flex-direction: column; gap: 6px; }
+.ticket__kicker { font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--violet-ink); }
+.ticket__price { display: flex; align-items: baseline; gap: 10px; }
+.ticket__price b { font-family: var(--display); font-weight: 700; font-size: clamp(46px, 5vw, 58px); line-height: 1; color: var(--violet); }
+.ticket__price s { font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--faint); text-decoration-thickness: 2px; }
+.ticket__cta { margin-top: auto; font-family: var(--display); font-weight: 700; font-size: 16px; line-height: 1.25; }
+.ticket__cta .arr { display: inline-block; margin-left: 4px; }
+.ticket__cta .arr { transition: transform .25s var(--ease-out); }
+.ticket__code { width: 59px; height: 14px; fill: var(--ink); opacity: .55; }
+.ticket__stub { flex: none; width: var(--stub); border-left: 2px dashed var(--line-2); background: var(--violet-tint); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 14px 10px; }
+.ticket__gift { font-family: var(--display); font-weight: 700; font-size: 15px; line-height: 1.15; text-align: center; color: #c2410c; }
+@media (hover: hover) {
+  .ticket:hover { transform: rotate(0deg) translateY(-3px); }
+  .ticket:hover .ticket__cta .arr { transform: translateX(4px); }
+}
 
 /* ── ФЭФМ ── */
 .fact__logo--fefm { background: transparent; }
@@ -456,3 +477,7 @@ html.is-pop-open { overflow: hidden; }
   .reviews-dots button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); transition: transform .2s, background .2s; }
   .reviews-dots button[aria-current="true"]::before { background: var(--violet); transform: scale(1.35); }
 }
+.ticket__paper { width: 116px; height: 96px; transition: transform .35s var(--ease-out); }
+@media (hover: hover) { .ticket:hover .ticket__paper { transform: rotate(4deg) translateY(-4px); } }
+@media (max-width: 420px) { .ticket__paper { width: 96px; height: 80px; } }
+@media (max-width: 420px) { .ticket { --stub: 130px; } .ticket__price b { font-size: 44px; } }
