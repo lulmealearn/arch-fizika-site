@@ -248,4 +248,3 @@ h1, h2, h3 { text-wrap: balance; }
 .lightbox__html .st { width: 1040px; font-size: 16px; }
 
 .footer__contacts { display: inline-flex; flex-wrap: wrap; gap: 6px 18px; }
-.drawer__mail { font-family: var(--mono); font-size: 13px; color: var(--muted); text-align: center; padding: 10px 0; }
