@@ -160,6 +160,8 @@
 .reviews-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .reviews-badge { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 10px 18px; transform: rotate(2deg); font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1.25; }
 .reviews-badge span { color: var(--violet-ink); }
+a.reviews-badge { color: var(--ink); text-decoration: none; transition: transform .25s var(--ease-out), border-color .2s; }
+@media (hover: hover) { a.reviews-badge:hover { transform: rotate(0deg) translateY(-2px); border-color: var(--violet); } }
 .reviews { columns: 3 300px; column-gap: 16px; }
 .review { break-inside: avoid; margin: 0 0 16px; display: flex; flex-direction: column; gap: 8px; }
 .review header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
