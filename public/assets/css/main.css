@@ -116,6 +116,9 @@ h1, h2, h3 { text-wrap: balance; }
   opacity: 0; transition: opacity .2s;
 }
 .topbar.is-stuck::before { opacity: 1; }
+.topbar { transition: transform .3s var(--ease-out); }
+.topbar.is-hidden { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }
 /* якоря (#contacts и т. п.) не прячутся под шапкой */
 [id] { scroll-margin-top: calc(var(--topbar-h) + 12px); }
 .brand {

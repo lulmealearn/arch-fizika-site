@@ -111,13 +111,24 @@
   new MutationObserver(queue).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
 
-/* Липкая шапка: подложка появляется, как только страница прокручена. */
+/* Липкая шапка (по желанию владельца): при прокрутке вниз держится сверху, при прокрутке вверх уезжает.
+   В самом верху страницы, при открытом меню и при фокусе с клавиатуры она видна всегда. */
 (function () {
   'use strict';
   var bar = document.querySelector('.topbar');
   if (!bar) return;
-  var ticking = false;
-  function upd() { ticking = false; bar.classList.toggle('is-stuck', window.scrollY > 6); }
+  var root = document.documentElement, lastY = window.scrollY, ticking = false;
+  function setHidden(h) { bar.classList.toggle('is-hidden', h); root.classList.toggle('topbar-hidden', h); }
+  function upd() {
+    ticking = false;
+    var y = window.scrollY, dy = y - lastY;
+    bar.classList.toggle('is-stuck', y > 6);
+    if (y < 80 || document.body.classList.contains('no-scroll') || bar.contains(document.activeElement)) setHidden(false);
+    else if (dy > 4) setHidden(false);
+    else if (dy < -4) setHidden(true);
+    if (Math.abs(dy) > 4) lastY = y;
+  }
   window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(upd); } }, { passive: true });
+  bar.addEventListener('focusin', function () { setHidden(false); });
   upd();
 })();
