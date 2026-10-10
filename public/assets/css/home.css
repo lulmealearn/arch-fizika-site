@@ -548,3 +548,9 @@ html.is-pop-open { overflow: hidden; }
   font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--violet-ink); text-decoration: underline; text-underline-offset: 3px; }
 .review__more:hover { color: var(--violet); }
 .duel__caption { margin: 4px 10px 6px; font-family: var(--display); font-weight: 700; font-size: clamp(17px, 1.8vw, 21px); color: var(--ink); }
+.price__sub { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.price__people { display: inline-flex; gap: 3px; padding: 5px 8px; border-radius: 999px; background: rgba(255, 255, 255, .16); }
+.price__people svg { width: 15px; height: 17px; fill: #fff; }
+/* выделения в тексте бесплатного занятия: белым и жирнее, с мягкой подложкой-маркером */
+.free__em { color: #fff; font-weight: 700; background: linear-gradient(transparent 58%, rgba(255, 255, 255, .22) 58%); padding: 0 .08em; }
+.free--dark .free__em { color: #f6dc8e; background: linear-gradient(transparent 58%, rgba(232, 196, 106, .22) 58%); }
