@@ -533,3 +533,4 @@ html.is-pop-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .ticket--gold::before { display: none; } }
 .ticket { overflow: hidden; }
 .free--dark .free__list .gift { color: #f1cf72; }
+.stars__plus { font-size: .7em; margin-left: 1px; vertical-align: super; line-height: 0; }
