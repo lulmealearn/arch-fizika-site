@@ -1,10 +1,8 @@
-/* Увеличение: лупа при наведении мышью и полноэкранный просмотр по клику или тапу.
+/* Увеличение: полноэкранный просмотр по клику или тапу (лупы при наведении нет — владелец её убрал).
    Разметка: <figure class="zoomable" data-zoom="img" data-full="большая.webp"> с <img> внутри
    или data-zoom="html" с блоком [data-zoom-content] — он клонируется в просмотр. */
 (function () {
   'use strict';
-  var ZOOM = 2.2, LENS = 230;
-  var finePointer = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   /* ── Масштаб «картинки» из HTML: вписать широкий блок в карточку ── */
   function fit(box) {
@@ -25,28 +23,6 @@
     window.addEventListener('resize', function () { fits.forEach(fit); });
   }
 
-  /* ── Лупа ── */
-  var lens = null;
-  function ensureLens() {
-    if (lens) return lens;
-    lens = document.createElement('div');
-    lens.className = 'lens';
-    lens.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(lens);
-    return lens;
-  }
-  function moveLens(e, img, src) {
-    var r = img.getBoundingClientRect();
-    var x = e.clientX - r.left, y = e.clientY - r.top;
-    if (x < 0 || y < 0 || x > r.width || y > r.height) { hideLens(); return; }
-    var l = ensureLens();
-    l.style.backgroundImage = 'url("' + src + '")';
-    l.style.backgroundSize = (r.width * ZOOM) + 'px ' + (r.height * ZOOM) + 'px';
-    l.style.backgroundPosition = (-(x * ZOOM - LENS / 2)) + 'px ' + (-(y * ZOOM - LENS / 2)) + 'px';
-    l.style.transform = 'translate(' + (e.clientX - LENS / 2) + 'px,' + (e.clientY - LENS / 2) + 'px)';
-    l.classList.add('is-on');
-  }
-  function hideLens() { if (lens) lens.classList.remove('is-on'); }
 
   /* ── Просмотр на весь экран ── */
   var box = null, lastFocus = null;
@@ -109,14 +85,7 @@
   }
 
   document.querySelectorAll('.zoomable').forEach(function (fig) {
-    fig.addEventListener('click', function () { hideLens(); open(fig); });
+    fig.addEventListener('click', function () { open(fig); });
     fig.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(fig); } });
-    if (finePointer && fig.getAttribute('data-zoom') === 'img') {
-      var img = fig.querySelector('img');
-      var src = fig.getAttribute('data-lens') || fig.getAttribute('data-full') || img.currentSrc || img.src;
-      fig.addEventListener('mousemove', function (e) { moveLens(e, img, src); });
-      fig.addEventListener('mouseleave', hideLens);
-    }
   });
-  window.addEventListener('scroll', hideLens, { passive: true });
 })();

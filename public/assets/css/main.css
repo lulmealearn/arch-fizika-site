@@ -100,10 +100,24 @@ h1, h2, h3 { text-wrap: balance; }
 }
 
 /* ── Шапка ───────────────────────────────────── */
+/* Шапка липкая: кнопка меню и запись всегда под рукой. Подложка появляется только при прокрутке (opacity). */
+:root { --topbar-h: 76px; }
 .topbar {
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding-block: 20px 4px;
+  margin-inline: calc(-1 * var(--gutter)); padding: 14px var(--gutter);
 }
+.topbar::before {
+  /* подложка на всю ширину окна: фон + тень-«растяжка» по бокам, обрезанная clip-path — ширину страницы не увеличивает */
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: rgba(247, 246, 242, .94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 0 0 100vmax rgba(247, 246, 242, .94), 0 1px 0 100vmax var(--line);
+  clip-path: inset(0 -100vmax -1px);
+  opacity: 0; transition: opacity .2s;
+}
+.topbar.is-stuck::before { opacity: 1; }
+/* якоря (#contacts и т. п.) не прячутся под шапкой */
+[id] { scroll-margin-top: calc(var(--topbar-h) + 12px); }
 .brand {
   font-family: var(--mono); font-size: 12px; letter-spacing: .18em; color: var(--muted);
   text-decoration: none; text-transform: uppercase;
@@ -172,6 +186,14 @@ h1, h2, h3 { text-wrap: balance; }
 .nav .name { font-family: var(--display); font-weight: 700; font-size: clamp(22px, 6vw, 26px); line-height: 1.15; }
 .nav .meta { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .nav .soon .meta { background: var(--violet-tint); color: var(--violet-ink); padding: 3px 8px; border-radius: 4px; }
+/* Меню в две группы: разделы главной (компактно) и отдельные страницы */
+.drawer__panel { gap: 14px; }
+.nav__label { margin-top: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+a.nav__label { display: inline-flex; align-items: center; min-height: 32px; color: var(--violet-ink); }
+a.nav__label::before { content: "←"; margin-right: 8px; }
+.nav--sections a { padding: 10px 0; }
+.nav--sections .name { font-size: clamp(18px, 5vw, 20px); }
+.drawer.is-open .nav li:nth-child(7) { transition-delay: .32s; }
 .drawer__foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 
 /* ── Общие блоки ─────────────────────────────── */
@@ -220,13 +242,6 @@ h1, h2, h3 { text-wrap: balance; }
   .zoom-hint { opacity: 0; transform: translateY(4px); }
   .zoomable:hover .zoom-hint, .zoomable:focus-visible .zoom-hint { opacity: 1; transform: none; }
 }
-.lens {
-  position: fixed; left: 0; top: 0; z-index: 150; width: 230px; height: 230px; border-radius: 50%;
-  border: 3px solid var(--paper); box-shadow: 0 0 0 1px var(--line-2), 0 18px 40px -12px rgba(24, 24, 32, .55);
-  background-color: var(--paper); background-repeat: no-repeat; pointer-events: none;
-  opacity: 0; transition: opacity .15s;
-}
-.lens.is-on { opacity: 1; }
 .lightbox {
   position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column;
   background: rgba(24, 24, 32, .86); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);

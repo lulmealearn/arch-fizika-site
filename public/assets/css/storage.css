@@ -8,7 +8,7 @@
 
 /* ── Фильтры ── */
 .filters {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  position: sticky; top: var(--topbar-h); z-index: 20;
   margin-inline: calc(-1 * var(--gutter)); padding: 12px var(--gutter);
   background: rgba(247, 246, 242, .92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid transparent; transition: border-color .2s;

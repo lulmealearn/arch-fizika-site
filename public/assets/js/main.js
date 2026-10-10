@@ -110,3 +110,14 @@
   window.addEventListener('scroll', queue, { passive: true });
   new MutationObserver(queue).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
+
+/* Липкая шапка: подложка появляется, как только страница прокручена. */
+(function () {
+  'use strict';
+  var bar = document.querySelector('.topbar');
+  if (!bar) return;
+  var ticking = false;
+  function upd() { ticking = false; bar.classList.toggle('is-stuck', window.scrollY > 6); }
+  window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(upd); } }, { passive: true });
+  upd();
+})();

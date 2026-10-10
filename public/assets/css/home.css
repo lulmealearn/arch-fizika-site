@@ -83,12 +83,12 @@
 .shot img { display: block; width: 100%; height: 240px; object-fit: cover; object-position: top left; }
 .tilt-l { transform: rotate(-1.2deg); }
 .tilt-r { transform: rotate(1.2deg); }
-@media (hover: hover) { .lift:hover .shot { transform: rotate(0) scale(1.015); } }
+@media (hover: hover) { .shot.zoomable:hover { transform: rotate(0) scale(1.015); } }
 .schemes { display: flex; gap: 14px; justify-content: center; padding: 6px 0; }
 .schemes img { width: 46%; height: 230px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 16px 30px -22px rgba(24, 24, 32, .5); transition: transform .4s var(--ease-out); }
 .schemes img:first-child { transform: rotate(-3deg); }
 .schemes img:last-child { transform: rotate(3deg); }
-@media (hover: hover) { .lift:hover .schemes img { transform: rotate(0); } }
+
 
 /* Живая визуализация на главной */
 .viz-card { display: flex; flex-direction: column; gap: 16px; }
@@ -233,11 +233,11 @@ a.reviews-badge { color: var(--ink); text-decoration: none; transition: transfor
 .schemes figure:first-child { transform: rotate(-3deg); }
 .schemes figure:last-child { transform: rotate(3deg); }
 .schemes figure img { display: block; width: 100%; height: auto; border: 0; border-radius: 0; box-shadow: none; transform: none; }
-@media (hover: hover) { .lift:hover .schemes figure { transform: rotate(0); } }
+@media (hover: hover) { .schemes figure.zoomable:hover { transform: rotate(0) scale(1.02); } }
 
 /* ── Нарисованная таблица ученика ── */
 .sheet-fig { border-radius: 12px; border: 1px solid var(--line); overflow: hidden; box-shadow: 0 16px 30px -22px rgba(24, 24, 32, .5); background: var(--paper); transition: transform .4s var(--ease-out); }
-@media (hover: hover) { .lift:hover .sheet-fig { transform: rotate(0) scale(1.01); } }
+@media (hover: hover) { .sheet-fig.zoomable:hover { transform: rotate(0) scale(1.01); } }
 .fit { position: relative; overflow: hidden; }
 .fit > * { transform-origin: 0 0; width: max-content; }
 .st { width: 820px; font-family: var(--serif); font-size: 14px; color: var(--ink); background: var(--paper); }
@@ -481,3 +481,18 @@ html.is-pop-open { overflow: hidden; }
 @media (hover: hover) { .ticket:hover .ticket__paper { transform: rotate(4deg) translateY(-4px); } }
 @media (max-width: 420px) { .ticket__paper { width: 96px; height: 80px; } }
 @media (max-width: 420px) { .ticket { --stub: 130px; } .ticket__price b { font-size: 44px; } }
+
+/* ── Бесплатное занятие: текст | билет, ниже три шага в линию — без пустых углов ── */
+.free__ticket { position: relative; display: flex; justify-content: center; align-items: center; min-width: 0; }
+.free__ticket .ticket { align-self: center; margin-top: 0; }
+@media (min-width: 1100px) {
+  .free { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "main ticket" "list list"; align-items: center; gap: 32px 40px; }
+  .free__main { grid-area: main; }
+  .free__ticket { grid-area: ticket; }
+  .free__list { grid-area: list; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .free__list li { align-items: flex-start; height: 100%; }
+  .free__ticket .ticket { width: min(100%, 520px); min-height: 196px; --stub: 176px; }
+  .free__ticket .ticket__price b { font-size: 66px; }
+  .free .banner { font-size: clamp(30px, 2.9vw, 42px); white-space: nowrap; }
+  .free__ticket .ticket__cta { white-space: nowrap; font-size: 15px; }
+}
