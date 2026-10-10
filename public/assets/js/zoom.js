@@ -3,7 +3,7 @@
    или data-zoom="html" с блоком [data-zoom-content] — он клонируется в просмотр. */
 (function () {
   'use strict';
-  var ZOOM = 2.4, LENS = 190;
+  var ZOOM = 2.2, LENS = 230;
   var finePointer = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   /* ── Масштаб «картинки» из HTML: вписать широкий блок в карточку ── */
@@ -113,7 +113,7 @@
     fig.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(fig); } });
     if (finePointer && fig.getAttribute('data-zoom') === 'img') {
       var img = fig.querySelector('img');
-      var src = fig.getAttribute('data-full') || img.currentSrc || img.src;
+      var src = fig.getAttribute('data-lens') || fig.getAttribute('data-full') || img.currentSrc || img.src;
       fig.addEventListener('mousemove', function (e) { moveLens(e, img, src); });
       fig.addEventListener('mouseleave', hideLens);
     }

@@ -49,10 +49,7 @@
       "title": "Тригонометрический круг: откуда берутся синус и косинус",
       "description": "Точка бежит по кругу и рисует синусоиду. Опорные точки и весь круг целиком на одной картинке.",
       "section": "matematika",
-      "tags": [
-        "тригонометрия",
-        "графики"
-      ],
+      "tags": [],
       "parts": "3 раздела",
       "file": "trigonometricheskij-krug.html",
       "cover": null
@@ -62,10 +59,7 @@
       "title": "Предел и производная",
       "description": "От секущей к касательной: предел, производная по определению, таблица и правила, производная в физике.",
       "section": "matematika",
-      "tags": [
-        "анализ",
-        "для физики"
-      ],
+      "tags": [],
       "parts": "12 разделов",
       "file": "predel-i-proizvodnaya.html",
       "cover": null
@@ -75,10 +69,7 @@
       "title": "Интеграл: площадь под графиком",
       "description": "Прямоугольники, предел суммы, первообразная и формула Ньютона–Лейбница. В конце — как набирать dA, dF, dm.",
       "section": "matematika",
-      "tags": [
-        "анализ",
-        "для физики"
-      ],
+      "tags": [],
       "parts": "8 разделов",
       "file": "integral.html",
       "cover": null
@@ -88,10 +79,7 @@
       "title": "Равномерное и равнопеременное движение",
       "description": "Скорость и ускорение, разгон или торможение, чем путь отличается от перемещения.",
       "section": "mekhanika",
-      "tags": [
-        "графики",
-        "ЕГЭ"
-      ],
+      "tags": [],
       "parts": "7 разделов",
       "file": "ravnomernoe-i-ravnoperemennoe.html",
       "cover": null
@@ -101,10 +89,7 @@
       "title": "Бросок под углом к горизонту",
       "description": "Симулятор баллистики: меняешь угол и скорость броска и смотришь, как меняется траектория.",
       "section": "mekhanika",
-      "tags": [
-        "симулятор",
-        "ЕГЭ"
-      ],
+      "tags": [],
       "parts": "симулятор",
       "file": "brosok-pod-uglom.html",
       "cover": null
@@ -114,9 +99,7 @@
       "title": "Движение по окружности",
       "description": "Период и угловая скорость, v = ωr, центростремительное, тангенциальное и полное ускорение.",
       "section": "mekhanika",
-      "tags": [
-        "ЕГЭ"
-      ],
+      "tags": [],
       "parts": "8 разделов",
       "file": "dvizhenie-po-okruzhnosti.html",
       "cover": null
@@ -126,10 +109,7 @@
       "title": "Нити и блоки: кинематические связи",
       "description": "Невесомая и нерастяжимая нить, подвижный и неподвижный блок, связь ускорений и алгоритм решения задач.",
       "section": "mekhanika",
-      "tags": [
-        "задачи",
-        "ЕГЭ"
-      ],
+      "tags": [],
       "parts": "7 разделов",
       "file": "kinematicheskie-svyazi.html",
       "cover": null
@@ -139,11 +119,19 @@
       "title": "Законы Ньютона и силы",
       "description": "Три закона, природа сил, вес и невесомость, трение, тяготение и неинерциальные системы отсчёта.",
       "section": "mekhanika",
-      "tags": [
-        "ЕГЭ"
-      ],
+      "tags": [],
       "parts": "10 разделов",
       "file": "dinamika.html",
+      "cover": null
+    },
+    {
+      "id": "kondensator-v-cepyah",
+      "title": "Конденсатор в электрических цепях",
+      "description": "",
+      "section": "elektrodinamika",
+      "tags": [],
+      "parts": "8 разделов",
+      "file": "kondensator-v-cepyah.html",
       "cover": null
     }
   ]

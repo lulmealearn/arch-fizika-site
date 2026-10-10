@@ -75,14 +75,12 @@
     folder.appendChild(tab); folder.appendChild(body); folder.appendChild(sheet);
 
     var text = el('div', 'row__text');
-    text.appendChild(el('span', 'row__meta', num + ' · ' + s.label + ' · ' + it.parts));
+    var meta = el('span', 'row__meta');
+    var sw = el('span', 'row__sec', s.label); sw.style.background = s.tint; sw.style.color = s.ink;
+    meta.appendChild(document.createTextNode(num + ' · '));
+    meta.appendChild(sw);
+    text.appendChild(meta);
     text.appendChild(el('h2', 'row__title', it.title));
-    text.appendChild(el('p', 'row__desc', it.description));
-    var tags = el('div', 'row__tags');
-    var st = el('span', 'tag', s.label); st.style.background = s.tint; st.style.borderColor = s.tint; st.style.color = s.ink;
-    tags.appendChild(st);
-    it.tags.forEach(function (t) { tags.appendChild(el('span', 'tag', t)); });
-    text.appendChild(tags);
 
     var go = el('span', 'go', '→'); go.setAttribute('aria-hidden', 'true');
     a.appendChild(folder); a.appendChild(text); a.appendChild(go);

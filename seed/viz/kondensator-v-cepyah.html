@@ -1,0 +1,831 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Конденсатор в электрических цепях</title>
+<style>
+/* Layout: как в уроке про кинематические связи — липкие чипы-вкладки, один раздел на экране, большой холст + показания + короткие заметки */
+:root{
+  --bg:#f7f6f2; --paper:#ffffff; --canvas:#fcfcfa; --ink:#181820; --muted:#6c6a78; --line:#e2dfd6;
+  --violet:#6d28d9; --magenta:#d61f69; --blue:#1d4ed8; --red:#d92b2b; --green:#0e8a5f; --amber:#b7791f;
+  --t-violet:#f4f0ff; --t-magenta:#fdf0f6; --t-green:#eefaf4; --t-amber:#fdf7ea; --t-red:#fdf0ee;
+  --b-violet:#ddd0f7; --b-blue:#c7d5f7; --b-red:#f3ccc9; --b-green:#bfe6d5; --b-amber:#f0dfba;
+  --chip:#f4f2ec; --chip-big:#fdf2f7; --th:#f2f0ea; --valbg:#fbfaf6;
+  --serif:"Charter","Georgia","PT Serif",serif; --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131318; --paper:#1b1b22; --canvas:#17171d; --ink:#ececf2; --muted:#a3a1b0; --line:#2d2c36;
+  --violet:#a78bfa; --magenta:#f472b6; --blue:#6ea0ff; --red:#ff6b6b; --green:#34d399; --amber:#f2b34c;
+  --t-violet:#221d33; --t-magenta:#2e1a25; --t-green:#142a22; --t-amber:#2c2416; --t-red:#2e1a1a;
+  --b-violet:#3d3460; --b-blue:#2c3d66; --b-red:#5a2c2c; --b-green:#1f4a3a; --b-amber:#53432a;
+  --chip:#22222a; --chip-big:#2a1a24; --th:#23232b; --valbg:#1f1f27; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131318; --paper:#1b1b22; --canvas:#17171d; --ink:#ececf2; --muted:#a3a1b0; --line:#2d2c36;
+  --violet:#a78bfa; --magenta:#f472b6; --blue:#6ea0ff; --red:#ff6b6b; --green:#34d399; --amber:#f2b34c;
+  --t-violet:#221d33; --t-magenta:#2e1a25; --t-green:#142a22; --t-amber:#2c2416; --t-red:#2e1a1a;
+  --b-violet:#3d3460; --b-blue:#2c3d66; --b-red:#5a2c2c; --b-green:#1f4a3a; --b-amber:#53432a;
+  --chip:#22222a; --chip-big:#2a1a24; --th:#23232b; --valbg:#1f1f27; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--serif);-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:0}
+.wrap{max-width:1040px;margin:0 auto;padding-block:28px 80px}
+
+header.top{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:18px}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--violet)}
+h1{font-size:clamp(26px,4.4vw,40px);line-height:1.12;margin:10px 0 6px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+header.top p{margin:0;color:var(--muted);max-width:70ch}
+
+nav.chips{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 26px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:10px 0;z-index:20;border-bottom:1px solid var(--line)}
+.chip{font:600 13px/1 var(--mono);padding:9px 13px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--muted);cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--violet);color:var(--violet)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.chip:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
+
+section{display:none;animation:fade .25s ease}
+section.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h2{font-size:clamp(21px,3vw,29px);margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.lead{color:var(--muted);margin:0 0 18px;max-width:74ch}
+
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;margin:16px 0}
+canvas{width:100%;height:auto;display:block;border-radius:10px;background:var(--canvas);touch-action:pan-y}
+
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:14px}
+.ctrl{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0}
+.ctrl label{font:600 12px/1 var(--mono);letter-spacing:.04em;color:var(--muted);white-space:nowrap}
+.ctrl label b{color:var(--ink);font-weight:700}
+input[type=range]{flex:1;accent-color:var(--violet);min-width:100px}
+button.btn{font:600 13px/1 var(--mono);padding:10px 14px;border-radius:9px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;transition:.15s}
+button.btn.ghost{background:transparent;color:var(--ink)}
+button.btn:hover{background:var(--violet);border-color:var(--violet);color:#fff}
+button.btn.small{padding:7px 11px;font-size:12px}
+button.btn.sel{background:var(--violet);border-color:var(--violet);color:#fff}
+
+.readout{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.val{font:600 13px/1 var(--mono);border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:var(--valbg);font-variant-numeric:tabular-nums}
+.val b{font-weight:700}
+.val.blue{color:var(--blue);border-color:var(--b-blue)}
+.val.red{color:var(--red);border-color:var(--b-red)}
+.val.green{color:var(--green);border-color:var(--b-green)}
+.val.violet{color:var(--violet);border-color:var(--b-violet)}
+.val.amber{color:var(--amber);border-color:var(--b-amber)}
+
+.status{font:700 13px/1.45 var(--mono);letter-spacing:.03em;padding:11px 14px;border-radius:9px;display:inline-block;margin-top:12px;border:1px solid}
+.status.go{color:var(--green);border-color:var(--b-green);background:var(--t-green)}
+.status.stop{color:var(--red);border-color:var(--b-red);background:var(--t-red)}
+.status.zero{color:var(--amber);border-color:var(--b-amber);background:var(--t-amber)}
+
+.note{border-left:3px solid var(--violet);background:var(--t-violet);padding:12px 14px;border-radius:0 10px 10px 0;margin:16px 0;max-width:80ch}
+.note.warn{border-color:var(--magenta);background:var(--t-magenta)}
+.note.ok{border-color:var(--green);background:var(--t-green)}
+.note.amb{border-color:var(--amber);background:var(--t-amber)}
+.note .tag{font:700 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--violet);display:block;margin-bottom:6px}
+.note.warn .tag{color:var(--magenta)} .note.ok .tag{color:var(--green)} .note.amb .tag{color:var(--amber)}
+.note p{margin:0} .note p+p{margin-top:8px}
+
+.f{font:600 15px/1.7 var(--mono);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:inline-block;margin:6px 8px 6px 0}
+.f.big{font-size:18px;border-color:var(--magenta);background:var(--chip-big)}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font:600 12px var(--mono);color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-3px;background:var(--c)}
+.legend i.grad{width:30px;background:linear-gradient(90deg,var(--blue),var(--red))}
+
+.task{font-style:italic;color:var(--muted);margin:10px 0 0;max-width:80ch}
+.tw{overflow-x:auto;margin:14px 0}
+table{width:100%;min-width:520px;border-collapse:collapse;font-size:15px;background:var(--paper)}
+th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+th{background:var(--th);font:700 12px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.k{font:600 13px var(--mono)}
+ul.tight{margin:8px 0 0;padding-left:20px} ul.tight li{margin:5px 0}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion: reduce){section{animation:none}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Урок 34 · электродинамика</div>
+  <h1>Конденсатор в электрических цепях</h1>
+  <p>Ёмкость, энергия, соединения и главное — как конденсатор ведёт себя в цепи: заряжается, разряжается и в итоге перестаёт пропускать ток. Цвет провода везде показывает потенциал: синий — ноль, красный — «+» источника.</p>
+</header>
+
+<nav class="chips" id="nav">
+  <button class="chip on" data-go="s1" type="button">1 · Ёмкость</button>
+  <button class="chip" data-go="s2" type="button">2 · Энергия</button>
+  <button class="chip" data-go="s3" type="button">3 · Соединения</button>
+  <button class="chip" data-go="s4" type="button">4 · Зарядка</button>
+  <button class="chip" data-go="s5" type="button">5 · Разрядка</button>
+  <button class="chip" data-go="s6" type="button">6 · Установившийся режим</button>
+  <button class="chip" data-go="s7" type="button">7 · Задачи</button>
+  <button class="chip" data-go="s8" type="button">8 · Итог</button>
+</nav>
+
+<!-- ============ S1 ============ -->
+<section id="s1" class="on">
+  <h2>Ёмкость: сколько заряда на один вольт</h2>
+  <p class="lead">Две пластины, между ними диэлектрик. Меняйте площадь, зазор и диэлектрик и смотрите справа, во сколько раз изменились ёмкость, заряд, напряжение и поле. Потом отключите источник — картина поменяется.</p>
+
+  <div class="card">
+    <canvas id="c1"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>S = <b id="o1S">100</b> см²</label><input type="range" id="s1S" min="50" max="400" step="10" value="100"></div>
+      <div class="ctrl"><label>d = <b id="o1d">2,0</b> мм</label><input type="range" id="s1d" min="10" max="100" step="5" value="20"></div>
+      <div class="ctrl"><label>ε = <b id="o1e">1,0</b></label><input type="range" id="s1e" min="10" max="70" step="5" value="10"></div>
+    </div>
+    <div class="controls">
+      <button class="btn small sel" id="b1conn" type="button">подключён: U = const</button>
+      <button class="btn small" id="b1disc" type="button">отключён: q = const</button>
+      <button class="btn small ghost" id="b1split" type="button">поле каждой пластины</button>
+    </div>
+    <div class="readout">
+      <span class="val violet">C = <b id="r1C">44,3</b> пФ</span>
+      <span class="val red">q = <b id="r1q">0,443</b> нКл</span>
+      <span class="val">U = <b id="r1U">10,0</b> В</span>
+      <span class="val blue">E = <b id="r1E">5,00</b> кВ/м</span>
+    </div>
+    <div id="st1" class="status go">—</div>
+  </div>
+
+  <span class="f big">C = q / U</span>
+  <span class="f big">C = εε₀S / d</span>
+  <span class="f">U = E·d</span>
+  <span class="f">E = 2·E<sub>пластины</sub></span>
+  <span class="f">[C] = Ф</span>
+
+  <div class="note">
+    <span class="tag">Откуда 2E<sub>пластины</sub></span>
+    <p>Каждая пластина создаёт поле по обе стороны от себя. Между пластинами поля «+» и «−» смотрят в одну сторону и складываются, снаружи смотрят навстречу и гасятся. Нажмите «поле каждой пластины».</p>
+  </div>
+  <div class="note warn">
+    <span class="tag">Не путай</span>
+    <p>Ёмкость зависит только от S, d и ε. Формула C = q/U её измеряет, но не задаёт: удвоили U — удвоился q, а C та же.</p>
+  </div>
+</section>
+
+<!-- ============ S2 ============ -->
+<section id="s2">
+  <h2>Энергия: площадь под графиком U(q)</h2>
+  <p class="lead">Заряд переносится маленькими порциями dq. Каждая порция идёт против уже накопленного напряжения U = q/C, поэтому стоит дороже предыдущей. Сумма всех порций — площадь треугольника.</p>
+
+  <div class="card">
+    <canvas id="c2"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>C = <b id="o2C">5</b> мкФ</label><input type="range" id="s2C" min="1" max="10" step="0.5" value="5"></div>
+      <div class="ctrl"><label>U в конце = <b id="o2U">10</b> В</label><input type="range" id="s2U" min="2" max="12" step="0.5" value="10"></div>
+      <button class="btn" id="p2" type="button">пауза</button>
+    </div>
+    <div class="readout">
+      <span class="val red">q = <b id="r2q">0</b> мкКл</span>
+      <span class="val">U = <b id="r2U">0</b> В</span>
+      <span class="val green">W = qU/2 = <b id="r2W">0</b> мкДж</span>
+    </div>
+  </div>
+
+  <span class="f big">W = CU²/2 = qU/2 = q²/2C</span>
+  <span class="f">W = ∫U dq = площадь треугольника</span>
+
+  <div class="note ok">
+    <span class="tag">Почему половина</span>
+    <p>Первая порция переносится почти при нуле, последняя — при полном U. В среднем порции «видят» U/2, поэтому W = q·U/2, а не q·U.</p>
+  </div>
+</section>
+
+<!-- ============ S3 ============ -->
+<section id="s3">
+  <h2>Последовательное и параллельное соединение</h2>
+  <p class="lead">Скачок цвета на конденсаторе — это напряжение на нём. При последовательном соединении напряжение делится, при параллельном — одно на всех.</p>
+
+  <div class="card">
+    <canvas id="c3"></canvas>
+    <div class="controls">
+      <button class="btn small sel" id="b3ser" type="button">последовательно</button>
+      <button class="btn small" id="b3par" type="button">параллельно</button>
+    </div>
+    <div class="controls">
+      <div class="ctrl"><label>C₁ = <b id="o3a">2</b> мкФ</label><input type="range" id="s3a" min="1" max="6" step="0.5" value="2"></div>
+      <div class="ctrl"><label>C₂ = <b id="o3b">4</b> мкФ</label><input type="range" id="s3b" min="1" max="6" step="0.5" value="4"></div>
+    </div>
+    <div class="readout">
+      <span class="val violet">C<sub>Σ</sub> = <b id="r3C">—</b> мкФ</span>
+      <span class="val red">q₁ = <b id="r3q1">—</b>, q₂ = <b id="r3q2">—</b> мкКл</span>
+      <span class="val">U₁ = <b id="r3U1">—</b>, U₂ = <b id="r3U2">—</b> В</span>
+    </div>
+    <div id="st3" class="status go">—</div>
+  </div>
+
+  <span class="f big">последовательно: q₁ = q₂, &nbsp;1/C<sub>Σ</sub> = 1/C₁ + 1/C₂</span>
+  <span class="f big">параллельно: U₁ = U₂, &nbsp;C<sub>Σ</sub> = C₁ + C₂</span>
+
+  <div class="note warn">
+    <span class="tag">Когда q₁ = q₂</span>
+    <p>Внутренние пластины и провод между ними (в пунктирной рамке) — изолированный кусок металла. Если до подключения он был не заряжен, его заряд так и остаётся нулём: −q₁ + q₂ = 0. Для заранее заряженных конденсаторов это не работает.</p>
+  </div>
+</section>
+
+<!-- ============ S4 ============ -->
+<section id="s4">
+  <h2>Зарядка через резистор</h2>
+  <p class="lead">Замыкаем ключ. Сначала пустой конденсатор пропускает ток как провод. Заряд растёт, напряжение на C растёт, на резистор остаётся всё меньше — и ток затухает. Точки — направление тока.</p>
+
+  <div class="card">
+    <canvas id="c4"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>ε = <b id="o4E">9</b> В</label><input type="range" id="s4E" min="1" max="12" step="0.5" value="9"></div>
+      <div class="ctrl"><label>R = <b id="o4R">4</b> кОм</label><input type="range" id="s4R" min="1" max="10" step="0.5" value="4"></div>
+      <div class="ctrl"><label>C = <b id="o4C">500</b> мкФ</label><input type="range" id="s4C" min="100" max="1000" step="50" value="500"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="b4pp" type="button">пауза</button>
+      <button class="btn ghost" id="b4re" type="button">замкнуть заново</button>
+    </div>
+    <div class="readout">
+      <span class="val">t = <b id="r4t">—</b></span>
+      <span class="val violet">q = <b id="r4q">—</b> мКл</span>
+      <span class="val red">I = <b id="r4I">—</b> мА</span>
+      <span class="val green">τ = RC = <b id="r4tau">—</b> с</span>
+    </div>
+    <div id="st4" class="status go">—</div>
+  </div>
+
+  <span class="f">ε = U<sub>C</sub> + U<sub>R</sub> = q/C + R·dq/dt</span>
+  <span class="f big">q(t) = Cε(1 − e<sup>−t/RC</sup>)</span>
+  <span class="f big">I(t) = (ε/R)·e<sup>−t/RC</sup></span>
+  <span class="f big">τ = RC</span>
+
+  <div class="note">
+    <span class="tag">Как читать τ</span>
+    <p>Пунктирная касательная к q(t) доходит до Cε ровно при t = τ. На деле за τ набирается 63 % заряда, за 3τ — 95 %, за 5τ — больше 99 %.</p>
+  </div>
+  <div class="note amb">
+    <span class="tag">Куда уходит половина энергии</span>
+    <p>Источник совершает работу qε = Cε², а в конденсаторе остаётся Cε²/2. Вторая половина выделяется теплом в резисторе — при любом R.</p>
+  </div>
+</section>
+
+<!-- ============ S5 ============ -->
+<section id="s5">
+  <h2>Разрядка: вся энергия уходит в тепло</h2>
+  <p class="lead">Заряженный конденсатор замыкаем на резистор. Ток идёт от «+» пластины через R к «−», пока заряды не уравняются. Источника нет, поэтому вся энергия конденсатора становится теплом.</p>
+
+  <div class="card">
+    <canvas id="c5"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>U₀ = <b id="o5U">10</b> В</label><input type="range" id="s5U" min="1" max="12" step="0.5" value="10"></div>
+      <div class="ctrl"><label>R = <b id="o5R">4</b> кОм</label><input type="range" id="s5R" min="1" max="10" step="0.5" value="4"></div>
+      <div class="ctrl"><label>C = <b id="o5C">500</b> мкФ</label><input type="range" id="s5C" min="100" max="1000" step="50" value="500"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="b5pp" type="button">пауза</button>
+      <button class="btn ghost" id="b5re" type="button">замкнуть заново</button>
+    </div>
+    <div class="readout">
+      <span class="val">t = <b id="r5t">—</b></span>
+      <span class="val violet">q = <b id="r5q">—</b> мКл</span>
+      <span class="val green">W<sub>C</sub> = <b id="r5W">—</b> мДж</span>
+      <span class="val amber">Q = <b id="r5Q">—</b> мДж</span>
+    </div>
+    <div id="st5" class="status go">—</div>
+  </div>
+
+  <span class="f">I·R = q/C, &nbsp;−R·dq/dt = q/C</span>
+  <span class="f big">q(t) = q₀·e<sup>−t/RC</sup></span>
+  <span class="f big">ЗСЭ: W<sub>C</sub> = CU²/2 = Q</span>
+
+  <div class="note ok">
+    <span class="tag">Закон сохранения энергии</span>
+    <p>Полоски под схемой: энергия конденсатора убывает, тепло растёт, а их сумма не меняется. В конце Q = CU₀²/2.</p>
+  </div>
+</section>
+
+<!-- ============ S6 ============ -->
+<section id="s6">
+  <h2>Установившийся режим: конденсатор — разрыв</h2>
+  <p class="lead">Через несколько τ заряд перестаёт меняться: q = const, значит I<sub>C</sub> = 0. Ток через конденсатор не идёт, а напряжение на нём равно напряжению на параллельном участке. Задача №0 из конспекта.</p>
+
+  <div class="card">
+    <canvas id="c6"></canvas>
+    <div class="controls">
+      <div class="ctrl"><label>ε = <b id="o6E">12</b> В</label><input type="range" id="s6E" min="2" max="24" step="1" value="12"></div>
+      <div class="ctrl"><label>r = <b id="o6r">2</b> Ом</label><input type="range" id="s6r" min="1" max="10" step="0.5" value="2"></div>
+      <div class="ctrl"><label>R = <b id="o6R">10</b> Ом</label><input type="range" id="s6R" min="2" max="40" step="1" value="10"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="b6pp" type="button">пауза</button>
+      <button class="btn ghost" id="b6re" type="button">замкнуть заново</button>
+    </div>
+    <div class="readout">
+      <span class="val">I = <b id="r6I">—</b> А</span>
+      <span class="val blue">I<sub>R</sub> = <b id="r6IR">—</b> А</span>
+      <span class="val red">I<sub>C</sub> = <b id="r6IC">—</b> А</span>
+      <span class="val green">U<sub>C</sub> = <b id="r6U">—</b> В</span>
+    </div>
+    <div id="st6" class="status go">—</div>
+    <div class="legend"><span><i style="--c:var(--ink)"></i>ток источника</span><span><i style="--c:var(--blue)"></i>ток через R</span><span><i style="--c:var(--red)"></i>ток в конденсатор</span></div>
+  </div>
+
+  <span class="f">I<sub>C</sub> = 0</span>
+  <span class="f big">I = ε / (R + r)</span>
+  <span class="f big">U<sub>C</sub> = U<sub>R</sub> = εR / (R + r)</span>
+  <span class="f big">q = CεR / (R + r)</span>
+
+  <div class="note ok">
+    <span class="tag">Два правила</span>
+    <p>В первый момент пустой конденсатор — <b>провод</b>: U<sub>C</sub> = 0, весь ток идёт в него. В установившемся режиме — <b>разрыв</b>: I<sub>C</sub> = 0. Вычеркните ветку с C и считайте цепь без неё.</p>
+  </div>
+</section>
+
+<!-- ============ S7 ============ -->
+<section id="s7">
+  <h2>Задачи из конспекта</h2>
+  <p class="lead">Общий метод: в установившемся режиме вычеркнуть ветки с конденсаторами, найти токи, затем потенциалы. Напряжение на C — разность потенциалов его обкладок.</p>
+
+  <div class="controls">
+    <button class="btn small sel" data-p="0" type="button">№1 · найти r/R</button>
+    <button class="btn small" data-p="1" type="button">№1* · C и 2C</button>
+    <button class="btn small" data-p="2" type="button">№2 · потенциалы</button>
+  </div>
+
+  <!-- №1 -->
+  <div class="pp" data-pp="0">
+    <p class="task">Ключ K замкнут, ε = 12 В, C = 0,2 мкФ. После размыкания ключа на резисторе выделилось Q = 10 мкДж. Найдите r/R. (Демидова, 2019)</p>
+    <div class="card">
+      <canvas id="c7a"></canvas>
+      <div class="controls">
+        <div class="ctrl"><label>r/R = <b id="o7x">0,50</b></label><input type="range" id="s7x" min="0" max="100" step="1" value="50"></div>
+        <button class="btn small sel" id="b7k1" type="button">1. K замкнут</button>
+        <button class="btn small" id="b7k2" type="button">2. K разомкнут</button>
+      </div>
+      <div class="readout">
+        <span class="val green">U<sub>C</sub> = εR/(R+r) = <b id="r7U">—</b> В</span>
+        <span class="val amber">Q = CU<sub>C</sub>²/2 = <b id="r7Q">—</b> мкДж</span>
+      </div>
+      <div id="st7a" class="status zero">—</div>
+    </div>
+    <span class="f">(C/2)·(εR/(R+r))² = Q</span>
+    <span class="f big">r/R = ε·√(C/2Q) − 1 = 12·0,1 − 1 = 0,2</span>
+    <div class="note warn">
+      <span class="tag">Поправка к конспекту</span>
+      <p>При переходе ко второй строке потерян множитель ε². Верно: R²/(R+r)² = 2Q/(Cε²). Без ε получилось бы r/R = −0,9, а под корнем стояла бы размерная величина 1/В².</p>
+    </div>
+  </div>
+
+  <!-- №1* -->
+  <div class="pp" data-pp="1" hidden>
+    <p class="task">Какие заряды установятся на конденсаторах через длительное время после замыкания ключа?</p>
+    <div class="card">
+      <canvas id="c7b"></canvas>
+      <div class="controls">
+        <button class="btn" id="b7bpp" type="button">пауза</button>
+        <button class="btn ghost" id="b7bre" type="button">замкнуть заново</button>
+      </div>
+      <div class="readout">
+        <span class="val violet">q<sub>C</sub> = <b id="r7b1">—</b>·Cε</span>
+        <span class="val green">q<sub>2C</sub> = <b id="r7b2">—</b>·Cε</span>
+      </div>
+      <div id="st7b" class="status zero">—</div>
+    </div>
+    <span class="f">до: C<sub>Σ</sub> = 2C/3, &nbsp;q<sub>C</sub> = q<sub>2C</sub> = 2Cε/3</span>
+    <span class="f big">после: q<sub>2C</sub> = 0, &nbsp;q<sub>C</sub> = Cε</span>
+    <div class="note">
+      <span class="tag">Почему так</span>
+      <p>В установившемся режиме через C тока нет, значит нет его и через R: U<sub>R</sub> = 0. Конденсатор 2C подключён параллельно R, поэтому U<sub>2C</sub> = 0. Всё напряжение ε остаётся на C.</p>
+    </div>
+  </div>
+
+  <!-- №2 -->
+  <div class="pp" data-pp="2" hidden>
+    <p class="task">Дано C, ε, R. Найти заряд конденсатора в установившемся режиме.</p>
+    <div class="card">
+      <canvas id="c7c"></canvas>
+      <div class="controls">
+        <div class="ctrl"><label>ε = <b id="o7cE">29</b> В</label><input type="range" id="s7cE" min="1" max="58" step="1" value="29"></div>
+      </div>
+      <div class="readout">
+        <span class="val">φ = 20ε/29 = <b id="r7cf">—</b> В</span>
+        <span class="val">φ* = 12ε/29 = <b id="r7cs">—</b> В</span>
+        <span class="val green">U<sub>C</sub> = ε − φ* = <b id="r7cU">—</b> В</span>
+      </div>
+      <div class="legend"><span><i class="grad"></i>потенциал: 0 → ε</span><span><i style="--c:var(--red)"></i>× ветка без тока</span></div>
+    </div>
+    <span class="f">I₀ = (ε − φ)/R = I₁ + I₂ = φ/4R + φ*/3R</span>
+    <span class="f">φ*/3R = (φ − φ*)/2R → φ* = 3φ/5</span>
+    <span class="f big">q<sub>C</sub> = C(ε − φ*) = 17Cε/29</span>
+    <div class="note ok">
+      <span class="tag">Проверка</span>
+      <p>При ε = 29 В: φ = 20 В, φ* = 12 В, U<sub>C</sub> = 17 В. Токи в долях ε/29R: 9 = 5 + 4 — в узле всё сходится.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S8 ============ -->
+<section id="s8">
+  <h2>Итог: что держать в голове</h2>
+  <div class="tw">
+    <table>
+      <tr><th>Что</th><th>Формула</th><th>Смысл</th></tr>
+      <tr><td>Ёмкость</td><td class="k">C = q/U = εε₀S/d</td><td>заряд на 1 В, зависит только от устройства</td></tr>
+      <tr><td>Энергия</td><td class="k">W = CU²/2 = qU/2 = q²/2C</td><td>площадь под U(q)</td></tr>
+      <tr><td>Последовательно</td><td class="k">q₁ = q₂, 1/C<sub>Σ</sub> = Σ1/C<sub>i</sub></td><td>если изначально не заряжены</td></tr>
+      <tr><td>Параллельно</td><td class="k">U₁ = U₂, C<sub>Σ</sub> = ΣC<sub>i</sub></td><td>заряды ∝ ёмкостям</td></tr>
+      <tr><td>Зарядка</td><td class="k">q = Cε(1 − e<sup>−t/RC</sup>)</td><td>τ = RC, половина работы → тепло</td></tr>
+      <tr><td>Разрядка</td><td class="k">q = q₀e<sup>−t/RC</sup></td><td>вся энергия → тепло</td></tr>
+      <tr><td>Установившийся режим</td><td class="k">I<sub>C</sub> = 0</td><td>конденсатор — разрыв</td></tr>
+    </table>
+  </div>
+  <div class="note ok">
+    <span class="tag">Три вещи, которые решают половину задач</span>
+    <p>1. Пустой конденсатор в первый момент — провод, в установившемся режиме — разрыв.</p>
+    <p>2. Напряжение на C — разность потенциалов его обкладок; ищите её методом потенциалов.</p>
+    <p>3. При разрядке энергия CU²/2 целиком уходит в тепло; при зарядке в тепло уходит столько же, сколько остаётся в C.</p>
+  </div>
+  <div class="note warn">
+    <span class="tag">Самые дорогие ошибки</span>
+    <ul class="tight">
+      <li>Пускать ток через конденсатор в установившемся режиме.</li>
+      <li>Писать q₁ = q₂ для заранее заряженных конденсаторов.</li>
+      <li>Терять множители при возведении в квадрат — проверяйте ответ размерностью.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Урок 34 · конденсатор. Все схемы и графики считаются вживую по формулам конспекта.</footer>
+</div>
+
+<script>
+(function(){
+'use strict';
+const EPS0=8.854e-12;
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const f=(x,n=1)=>{if(!isFinite(x))return '∞';let s=x.toFixed(n);if(/^-0(\.0*)?$/.test(s))s=s.slice(1);return s.replace('.',',').replace('-','−');};
+const sig=(x,p=3)=>{if(x===0)return '0';const d=clamp(p-1-Math.floor(Math.log10(Math.abs(x))),0,4);return f(x,d);};
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- палитра из CSS ---------- */
+const P={};
+function toRGB(c){c=(c||'').trim();if(c[0]==='#'){let h=c.slice(1);if(h.length===3)h=h.split('').map(x=>x+x).join('');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}const m=c.match(/[\d.]+/g)||[128,128,128];return[+m[0],+m[1],+m[2]];}
+function readPal(){const cs=getComputedStyle(document.documentElement);for(const k of ['ink','muted','line','paper','canvas','violet','magenta','blue','red','green','amber']){P[k]=cs.getPropertyValue('--'+k).trim()||'#888888';}P.rp=toRGB(P.red);P.rm=toRGB(P.blue);}
+readPal();
+try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readPal);}catch(e){}
+new MutationObserver(readPal).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme','class']});
+const al=(c,a)=>{const v=toRGB(c);return `rgba(${v[0]},${v[1]},${v[2]},${a})`;};
+function pot(fr){fr=clamp(fr,0,1);const a=P.rm,b=P.rp;return `rgb(${Math.round(a[0]+(b[0]-a[0])*fr)},${Math.round(a[1]+(b[1]-a[1])*fr)},${Math.round(a[2]+(b[2]-a[2])*fr)})`;}
+
+/* ---------- примитивы (логические координаты холста) ---------- */
+let FS=1;
+function line(ctx,pts,color,w=2.4,dash){ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.lineJoin='round';if(dash)ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();if(dash)ctx.setLineDash([]);}
+function txt(ctx,s,x,y,color,size=12,align='left',weight=600,base='middle'){ctx.font=`${weight} ${size*FS}px ui-monospace, "JetBrains Mono", Menlo, monospace`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline=base;ctx.fillText(s,x,y);}
+function arrow(ctx,x1,y1,x2,y2,color,w=2,head=9){const dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy);if(L<2)return;const ux=dx/L,uy=dy/L,h=Math.min(head,L*0.45);ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2-ux*h*0.7,y2-uy*h*0.7);ctx.stroke();ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-ux*h-uy*h*0.45,y2-uy*h+ux*h*0.45);ctx.lineTo(x2-ux*h+uy*h*0.45,y2-uy*h-ux*h*0.45);ctx.closePath();ctx.fill();}
+function dot(ctx,x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+function node(ctx,x,y){dot(ctx,x,y,4.3,P.ink);}
+function cross(ctx,x,y,s=7){ctx.strokeStyle=al(P.red,.9);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x-s,y-s);ctx.lineTo(x+s,y+s);ctx.moveTo(x+s,y-s);ctx.lineTo(x-s,y+s);ctx.stroke();}
+function rot(ctx,a,b,fn){const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);ctx.save();ctx.translate(a[0],a[1]);ctx.rotate(Math.atan2(dy,dx));fn(L);ctx.restore();}
+function resistor(ctx,a,b,o={}){const c1=o.c1||P.ink,c2=o.c2||c1,bl=o.len||54,bw=o.w||20;
+  rot(ctx,a,b,L=>{const m=L/2;line(ctx,[[0,0],[m-bl/2,0]],c1);line(ctx,[[m+bl/2,0],[L,0]],c2);
+    if(o.heat>0.01){ctx.fillStyle=al(P.amber,0.55*o.heat);ctx.fillRect(m-bl/2-6,-bw/2-6,bl+12,bw+12);}
+    ctx.fillStyle=P.paper;ctx.fillRect(m-bl/2,-bw/2,bl,bw);
+    const g=ctx.createLinearGradient(m-bl/2,0,m+bl/2,0);g.addColorStop(0,al(c1,.3));g.addColorStop(1,al(c2,.3));ctx.fillStyle=g;ctx.fillRect(m-bl/2,-bw/2,bl,bw);
+    ctx.strokeStyle=P.ink;ctx.lineWidth=1.8;ctx.strokeRect(m-bl/2,-bw/2,bl,bw);});}
+function battery(ctx,a,b,o={}){const c1=o.c1||P.ink,c2=o.c2||c1,plusB=o.plus!=='a';
+  const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy),ux=dx/L,uy=dy/L,nx=-uy,ny=ux;
+  rot(ctx,a,b,L=>{const m=L/2,g=5;line(ctx,[[0,0],[m-g,0]],c1);line(ctx,[[m+g,0],[L,0]],c2);const xp=plusB?m+g:m-g,xn=plusB?m-g:m+g;
+    ctx.strokeStyle=P.ink;ctx.lineCap='butt';ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(xp,-17);ctx.lineTo(xp,17);ctx.stroke();ctx.lineWidth=5.5;ctx.beginPath();ctx.moveTo(xn,-9);ctx.lineTo(xn,9);ctx.stroke();ctx.lineCap='round';});
+  const m=L/2,sp=plusB?m+14:m-14,sn=plusB?m-14:m+14,off=o.side||-26;
+  txt(ctx,'+',a[0]+ux*sp+nx*off,a[1]+uy*sp+ny*off,P.red,13,'center',700);txt(ctx,'−',a[0]+ux*sn+nx*off,a[1]+uy*sn+ny*off,P.blue,13,'center',700);}
+function key(ctx,a,b,closed,o={}){const c1=o.c1||P.ink,c2=o.c2||c1;
+  rot(ctx,a,b,L=>{const m=L/2,h=17;line(ctx,[[0,0],[m-h,0]],c1);line(ctx,[[m+h,0],[L,0]],c2);ctx.strokeStyle=c1;ctx.lineWidth=2.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(m-h,0);
+    if(closed)ctx.lineTo(m+h,0);else ctx.lineTo(m-h+2*h*Math.cos(0.55),-2*h*Math.sin(0.55));ctx.stroke();dot(ctx,m-h,0,3.6,P.ink);dot(ctx,m+h,0,3.6,P.ink);});}
+function signsAlong(ctx,x0,y0,dx,dy,len,s,n){if(!s||n<1)return;n=Math.min(n,Math.max(1,Math.floor(len/7)));const col=s==='+'?P.red:P.blue;for(let i=0;i<n;i++){const t=(i+0.5)/n;txt(ctx,s,x0+dx*len*t,y0+dy*len*t,col,12,'center',700);}}
+function capH(ctx,x1,x2,y,o={}){const m=(x1+x2)/2,g=(o.gap||14)/2,pl=(o.plate||44)/2;
+  line(ctx,[[x1,y],[m-g,y]],o.c1||P.ink);line(ctx,[[m+g,y],[x2,y]],o.c2||o.c1||P.ink);
+  ctx.strokeStyle=P.ink;ctx.lineWidth=3.6;ctx.lineCap='butt';ctx.beginPath();ctx.moveTo(m-g,y-pl);ctx.lineTo(m-g,y+pl);ctx.moveTo(m+g,y-pl);ctx.lineTo(m+g,y+pl);ctx.stroke();ctx.lineCap='round';
+  signsAlong(ctx,m-g-9,y-pl,0,1,2*pl,o.sL,o.nL);signsAlong(ctx,m+g+9,y-pl,0,1,2*pl,o.sR,o.nR);return{l:m-g,r:m+g,m};}
+function capV(ctx,x,y1,y2,o={}){const m=(y1+y2)/2,g=(o.gap||14)/2,pl=(o.plate||44)/2;
+  line(ctx,[[x,y1],[x,m-g]],o.c1||P.ink);line(ctx,[[x,m+g],[x,y2]],o.c2||o.c1||P.ink);
+  ctx.strokeStyle=P.ink;ctx.lineWidth=3.6;ctx.lineCap='butt';ctx.beginPath();ctx.moveTo(x-pl,m-g);ctx.lineTo(x+pl,m-g);ctx.moveTo(x-pl,m+g);ctx.lineTo(x+pl,m+g);ctx.stroke();ctx.lineCap='round';
+  signsAlong(ctx,x-pl,m-g-9,1,0,2*pl,o.sT,o.nT);signsAlong(ctx,x-pl,m+g+10,1,0,2*pl,o.sB,o.nB);return{t:m-g,b:m+g,m};}
+function flow(ctx,pts,phase,alpha=0.85,gap=26){if(alpha<0.03)return;const seg=[];let L=0;
+  for(let i=1;i<pts.length;i++){const l=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);seg.push(l);L+=l;}if(L<1)return;ctx.fillStyle=al(P.ink,alpha);
+  for(let s=((phase%gap)+gap)%gap;s<L;s+=gap){let r=s,i=0;while(i<seg.length-1&&r>seg[i]){r-=seg[i];i++;}const t=seg[i]?r/seg[i]:0;
+    ctx.beginPath();ctx.arc(pts[i][0]+(pts[i+1][0]-pts[i][0])*t,pts[i][1]+(pts[i+1][1]-pts[i][1])*t,3.3,0,Math.PI*2);ctx.fill();}}
+function graph(ctx,b,o){const X=v=>b.l+(v-o.x0)/(o.x1-o.x0)*(b.r-b.l),Y=v=>b.b-(v-o.y0)/(o.y1-o.y0)*(b.b-b.t);
+  ctx.strokeStyle=P.line;ctx.lineWidth=1;
+  for(const t of (o.xt||[])){if(t[0]===o.x0)continue;ctx.beginPath();ctx.moveTo(X(t[0]),b.t);ctx.lineTo(X(t[0]),b.b);ctx.stroke();}
+  for(const t of (o.yt||[])){if(t[0]===o.y0)continue;ctx.beginPath();ctx.moveTo(b.l,Y(t[0]));ctx.lineTo(b.r,Y(t[0]));ctx.stroke();}
+  arrow(ctx,b.l,b.b,b.r+12,b.b,P.muted,1.4,7);arrow(ctx,b.l,b.b,b.l,b.t-12,P.muted,1.4,7);
+  for(const t of (o.xt||[]))if(t[1])txt(ctx,t[1],X(t[0]),b.b+14,P.muted,11,'center');
+  for(const t of (o.yt||[]))if(t[1])txt(ctx,t[1],b.l-7,Y(t[0]),P.muted,11,'right');
+  if(o.xl)txt(ctx,o.xl,b.r+12,b.b-13,P.muted,11,'right');
+  if(o.yl)txt(ctx,o.yl,b.l+8,b.t-9,P.muted,11,'left');
+  if(o.title)txt(ctx,o.title,b.r,b.t-9,P.muted,12,'right');
+  return{X,Y};}
+function curve(ctx,fn,x0,x1,G,color,w=2.6){if(x1<=x0)return;ctx.strokeStyle=color;ctx.lineWidth=w;ctx.beginPath();const N=140;for(let i=0;i<=N;i++){const x=x0+(x1-x0)*i/N,px=G.X(x),py=G.Y(fn(x));i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.stroke();}
+function hbar(ctx,x,y,w,h,parts){let cx=x;ctx.fillStyle=P.line;ctx.fillRect(x,y,w,h);for(const [fr,col] of parts){const ww=w*clamp(fr,0,1);ctx.fillStyle=col;ctx.fillRect(cx,y,ww,h);cx+=ww;}}
+
+/* ---------- движок ---------- */
+const demos=[];
+function demo(id,LW,LH,draw,step){const d={cv:$(id),LW,LH,draw,step};demos.push(d);return d;}
+function begin(d){const cv=d.cv,w=cv.clientWidth;if(!w)return null;const dpr=Math.min(2,window.devicePixelRatio||1);const W=Math.round(w*dpr),H=Math.round(w*d.LH/d.LW*dpr);
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}const ctx=cv.getContext('2d');ctx.setTransform(W/d.LW,0,0,W/d.LW,0,0);ctx.clearRect(0,0,d.LW,d.LH);ctx.setLineDash([]);FS=clamp(0.62*d.LW/w,1,1.7);return ctx;}
+function Clock(o){return{tn:o.start||0,phase:o.phase||'run',timer:0,run:!reduce,speed:o.speed,end:o.end||5.3,pre:o.pre||0,hold:o.hold||1.4};}
+function tick(c,dt){if(!c.run)return;if(c.phase==='pre'){c.timer+=dt;if(c.timer>=c.pre){c.phase='run';c.tn=0;c.timer=0;}}else if(c.phase==='run'){c.tn+=dt*c.speed;if(c.tn>=c.end){c.tn=c.end;c.phase='hold';c.timer=0;}}else{c.timer+=dt;if(c.timer>=c.hold){c.phase=c.pre?'pre':'run';c.tn=0;c.timer=0;}}}
+function restart(c){c.phase=c.pre?'pre':'run';c.tn=0;c.timer=0;c.run=true;}
+function bindClock(c,ppId,reId){const pp=$(ppId);const upd=()=>{pp.textContent=c.run?'пауза':'продолжить';};upd();pp.addEventListener('click',()=>{c.run=!c.run;upd();});if(reId)$(reId).addEventListener('click',()=>{restart(c);upd();});}
+function slider(id,outId,fn,fmt){const s=$(id),o=$(outId);const u=()=>{const v=+s.value;fn(v);if(o)o.textContent=fmt?fmt(v):f(v,Number.isInteger(v)?0:1);};s.addEventListener('input',u);u();return s;}
+function setText(id,s){const e=$(id);if(e&&e.textContent!==s)e.textContent=s;}
+function status(id,cls,s){const e=$(id);const c='status '+cls;if(e.className!==c)e.className=c;setText(id,s);}
+function seg(ids,onSel){ids.forEach((id,i)=>$(id).addEventListener('click',()=>{ids.forEach(x=>$(x).classList.toggle('sel',x===id));onSel(i);}));}
+
+/* навигация */
+$('nav').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.go));
+  window.scrollTo({top:0,behavior:reduce?'auto':'smooth'});});
+
+/* =================== 1. Ёмкость =================== */
+const D1={S:100,d:2,er:1,U:10,conn:true,q:0,split:false};
+const C0=EPS0*100e-4/2e-3,REF={C:C0,q:C0*10,U:10,E:5000};
+function c1calc(){const C=D1.er*EPS0*D1.S*1e-4/(D1.d*1e-3);let q,U;if(D1.conn){U=D1.U;q=C*U;}else{q=D1.q;U=q/C;}return{C,q,U,E:U/(D1.d*1e-3)};}
+slider('s1S','o1S',v=>D1.S=v);slider('s1d','o1d',v=>D1.d=v/10,v=>f(v/10,1));slider('s1e','o1e',v=>D1.er=v/10,v=>f(v/10,1));
+seg(['b1conn','b1disc'],i=>{if(i===1&&D1.conn)D1.q=c1calc().q;D1.conn=i===0;});
+$('b1split').addEventListener('click',function(){D1.split=!D1.split;this.classList.toggle('sel',D1.split);this.classList.toggle('ghost',!D1.split);});
+demo('c1',900,430,ctx=>{
+  const k=c1calc(),cx=280,cy=200,g=40+D1.d*24,L=50+D1.S*0.3,xl=cx-g/2,xr=cx+g/2,top=cy-L,bot=cy+L;
+  if(D1.er>1.01){ctx.fillStyle=al(P.green,0.06+0.035*(D1.er-1));ctx.fillRect(xl,top,g,2*L);
+    ctx.save();ctx.beginPath();ctx.rect(xl,top,g,2*L);ctx.clip();ctx.strokeStyle=al(P.green,0.16+0.04*(D1.er-1));ctx.lineWidth=1.2;
+    for(let s=-2*L;s<g+2*L;s+=13){ctx.beginPath();ctx.moveTo(xl+s,bot);ctx.lineTo(xl+s+1.2*L,top);ctx.stroke();}ctx.restore();
+    txt(ctx,'ε = '+f(D1.er,1),cx,bot-14,P.green,12,'center');}
+  const n=clamp(Math.round(k.q/7.4e-11),2,22),yAt=(i,m)=>top+(i+0.5)*(2*L)/m,rows=clamp(Math.round(k.E/5000*6),2,16),pad=D1.er>1.01?18:10;
+  if(!D1.split){if(g>2*pad+14)for(let i=0;i<rows;i++){const y=yAt(i,rows);arrow(ctx,xl+pad,y,xr-pad,y,al(P.ink,.7),1.6,7);}}
+  else{const m=clamp(Math.ceil(rows/2),2,8);
+    for(let i=0;i<m;i++){const y=yAt(i,m);
+      if(g>2*pad+14){arrow(ctx,xl+pad,y-5,xr-pad,y-5,P.red,1.6,7);arrow(ctx,xl+pad,y+5,xr-pad,y+5,P.blue,1.6,7);}
+      const ol=xl-30,orr=xr+30;arrow(ctx,ol,y-5,ol-58,y-5,P.red,1.6,7);arrow(ctx,ol-58,y+5,ol,y+5,P.blue,1.6,7);
+      arrow(ctx,orr,y-5,orr+58,y-5,P.red,1.6,7);arrow(ctx,orr+58,y+5,orr,y+5,P.blue,1.6,7);}
+    txt(ctx,'E = 0',xl-60,bot+16,P.muted,12,'center');txt(ctx,'E = 0',xr+60,bot+16,P.muted,12,'center');
+    txt(ctx,'поле «+»',20,24,P.red,12);txt(ctx,'поле «−»',20,44,P.blue,12);}
+  ctx.fillStyle=P.red;ctx.fillRect(xl-7,top,7,2*L);ctx.fillStyle=P.blue;ctx.fillRect(xr,top,7,2*L);
+  for(let i=0;i<n;i++){const y=yAt(i,n);txt(ctx,'+',xl-17,y,P.red,13,'center',700);txt(ctx,'−',xr+17,y,P.blue,13,'center',700);}
+  if(D1.er>1.01){const nb=Math.round(n*(1-1/D1.er));for(let i=0;i<nb;i++){const y=yAt(i,nb);txt(ctx,'−',xl+7,y,al(P.blue,.7),10,'center',700);txt(ctx,'+',xr-7,y,al(P.red,.7),10,'center',700);}}
+  txt(ctx,'+q',xl-4,top-14,P.red,13,'center',700);txt(ctx,'−q',xr+4,top-14,P.blue,13,'center',700);
+  arrow(ctx,cx,bot+20,xl+1,bot+20,P.muted,1.2,6);arrow(ctx,cx,bot+20,xr-1,bot+20,P.muted,1.2,6);txt(ctx,'d',cx,bot+33,P.muted,12,'center');
+  const yb=405,cP=pot(1),c0=pot(0);
+  line(ctx,[[xl-3.5,bot],[xl-3.5,yb],[cx-30,yb]],cP);battery(ctx,[cx-30,yb],[cx+30,yb],{plus:'a',c1:cP,c2:c0,side:-22});
+  if(D1.conn)line(ctx,[[cx+30,yb],[xr+3.5,yb],[xr+3.5,bot]],c0);
+  else{const ya=(bot+yb)/2;line(ctx,[[cx+30,yb],[xr+3.5,yb],[xr+3.5,ya+20]],c0);key(ctx,[xr+3.5,ya+20],[xr+3.5,ya-20],false,{c1:c0,c2:c0});line(ctx,[[xr+3.5,ya-20],[xr+3.5,bot]],c0);}
+  /* столбики: во сколько раз изменилось */
+  const my=230,items=[['C',k.C/REF.C,P.violet],['q',k.q/REF.q,P.red],['U',k.U/REF.U,P.ink],['E',k.E/REF.E,P.blue]],xs=[640,710,780,850];
+  txt(ctx,'во сколько раз изменилось',745,34,P.muted,12,'center');
+  line(ctx,[[605,my],[885,my]],P.muted,1.2,[4,4]);txt(ctx,'было',598,my,P.muted,11,'right');
+  items.forEach(([nm,r,col],i)=>{const x=xs[i],h=clamp(Math.log2(r)*45,-150,150);
+    ctx.fillStyle=al(col,.75);if(Math.abs(h)<2)ctx.fillRect(x-20,my-1.5,40,3);else ctx.fillRect(x-20,h>0?my-h:my,40,Math.abs(h));
+    txt(ctx,nm,x,64,col,15,'center',700);txt(ctx,'×'+sig(r,2),x,h>=0?my-h-12:my-h+14,col,12,'center');});
+  setText('r1C',sig(k.C*1e12));setText('r1q',sig(k.q*1e9));setText('r1U',sig(k.U));setText('r1E',sig(k.E/1000));
+  if(D1.conn)status('st1','go','Источник держит U = 10 В. Больше S или ε → больше C и q. Шире зазор → меньше C, q и поле E = U/d.');
+  else status('st1','zero','Источник отключён: q = const. Раздвиньте пластины: C падает, U = q/C растёт, а поле E не меняется.');
+});
+
+/* =================== 2. Энергия =================== */
+const D2={C:5,U:10,p:reduce?0.75:0,hold:0,run:!reduce};
+slider('s2C','o2C',v=>D2.C=v);slider('s2U','o2U',v=>D2.U=v);
+$('p2').textContent=D2.run?'пауза':'продолжить';
+$('p2').addEventListener('click',function(){D2.run=!D2.run;this.textContent=D2.run?'пауза':'продолжить';});
+demo('c2',900,380,ctx=>{
+  const b={l:80,r:860,t:40,b:330},xt=[],yt=[];for(let v=0;v<=120;v+=20)xt.push([v,String(v)]);for(let v=0;v<=12;v+=2)yt.push([v,String(v)]);
+  const G=graph(ctx,b,{x0:0,x1:120,y0:0,y1:13,xt,yt,xl:'q, мкКл',yl:'U, В'});
+  const qe=D2.C*D2.U,qc=qe*D2.p,Uc=qc/D2.C,qmax=Math.min(120,D2.C*13);
+  ctx.fillStyle=al(P.green,.2);ctx.beginPath();ctx.moveTo(G.X(0),G.Y(0));ctx.lineTo(G.X(qc),G.Y(Uc));ctx.lineTo(G.X(qc),G.Y(0));ctx.closePath();ctx.fill();
+  line(ctx,[[G.X(0),G.Y(0)],[G.X(qmax),G.Y(qmax/D2.C)]],al(P.violet,.4),1.6,[5,5]);
+  line(ctx,[[G.X(0),G.Y(0)],[G.X(qe),G.Y(D2.U)]],P.violet,2.8);
+  txt(ctx,'U = q/C',G.X(qe)+10,G.Y(D2.U)-6,P.violet,13);
+  if(D2.p<0.995&&qc>0.3){const dq=Math.min(3,qe-qc);ctx.fillStyle=al(P.amber,.6);ctx.fillRect(G.X(qc),G.Y(Uc),G.X(qc+dq)-G.X(qc),G.Y(0)-G.Y(Uc));
+    txt(ctx,'порция dq при U = '+f(Uc,1)+' В',G.X(qc)+12,G.Y(Uc)-16,P.amber,12);}
+  dot(ctx,G.X(qc),G.Y(Uc),6,P.red);
+  if(G.X(qc)-G.X(0)>150)txt(ctx,'W = qU/2',G.X(qc*0.66),G.Y(Uc*0.22),P.green,14,'center',700);
+  setText('r2q',f(qc,1));setText('r2U',f(Uc,2));setText('r2W',f(qc*Uc/2,1));
+},dt=>{if(!D2.run)return;if(D2.p<1){D2.p=Math.min(1,D2.p+dt/5);}else{D2.hold+=dt;if(D2.hold>1.4){D2.hold=0;D2.p=0;}}});
+
+/* =================== 3. Соединения =================== */
+const D3={ser:true,C1:2,C2:4,U:12};
+seg(['b3ser','b3par'],i=>D3.ser=i===0);
+slider('s3a','o3a',v=>D3.C1=v);slider('s3b','o3b',v=>D3.C2=v);
+demo('c3',900,330,ctx=>{
+  const {C1,C2,U}=D3,ns=q=>clamp(Math.round(q/5),1,14),cP=pot(1),c0=pot(0),pl=c=>26+c*8;
+  let Cs,q1,q2,U1,U2;if(D3.ser){Cs=C1*C2/(C1+C2);q1=q2=Cs*U;U1=q1/C1;U2=q2/C2;}else{Cs=C1+C2;q1=C1*U;q2=C2*U;U1=U2=U;}
+  const xb=150;
+  line(ctx,[[xb,285],[xb,225]],c0);battery(ctx,[xb,225],[xb,155],{c1:c0,c2:cP,side:-26});
+  txt(ctx,'U = 12 В',xb-30,190,P.ink,12,'right');
+  if(D3.ser){const y=112,cm=pot(U2/U);
+    line(ctx,[[xb,155],[xb,y],[330,y]],cP);
+    const a=capH(ctx,330,430,y,{c1:cP,c2:cm,plate:pl(C1),sL:'+',nL:ns(q1),sR:'−',nR:ns(q1)});
+    line(ctx,[[430,y],[510,y]],cm);
+    const b=capH(ctx,510,610,y,{c1:cm,c2:c0,plate:pl(C2),sL:'+',nL:ns(q2),sR:'−',nR:ns(q2)});
+    line(ctx,[[610,y],[740,y],[740,285],[xb,285]],c0);
+    const h=Math.max(pl(C1),pl(C2))/2+22;ctx.strokeStyle=P.muted;ctx.lineWidth=1.2;ctx.setLineDash([5,4]);ctx.strokeRect(a.r-14,y-h,b.l-a.r+28,2*h);ctx.setLineDash([]);
+    txt(ctx,'−q₁ + q₂ = 0',(a.r+b.l)/2,y+h+16,P.muted,12,'center');
+    txt(ctx,'C₁',a.m-30,y-h-26,P.ink,14,'center',700);txt(ctx,'U₁ = '+f(U1,1)+' В',a.m-30,y-h-8,P.ink,12,'center');
+    txt(ctx,'C₂',b.m+30,y-h-26,P.ink,14,'center',700);txt(ctx,'U₂ = '+f(U2,1)+' В',b.m+30,y-h-8,P.ink,12,'center');
+  }else{const yt=70,yb=285,x1=420,x2=620;
+    line(ctx,[[xb,155],[xb,yt],[x2,yt]],cP);
+    const a=capV(ctx,x1,yt,yb,{c1:cP,c2:c0,plate:pl(C1),sT:'+',nT:ns(q1),sB:'−',nB:ns(q1)});
+    const b=capV(ctx,x2,yt,yb,{c1:cP,c2:c0,plate:pl(C2),sT:'+',nT:ns(q2),sB:'−',nB:ns(q2)});
+    line(ctx,[[x2,yb],[xb,yb]],c0);node(ctx,x1,yt);node(ctx,x1,yb);
+    txt(ctx,'C₁',x1+pl(C1)/2+14,a.m-10,P.ink,14,'left',700);txt(ctx,'U₁ = '+f(U1,1)+' В',x1+pl(C1)/2+14,a.m+10,P.ink,12);
+    txt(ctx,'C₂',x2+pl(C2)/2+14,b.m-10,P.ink,14,'left',700);txt(ctx,'U₂ = '+f(U2,1)+' В',x2+pl(C2)/2+14,b.m+10,P.ink,12);}
+  setText('r3C',f(Cs,2));setText('r3q1',f(q1,1));setText('r3q2',f(q2,1));setText('r3U1',f(U1,1));setText('r3U2',f(U2,1));
+  if(D3.ser)status('st3','go','Заряды равны, а напряжение больше на меньшем конденсаторе: U₁/U₂ = C₂/C₁');
+  else status('st3','zero','Напряжение одно на обоих, заряды пропорциональны ёмкостям: q₁/q₂ = C₁/C₂');
+});
+
+/* =================== RC: графики справа =================== */
+function rcGraphs(ctx,tn,closed,charge,qLab,iLab){
+  const xt=[[0,'0'],[1,'τ'],[2,'2τ'],[3,'3τ'],[4,'4τ'],[5,'5τ']];
+  const qf=charge?(x=>1-Math.exp(-x)):(x=>Math.exp(-x)),If=x=>Math.exp(-x);
+  const Gq=graph(ctx,{l:500,r:860,t:45,b:185},{x0:0,x1:5.3,y0:0,y1:1.12,xt,yt:charge?[[0,'0'],[0.632,'0,63'],[1,'1']]:[[0,'0'],[0.368,'0,37'],[1,'1']],xl:'t',yl:'q',title:qLab});
+  line(ctx,[[Gq.X(0),Gq.Y(charge?1:0)],[Gq.X(5.3),Gq.Y(charge?1:0)]],al(P.violet,.45),1.2,[5,5]);
+  line(ctx,charge?[[Gq.X(0),Gq.Y(0)],[Gq.X(1),Gq.Y(1)]]:[[Gq.X(0),Gq.Y(1)],[Gq.X(1),Gq.Y(0)]],P.muted,1.3,[3,4]);
+  curve(ctx,qf,0,5.3,Gq,al(P.violet,.22),2);if(closed){curve(ctx,qf,0,tn,Gq,P.violet,2.8);dot(ctx,Gq.X(tn),Gq.Y(qf(tn)),5.5,P.violet);}
+  const Gi=graph(ctx,{l:500,r:860,t:255,b:395},{x0:0,x1:5.3,y0:0,y1:1.12,xt,yt:[[0,'0'],[0.368,'0,37'],[1,'1']],xl:'t',yl:'I',title:iLab});
+  line(ctx,[[Gi.X(0),Gi.Y(1)],[Gi.X(1),Gi.Y(0)]],P.muted,1.3,[3,4]);
+  curve(ctx,If,0,5.3,Gi,al(P.red,.22),2);if(closed){curve(ctx,If,0,tn,Gi,P.red,2.8);dot(ctx,Gi.X(tn),Gi.Y(If(tn)),5.5,P.red);}
+}
+
+/* =================== 4. Зарядка =================== */
+const D4={E:9,R:4,C:500,ph:0};const K4=Clock({speed:5/8,pre:0.9,start:1});
+slider('s4E','o4E',v=>D4.E=v);slider('s4R','o4R',v=>D4.R=v);slider('s4C','o4C',v=>D4.C=v);
+bindClock(K4,'b4pp','b4re');
+demo('c4',900,430,ctx=>{
+  const closed=K4.phase!=='pre',tn=closed?K4.tn:0,e=Math.exp(-tn),qf=closed?1-e:0,If=closed?e:0;
+  const c0=pot(0),cE=pot(1),cB=pot(If),cBR=closed?cE:c0,n=Math.round(qf*8);
+  line(ctx,[[70,125],[70,70],[205,70]],c0);battery(ctx,[205,70],[255,70],{c1:c0,c2:cE,side:-24});line(ctx,[[255,70],[390,70],[390,125]],cE);
+  key(ctx,[390,125],[390,195],closed,{c1:cE,c2:cBR});line(ctx,[[390,195],[390,250],[270,250]],cBR);
+  capH(ctx,190,270,250,{c1:cB,c2:cBR,plate:54,sL:'−',nL:n,sR:'+',nR:n});
+  line(ctx,[[190,250],[70,250],[70,195]],cB);resistor(ctx,[70,195],[70,125],{c1:cB,c2:c0,heat:If*If});
+  flow(ctx,[[223,250],[70,250],[70,70],[390,70],[390,250],[237,250]],D4.ph,closed&&If>0.004?0.85:0);
+  txt(ctx,'ε',230,36,P.ink,16,'center',700);txt(ctx,'R',40,160,P.ink,15,'center',700);txt(ctx,'C',230,296,P.ink,15,'center',700);txt(ctx,'K',418,160,P.ink,15,'center',700);
+  txt(ctx,'ε делится между C и R',70,338,P.muted,12);
+  hbar(ctx,70,352,320,22,[[qf,al(P.green,.85)],[If,al(P.amber,.85)]]);
+  if(qf>0.14)txt(ctx,'U_C',70+320*qf/2,363,P.paper,12,'center',700);if(If>0.14)txt(ctx,'U_R',70+320*(qf+If/2),363,P.paper,12,'center',700);
+  txt(ctx,f(D4.E*qf,1)+' + '+f(D4.E*If,1)+' = '+f(closed?D4.E:0,1)+' В',390,392,P.ink,12,'right');
+  rcGraphs(ctx,tn,closed,true,'q / Cε','I / I₀,  I₀ = ε/R');
+  const tau=D4.R*D4.C/1000;
+  setText('r4t',f(tn*tau,2)+' с = '+f(tn,2)+'τ');setText('r4q',f(D4.C*D4.E*qf/1000,2));setText('r4I',f(D4.E/D4.R*If,2));setText('r4tau',f(tau,2));
+  if(!closed)status('st4','zero','Ключ разомкнут: тока нет, конденсатор пуст');
+  else if(tn<0.2)status('st4','stop','Только замкнули: U_C ≈ 0, конденсатор как провод, ток максимален I = ε/R');
+  else if(tn>4)status('st4','go','Почти установилось: q ≈ Cε, I ≈ 0 — конденсатор стал разрывом');
+  else status('st4','zero','U_C растёт, на резистор остаётся меньше — ток падает');
+},dt=>{tick(K4,dt);if(K4.run&&K4.phase!=='pre')D4.ph+=dt*150*Math.exp(-K4.tn);});
+
+/* =================== 5. Разрядка =================== */
+const D5={U:10,R:4,C:500,ph:0};const K5=Clock({speed:5/8,pre:0.9,start:0.7});
+slider('s5U','o5U',v=>D5.U=v);slider('s5R','o5R',v=>D5.R=v);slider('s5C','o5C',v=>D5.C=v);
+bindClock(K5,'b5pp','b5re');
+demo('c5',900,430,ctx=>{
+  const closed=K5.phase!=='pre',tn=closed?K5.tn:0,qf=Math.exp(-tn),If=closed?qf:0,cU=pot(qf),c0=pot(0),n=Math.round(qf*8);
+  line(ctx,[[70,125],[70,70],[390,70],[390,125]],cU);key(ctx,[390,125],[390,195],closed,{c1:cU,c2:cU});line(ctx,[[390,195],[390,250],[270,250]],cU);
+  capH(ctx,190,270,250,{c1:c0,c2:cU,plate:54,sL:'−',nL:n,sR:'+',nR:n});
+  line(ctx,[[190,250],[70,250],[70,195]],c0);resistor(ctx,[70,195],[70,125],{c1:c0,c2:cU,heat:If*If});
+  if(If*If>0.03){ctx.strokeStyle=al(P.amber,clamp(If*If,0,1));ctx.lineWidth=2;for(let k=-1;k<=1;k++){const yy=160+k*20;ctx.beginPath();for(let i=0;i<=16;i++){const xx=110+i*2.2,w=yy+Math.sin(i*0.8)*4;i?ctx.lineTo(xx,w):ctx.moveTo(xx,w);}ctx.stroke();}txt(ctx,'тепло',150,120,P.amber,12);}
+  flow(ctx,[[237,250],[390,250],[390,70],[70,70],[70,250],[223,250]],D5.ph,closed&&If>0.004?0.85:0);
+  txt(ctx,'R',40,160,P.ink,15,'center',700);txt(ctx,'C',230,296,P.ink,15,'center',700);txt(ctx,'K',418,160,P.ink,15,'center',700);
+  const W=qf*qf,Q=closed?1-W:0;
+  txt(ctx,'энергия конденсатора',70,322,P.green,12);hbar(ctx,70,332,320,16,[[W,al(P.green,.85)]]);
+  txt(ctx,'тепло в резисторе',70,364,P.amber,12);hbar(ctx,70,374,320,16,[[Q,al(P.amber,.85)]]);
+  txt(ctx,'сумма = CU₀²/2 всё время',390,408,P.muted,12,'right');
+  rcGraphs(ctx,tn,closed,false,'q / q₀','I / I₀,  I₀ = U₀/R');
+  const tau=D5.R*D5.C/1000,W0=D5.C*D5.U*D5.U/2000;
+  setText('r5t',f(tn*tau,2)+' с = '+f(tn,2)+'τ');setText('r5q',f(D5.C*D5.U*qf/1000,2));setText('r5W',f(W0*W,1));setText('r5Q',f(W0*Q,1));
+  if(!closed)status('st5','zero','Конденсатор заряжен до U₀, ключ разомкнут');
+  else if(tn>4)status('st5','go','Разряжен: вся энергия стала теплом, Q = CU₀²/2 = '+f(W0,1)+' мДж');
+  else status('st5','stop','Ток и заряд падают по экспоненте; энергия ∝ q², поэтому уходит вдвое быстрее');
+},dt=>{tick(K5,dt);if(K5.run&&K5.phase!=='pre')D5.ph+=dt*150*Math.exp(-K5.tn);});
+
+/* =================== 6. Установившийся режим =================== */
+const D6={E:12,r:2,R:10,pr:0,pR:0,pC:0};const K6=Clock({speed:5/7,pre:0.9,start:0.8});
+slider('s6E','o6E',v=>D6.E=v);slider('s6r','o6r',v=>D6.r=v);slider('s6R','o6R',v=>D6.R=v);
+bindClock(K6,'b6pp','b6re');
+function c6s(){const closed=K6.phase!=='pre',tn=closed?K6.tn:0,{E,r,R}=D6,Ui=E*R/(R+r),UC=closed?Ui*(1-Math.exp(-tn)):0,Ir=closed?(E-UC)/r:0,IR=closed?UC/R:0;return{closed,tn,UC,Ir,IR,IC:Ir-IR,I0:E/r};}
+demo('c6',900,380,ctx=>{
+  const s=c6s(),E=D6.E,cT=pot(s.UC/E),c0=pot(0),cE=pot(1),cL=s.closed?cT:cE,top=60,bot=300,n=Math.round(s.UC/E*8);
+  line(ctx,[[70,bot],[70,280]],c0);battery(ctx,[70,280],[70,230],{c1:c0,c2:cE,side:26});line(ctx,[[70,230],[70,205]],cE);
+  resistor(ctx,[70,205],[70,135],{c1:cE,c2:cL,len:40,w:16});line(ctx,[[70,135],[70,top],[100,top]],cL);
+  key(ctx,[100,top],[165,top],s.closed,{c1:cL,c2:cT});line(ctx,[[165,top],[460,top],[460,143]],cT);
+  resistor(ctx,[250,top],[250,bot],{c1:cT,c2:c0,heat:s.IR/s.I0});
+  capV(ctx,390,top,bot,{c1:cT,c2:c0,plate:52,sT:'+',nT:n,sB:'−',nB:n});
+  line(ctx,[[460,177],[460,bot],[70,bot]],c0);
+  ctx.fillStyle=P.paper;ctx.strokeStyle=P.green;ctx.lineWidth=2;ctx.beginPath();ctx.arc(460,160,17,0,Math.PI*2);ctx.fill();ctx.stroke();txt(ctx,'V',460,161,P.green,15,'center',700);
+  node(ctx,250,top);node(ctx,250,bot);node(ctx,390,top);node(ctx,390,bot);
+  flow(ctx,[[250,bot],[70,bot],[70,top],[250,top]],D6.pr,s.Ir/s.I0>0.01?0.85:0);
+  flow(ctx,[[250,top],[250,bot]],D6.pR,s.IR/s.I0>0.01?0.85:0);
+  flow(ctx,[[250,top],[390,top],[390,173]],D6.pC,s.IC/s.I0>0.01?0.85:0);flow(ctx,[[390,187],[390,bot],[250,bot]],D6.pC,s.IC/s.I0>0.01?0.85:0);
+  if(s.closed&&s.tn>4.2){cross(ctx,320,top);cross(ctx,320,bot);}
+  txt(ctx,'ε',40,255,P.ink,16,'center',700);txt(ctx,'r',44,170,P.ink,14,'center',700);txt(ctx,'R',276,180,P.ink,15,'center',700);txt(ctx,'C',428,215,P.ink,15,'center',700);txt(ctx,'K',132,36,P.ink,14,'center',700);
+  txt(ctx,'U = '+f(s.UC,1)+' В',460,340,P.green,13,'center',700);
+  const k=D6.r/(D6.R+D6.r),fr=x=>1-(1-k)*(1-Math.exp(-x)),fR=x=>k*(1-Math.exp(-x)),fC=x=>fr(x)-fR(x);
+  const G=graph(ctx,{l:560,r:860,t:50,b:330},{x0:0,x1:5.3,y0:0,y1:1.1,xt:[[0,'0'],[1,'τ'],[3,'3τ'],[5,'5τ']],yt:[[0,'0'],[k,'уст.'],[1,'ε/r']],xl:'t',yl:'ток',title:'τ = C·Rr/(R+r)'});
+  curve(ctx,fr,0,5.3,G,al(P.ink,.18),2);curve(ctx,fR,0,5.3,G,al(P.blue,.18),2);curve(ctx,fC,0,5.3,G,al(P.red,.18),2);
+  if(s.closed){curve(ctx,fr,0,s.tn,G,P.ink,2.6);curve(ctx,fR,0,s.tn,G,P.blue,2.6);curve(ctx,fC,0,s.tn,G,P.red,2.6);
+    dot(ctx,G.X(s.tn),G.Y(fr(s.tn)),4.5,P.ink);dot(ctx,G.X(s.tn),G.Y(fR(s.tn)),4.5,P.blue);dot(ctx,G.X(s.tn),G.Y(fC(s.tn)),4.5,P.red);}
+  setText('r6I',f(s.Ir,2));setText('r6IR',f(s.IR,2));setText('r6IC',f(s.IC,2));setText('r6U',f(s.UC,2));
+  if(!s.closed)status('st6','zero','Ключ разомкнут');
+  else if(s.tn<0.2)status('st6','stop','Первый момент: пустой C — как провод, весь ток ε/r идёт в него, через R тока нет');
+  else if(s.tn>4.2)status('st6','go','Установилось: I_C = 0. I = ε/(R+r) = '+f(E/(D6.R+D6.r),2)+' А, U_C = εR/(R+r) = '+f(E*D6.R/(D6.R+D6.r),2)+' В');
+  else status('st6','zero','Ток в конденсатор затухает, ток через R растёт до I_уст');
+},dt=>{tick(K6,dt);if(K6.run&&K6.phase!=='pre'){const s=c6s(),v=150/s.I0;D6.pr+=dt*v*s.Ir;D6.pR+=dt*v*s.IR;D6.pC+=dt*v*s.IC;}});
+
+/* =================== 7. Задачи =================== */
+document.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('[data-p]').forEach(x=>x.classList.toggle('sel',x===b));
+  document.querySelectorAll('.pp').forEach(p=>p.hidden=p.dataset.pp!==b.dataset.p);}));
+
+/* №1 */
+const D7a={x:0.5,open:false,pa:0,pb:0};const K7a=Clock({speed:5/6,start:0});
+slider('s7x','o7x',v=>D7a.x=v/100,v=>f(v/100,2));
+seg(['b7k1','b7k2'],i=>{D7a.open=i===1;if(D7a.open)restart(K7a);});
+demo('c7a',900,380,ctx=>{
+  const u=1/(1+D7a.x),open=D7a.open,tn=open?K7a.tn:0,e=Math.exp(-tn),top=open?u*e:u;
+  const c0=pot(0),cE=pot(1),cT=pot(top),cA=open?cE:pot(u),n=Math.round(top*7),X0=40;
+  line(ctx,[[X0+40,300],[X0+40,260]],c0);battery(ctx,[X0+40,260],[X0+40,210],{c1:c0,c2:cE,side:26});line(ctx,[[X0+40,210],[X0+40,190]],cE);
+  resistor(ctx,[X0+40,190],[X0+40,120],{c1:cE,c2:cA,len:38,w:15});line(ctx,[[X0+40,120],[X0+40,60],[X0+65,60]],cA);
+  key(ctx,[X0+65,60],[X0+135,60],!open,{c1:cA,c2:cT});line(ctx,[[X0+135,60],[X0+290,60]],cT);
+  resistor(ctx,[X0+180,60],[X0+180,300],{c1:cT,c2:c0,heat:open?e*e*u*u:0});
+  capV(ctx,X0+290,60,300,{c1:cT,c2:c0,plate:46,sT:'+',nT:n,sB:'−',nB:n});
+  line(ctx,[[X0+290,300],[X0+40,300]],c0);node(ctx,X0+180,60);node(ctx,X0+180,300);
+  if(!open){flow(ctx,[[X0+180,300],[X0+40,300],[X0+40,60],[X0+180,60]],D7a.pa);flow(ctx,[[X0+180,60],[X0+180,300]],D7a.pa);cross(ctx,X0+235,60);cross(ctx,X0+235,300);}
+  else flow(ctx,[[X0+290,173],[X0+290,60],[X0+180,60],[X0+180,300],[X0+290,300],[X0+290,187]],D7a.pb,e>0.01?0.85:0);
+  txt(ctx,'ε, r',X0+10,235,P.ink,13,'center',700);txt(ctx,'R',X0+206,180,P.ink,15,'center',700);txt(ctx,'C',X0+322,180,P.ink,15,'center',700);txt(ctx,'K',X0+100,34,P.ink,14,'center',700);
+  txt(ctx,open?'2. разряд через R':'1. установившийся режим',X0+165,340,P.muted,12,'center');
+  const G=graph(ctx,{l:480,r:860,t:45,b:320},{x0:0,x1:1,y0:0,y1:16,xt:[[0,'0'],[0.2,'0,2'],[0.4,'0,4'],[0.6,'0,6'],[0.8,'0,8'],[1,'1']],yt:[[0,'0'],[5,'5'],[10,'10'],[15,'15']],xl:'r/R',yl:'Q, мкДж'});
+  const Qf=x=>14.4/Math.pow(1+x,2);
+  line(ctx,[[G.X(0),G.Y(10)],[G.X(1),G.Y(10)]],al(P.green,.8),1.4,[5,4]);txt(ctx,'Q = 10 мкДж',G.X(1),G.Y(10)-12,P.green,12,'right');
+  line(ctx,[[G.X(0.2),G.Y(0)],[G.X(0.2),G.Y(10)]],al(P.green,.8),1.2,[3,4]);
+  curve(ctx,Qf,0,1,G,P.amber,2.8);dot(ctx,G.X(0.2),G.Y(10),5,P.green);dot(ctx,G.X(D7a.x),G.Y(Qf(D7a.x)),7,P.red);
+  const Qx=Qf(D7a.x);setText('r7U',f(12*u,2));setText('r7Q',f(Qx,2));
+  if(Math.abs(Qx-10)<0.12)status('st7a','go','Совпало: r/R = 0,2 даёт Q = 10 мкДж');
+  else status('st7a','zero',Qx>10?'Q > 10 мкДж — увеличьте r/R':'Q < 10 мкДж — уменьшите r/R');
+},dt=>{if(!D7a.open)D7a.pa+=dt*80;else{tick(K7a,dt);if(K7a.run&&K7a.phase!=='pre')D7a.pb+=dt*150*Math.exp(-K7a.tn);}});
+
+/* №1* */
+const D7b={p1:0,p2:0,pR:0};const K7b=Clock({speed:5/7,pre:1.3,start:1.1});
+bindClock(K7b,'b7bpp','b7bre');
+function c7bs(){const closed=K7b.phase!=='pre',tn=closed?K7b.tn:0,phi=closed?Math.exp(-tn)/3:1/3;return{closed,tn,phi,qC:1-phi,q2:2*phi};}
+demo('c7b',900,360,ctx=>{
+  const s=c7bs(),c0=pot(0),cE=pot(1),cN=pot(s.phi),cRt=s.closed?cN:c0,X=40;
+  line(ctx,[[X+40,300],[X+40,230]],c0);battery(ctx,[X+40,230],[X+40,170],{c1:c0,c2:cE,side:26});line(ctx,[[X+40,170],[X+40,60],[X+90,60]],cE);
+  capH(ctx,X+90,X+200,60,{c1:cE,c2:cN,plate:40,sL:'+',nL:Math.round(s.qC*6),sR:'−',nR:Math.round(s.qC*6)});
+  line(ctx,[[X+200,60],[X+380,60],[X+380,85]],cN);
+  capV(ctx,X+250,60,300,{c1:cN,c2:c0,plate:64,sT:'+',nT:Math.round(s.q2*6),sB:'−',nB:Math.round(s.q2*6)});
+  key(ctx,[X+380,85],[X+380,145],s.closed,{c1:cN,c2:cRt});resistor(ctx,[X+380,145],[X+380,282],{c1:cRt,c2:c0,heat:s.closed?Math.pow(s.phi*3,2)*0.8:0});
+  line(ctx,[[X+380,282],[X+380,300],[X+40,300]],c0);node(ctx,X+250,60);node(ctx,X+250,300);
+  if(s.closed){const a=s.phi*3>0.01?0.85:0;
+    flow(ctx,[[X+250,300],[X+40,300],[X+40,60],[X+138,60]],D7b.p1,a);flow(ctx,[[X+152,60],[X+250,60]],D7b.p1,a);
+    flow(ctx,[[X+250,173],[X+250,60]],D7b.p2,a);flow(ctx,[[X+250,300],[X+250,187]],D7b.p2,a);
+    flow(ctx,[[X+250,60],[X+380,60],[X+380,300],[X+250,300]],D7b.pR,a);}
+  txt(ctx,'ε',X+12,200,P.ink,16,'center',700);txt(ctx,'C',X+145,24,P.ink,15,'center',700);txt(ctx,'2C',X+196,180,P.ink,15,'center',700);
+  txt(ctx,'R',X+408,214,P.ink,15,'center',700);txt(ctx,'K',X+408,115,P.ink,14,'center',700);
+  const G=graph(ctx,{l:560,r:860,t:50,b:300},{x0:0,x1:5,y0:0,y1:1.1,xt:[[0,'0'],[1,'τ'],[3,'3τ'],[5,'5τ']],yt:[[0,'0'],[2/3,'2/3'],[1,'1']],xl:'t',yl:'q / Cε',title:'τ = 3RC'});
+  const fC=x=>1-Math.exp(-x)/3,f2=x=>2*Math.exp(-x)/3;
+  line(ctx,[[G.X(0),G.Y(1)],[G.X(5),G.Y(1)]],al(P.violet,.4),1.1,[4,4]);
+  curve(ctx,fC,0,5,G,al(P.violet,.2),2);curve(ctx,f2,0,5,G,al(P.green,.2),2);
+  if(s.closed){curve(ctx,fC,0,s.tn,G,P.violet,2.8);curve(ctx,f2,0,s.tn,G,P.green,2.8);dot(ctx,G.X(s.tn),G.Y(fC(s.tn)),5,P.violet);dot(ctx,G.X(s.tn),G.Y(f2(s.tn)),5,P.green);}
+  else dot(ctx,G.X(0),G.Y(2/3),5,P.ink);
+  txt(ctx,'q_C',G.X(5)+4,G.Y(fC(5))-12,P.violet,12,'right');txt(ctx,'q_2C',G.X(4.2),G.Y(f2(4.2))-16,P.green,12,'center');
+  setText('r7b1',f(s.qC,2));setText('r7b2',f(s.q2,2));
+  if(!s.closed)status('st7b','zero','До замыкания: C и 2C последовательно, на каждом 2Cε/3');
+  else if(s.tn>4.5)status('st7b','go','Установилось: q_2C = 0, q_C = Cε');
+  else status('st7b','stop','2C разряжается через R, C дозаряжается от источника');
+},dt=>{tick(K7b,dt);if(K7b.run&&K7b.phase!=='pre'){const s=c7bs();D7b.p1+=dt*300*s.phi/3;D7b.p2+=dt*300*2*s.phi/3;D7b.pR+=dt*300*s.phi;}});
+
+/* №2 */
+const D7c={E:29,p0:0,p1:0,p2:0};
+slider('s7cE','o7cE',v=>D7c.E=v);
+demo('c7c',900,380,ctx=>{
+  const fp=20/29,fs=12/29,cE=pot(1),cP=pot(fp),cS=pot(fs),c0=pot(0),L=150,M=390,Rr=620,T=70,B=320,Y=230;
+  line(ctx,[[Rr,Y],[Rr,B],[M+25,B]],c0);battery(ctx,[M+25,B],[M-25,B],{c1:c0,c2:cE,side:26});line(ctx,[[M-25,B],[L,B],[L,Y]],cE);
+  line(ctx,[[L,Y],[L,T],[L+60,T]],cE);capH(ctx,L+60,L+180,T,{c1:cE,c2:cS,plate:40,sL:'+',nL:5,sR:'−',nR:5});line(ctx,[[L+180,T],[M,T]],cS);
+  resistor(ctx,[M,T],[Rr,T],{c1:cS,c2:c0});line(ctx,[[Rr,T],[Rr,Y]],c0);
+  resistor(ctx,[L,Y],[M,Y],{c1:cE,c2:cP});resistor(ctx,[M,Y],[Rr,Y],{c1:cP,c2:c0});resistor(ctx,[M,Y],[M,T],{c1:cP,c2:cS});
+  node(ctx,L,Y);node(ctx,M,Y);node(ctx,M,T);node(ctx,Rr,Y);
+  flow(ctx,[[Rr,Y],[Rr,B],[L,B],[L,Y],[M,Y]],D7c.p0);flow(ctx,[[M,Y],[Rr,Y]],D7c.p1);flow(ctx,[[M,Y],[M,T],[Rr,T],[Rr,Y]],D7c.p2);
+  cross(ctx,L,150);cross(ctx,M-30,T);
+  const E=D7c.E;
+  txt(ctx,'C',L+120,36,P.ink,15,'center',700);txt(ctx,'3R',505,46,P.ink,13,'center',700);txt(ctx,'2R',M+16,150,P.ink,13,'left',700);
+  txt(ctx,'R',270,206,P.ink,13,'center',700);txt(ctx,'4R',505,206,P.ink,13,'center',700);txt(ctx,'ε',M,354,P.ink,15,'center',700);
+  txt(ctx,'ε',L-14,Y,P.red,14,'right',700);txt(ctx,'φ',M+10,Y+20,pot(fp),14,'left',700);txt(ctx,'φ*',M+10,T-18,pot(fs),14,'left',700);txt(ctx,'0',Rr+12,Y,P.blue,14,'left',700);
+  /* шкала потенциалов */
+  const sx=770,s0=B,s1=T,yv=v=>s0+(s1-s0)*v;
+  const g=ctx.createLinearGradient(0,s0,0,s1);g.addColorStop(0,P.blue);g.addColorStop(1,P.red);ctx.fillStyle=g;ctx.fillRect(sx-9,s1,18,s0-s1);
+  txt(ctx,'потенциал',sx,T-28,P.muted,12,'center');
+  [[1,'ε = '+f(E,1)],[fp,'φ = '+f(E*fp,1)],[fs,'φ* = '+f(E*fs,1)],[0,'0']].forEach(([v,lab])=>{const y=yv(v);line(ctx,[[sx-14,y],[sx+14,y]],P.ink,2);txt(ctx,lab,sx+20,y,P.ink,12);});
+  const ya=yv(1),yb2=yv(fs);line(ctx,[[sx-24,ya],[sx-32,ya],[sx-32,yb2],[sx-24,yb2]],P.green,2);
+  txt(ctx,'U_C',sx-38,(ya+yb2)/2-9,P.green,13,'right',700);txt(ctx,f(E*17/29,1)+' В',sx-38,(ya+yb2)/2+9,P.green,12,'right');
+  setText('r7cf',f(E*fp,2));setText('r7cs',f(E*fs,2));setText('r7cU',f(E*17/29,2));
+},dt=>{const v=500/29;D7c.p0+=dt*v*9;D7c.p1+=dt*v*5;D7c.p2+=dt*v*4;});
+
+/* =================== цикл =================== */
+let last=performance.now();
+function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;
+  for(const d of demos){const ctx=begin(d);if(!ctx)continue;if(d.step)d.step(dt);d.draw(ctx);}
+  requestAnimationFrame(loop);}
+for(const d of demos){const ctx=begin(d);if(ctx)d.draw(ctx);}
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>

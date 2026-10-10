@@ -49,19 +49,41 @@ def init_db() -> None:
     with SessionLocal() as db:
         _sync_sections(db, data.get("sections", []))
 
-        if db.scalar(select(func.count(Visualization.id))) == 0:
-            sections = {s.slug: s for s in db.scalars(select(Section))}
-            for i, item in enumerate(data.get("items", [])):
-                src = config.SEED_DIR / "viz" / item["file"]
-                if not src.exists() or item["section"] not in sections:
-                    continue
-                slug = item["id"]
-                file_name = f"{slug}.html"
-                files.write_viz(file_name, files.prepare_html(src.read_bytes()))
-                db.add(Visualization(
-                    slug=slug, title=item["title"], description=item.get("description", ""),
-                    section_id=sections[item["section"]].id, tags=item.get("tags", []),
-                    parts=item.get("parts", ""), file_name=file_name, position=i, is_published=True,
-                ))
-            db.commit()
-            print(f"[seed] Импортировано визуализаций: {db.scalar(select(func.count(Visualization.id)))}")
+        _import_new_seed_items(db, data.get("items", []))
+
+
+def _import_new_seed_items(db, items) -> None:
+    """Добавляет стартовые визуализации, которых ещё не было. Список уже импортированных хранится
+    в storage/seeded.txt, поэтому удалённая через админку визуализация не вернётся сама."""
+    marker = config.STORAGE_DIR / "seeded.txt"
+    existing = {v.slug for v in db.scalars(select(Visualization))}
+    if marker.exists():
+        seeded = set(marker.read_text(encoding="utf-8").split())
+    else:
+        seeded = existing.copy()  # первая проверка на старой базе: всё, что уже есть, считаем импортированным
+    sections = {s.slug: s for s in db.scalars(select(Section))}
+    last = db.scalar(select(func.max(Visualization.position)))
+    pos = -1 if last is None else last
+    added = 0
+    for item in items:
+        slug = item["id"]
+        if slug in seeded or slug in existing:
+            seeded.add(slug)
+            continue
+        src = config.SEED_DIR / "viz" / item["file"]
+        if not src.exists() or item["section"] not in sections:
+            continue
+        pos += 1
+        file_name = f"{slug}.html"
+        files.write_viz(file_name, files.prepare_html(src.read_bytes()))
+        db.add(Visualization(
+            slug=slug, title=item["title"], description=item.get("description", ""),
+            section_id=sections[item["section"]].id, tags=item.get("tags", []),
+            parts=item.get("parts", ""), file_name=file_name, position=pos, is_published=True,
+        ))
+        seeded.add(slug)
+        added += 1
+    db.commit()
+    marker.write_text("\n".join(sorted(seeded)) + "\n", encoding="utf-8")
+    if added:
+        print(f"[seed] Добавлено стартовых визуализаций: {added}")

@@ -144,7 +144,7 @@
 
     var text = el('div', 'adm-row__text');
     text.appendChild(el('h2', 'adm-row__title', it.title));
-    var meta = [s.label, it.parts].concat(it.tags || []).filter(Boolean).join(' · ');
+    var meta = [s.label, it.parts].filter(Boolean).join(' · ');
     text.appendChild(el('span', 'adm-row__meta', meta + '  ·  /viz/' + it.file));
 
     var status = el('button', 'status ' + (it.is_published ? 'status--on' : 'status--off'), it.is_published ? 'На сайте' : 'Черновик');

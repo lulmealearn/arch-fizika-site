@@ -207,3 +207,39 @@
 
 .free__mail { margin: 0; font-size: 16px; color: var(--violet-tint); }
 .free__mail a { color: var(--paper); }
+
+/* ── Живая визуализация: зарядка конденсатора ── */
+.rc { gap: 12px; }
+.rc .rc__canvas { width: 100%; height: auto; display: block; border-radius: 10px; background: var(--paper); }
+.rc__controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 18px; }
+.rc__ctrl { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 0; }
+.rc__ctrl span { white-space: nowrap; }
+.rc__ctrl b { color: var(--ink); }
+.rc__ctrl input { flex: 1; min-width: 0; accent-color: var(--violet); min-height: 32px; }
+.rc__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.rc__row .btn { min-height: 44px; text-transform: none; letter-spacing: .02em; }
+.rc__readout { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc__readout span { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.rc__readout .is-violet { background: var(--violet-tint); border-color: var(--violet-tint); color: var(--violet-ink); }
+.rc__readout .is-red { background: #f9e0e0; border-color: #f9e0e0; color: #a61f1f; }
+.rc__readout .is-green { background: #dcefe6; border-color: #dcefe6; color: #0b6b4a; }
+.rc__status { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); font-family: var(--mono); font-size: 12px; line-height: 1.5; color: var(--ink-2); min-height: 3em; }
+
+/* ── «Моделируем»: крупнее и целиком, с полями снизу ── */
+.schemes { gap: 18px; padding: 10px 6px 22px; }
+.schemes figure { width: 48%; background: #fff; }
+.schemes figure img { object-fit: contain; }
+.schemes figure:first-child { transform: rotate(-2deg); }
+.schemes figure:last-child { transform: rotate(2deg); }
+
+/* ── Контакты ── */
+.contacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.contact { display: flex; align-items: center; gap: 16px; text-decoration: none; color: var(--ink); padding: 18px 20px; }
+.contact:hover { color: var(--ink); }
+.contact__ic { flex: none; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+.contact__ic--text { color: #fff; font-family: var(--display); font-weight: 700; font-size: 26px; }
+.contact__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.contact__body b { font-family: var(--display); font-size: 20px; overflow-wrap: anywhere; }
+.contact__note { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.model-card .schemes { justify-content: center; gap: clamp(18px, 4vw, 48px); }
+.model-card .schemes figure { width: min(46%, 400px); }
