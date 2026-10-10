@@ -30,6 +30,8 @@
   openers.forEach(function (b) { b.addEventListener('click', openDrawer); });
   if (drawer) {
     drawer.querySelectorAll('[data-close-drawer]').forEach(function (b) { b.addEventListener('click', closeDrawer); });
+    /* ссылка на раздел этой же страницы (#prices, #contacts): закрыть панель, браузер сам прокрутит */
+    drawer.querySelectorAll('.nav a[href^="#"]').forEach(function (a) { a.addEventListener('click', closeDrawer); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') closeDrawer();
       if (e.key === 'Tab' && drawer.classList.contains('is-open')) {
