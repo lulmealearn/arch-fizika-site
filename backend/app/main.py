@@ -28,6 +28,10 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    elif request.method in ("GET", "HEAD") and not path.startswith("/api/"):
+        # Страницы, стили и скрипты: браузер каждый раз сверяет ETag (быстрый 304), поэтому после
+        # обновления сайта никто не застревает на старом main.js/CSS.
+        response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
