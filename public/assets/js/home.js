@@ -1,6 +1,7 @@
 /* Главная: игрушка «брось мяч» в блоке «Бесплатное занятие».
    Физика честная: скорость броска и g постоянны, меняется только угол,
-   поэтому дальность L = v²·sin2θ / g максимальна при 45°, а 30° и 60° дают одинаковую дальность. */
+   поэтому дальность L = v²·sin2θ / g максимальна при 45°, а 30° и 60° дают одинаковую дальность.
+   Подпись под полем не меняется: всё, что зависит от угла, рисуется внутри canvas, чтобы рамка не прыгала. */
 (function () {
   'use strict';
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,13 +32,13 @@
     ctx.moveTo(x + w + 2, yy); ctx.lineTo(x + w - 2, yy - 3); ctx.moveTo(x + w + 2, yy); ctx.lineTo(x + w - 2, yy + 3); ctx.stroke();
   }
 
-  function ballistics(cv, hint) {
-    var S, P, theta = 52 * DEG, aim = theta, t = 0, pause = 0, running = false, last = 0, visible = true, raf = 0, trails = [];
+  function ballistics(cv) {
+    var S, P, theta = 52 * DEG, aim = theta, hover = false, t = 0, pause = 0, running = false, last = 0, visible = true, raf = 0, trails = [];
     var v, g, R45;
 
     /* масштаб подбирается один раз под размер поля: самый дальний бросок (45°) и самый высокий (80°) помещаются */
     function scale() {
-      var x0 = 22, y0 = S.h - 26;
+      var x0 = 22, y0 = S.h - 40;
       var byWidth = 0.92 * (S.w - x0 - 16);
       var byHeight = 2 * (y0 - 22) / Math.pow(Math.sin(MAX_ANGLE * DEG), 2);
       R45 = Math.min(byWidth, byHeight);
@@ -70,22 +71,23 @@
       var n = Math.max(1, Math.round(50 * t / T));
       for (var j = 0; j <= n; j++) { var r = pos(t * j / n, theta); if (j) ctx.lineTo(r.x, r.y); else ctx.moveTo(r.x, r.y); }
       ctx.stroke();
+      if (hover && Math.abs(aim - theta) > 0.5 * DEG) {
+        ctx.setLineDash([3, 5]); ctx.strokeStyle = C.violet; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(P.x0, P.y0);
+        ctx.lineTo(P.x0 + 70 * Math.cos(aim), P.y0 - 70 * Math.sin(aim)); ctx.stroke(); ctx.setLineDash([]);
+      }
       ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(P.x0, P.y0, 22, -theta, 0); ctx.stroke();
       ctx.font = MONO; ctx.fillStyle = C.ink; ctx.fillText(Math.round(theta / DEG) + '°', P.x0 + 26, P.y0 - 6);
       var b = pos(t, theta), vx = v * Math.cos(theta), vy = -v * Math.sin(theta) + g * t, sc = 38 / v;
       arrow(ctx, b.x, b.y, b.x + vx * sc, b.y + vy * sc, C.ink, 2); vec(ctx, 'v', b.x + vx * sc + 5, b.y + vy * sc - 2, C.ink);
       arrow(ctx, b.x, b.y, b.x, b.y + 28, C.magenta, 2); vec(ctx, 'g', b.x + 6, b.y + 34, C.magenta);
       ctx.fillStyle = C.violet; ctx.beginPath(); ctx.arc(b.x, b.y, 6.5, 0, Math.PI * 2); ctx.fill();
-    }
-    function describe(th) {
-      var share = Math.round(Math.sin(2 * th) * 100);
-      return 'Угол ' + Math.round(th / DEG) + '° — дальность ' + share + '% от максимальной. Тапни, чтобы бросить под другим углом';
+      ctx.font = "11px 'JetBrains Mono', Menlo, monospace"; ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+      ctx.fillText('дальность ' + Math.round(Math.sin(2 * theta) * 100) + '% от макс.', S.w - 10, 16); ctx.textAlign = 'left';
     }
     function relaunch() {
       var T = flight(theta), pts = []; for (var i = 0; i <= 40; i++) pts.push(pos(T * i / 40, theta));
       trails.unshift({ pts: pts, a: 0.35 }); trails = trails.slice(0, 3);
       theta = aim; t = 0;
-      if (hint) hint.textContent = describe(theta);
     }
     function frame(now) {
       raf = 0; if (!running || !visible || document.hidden) return;
@@ -102,12 +104,12 @@
       var a = Math.atan2(P.y0 - (e.clientY - r.top), (e.clientX - r.left) - P.x0) / DEG;
       aim = Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, a)) * DEG;
     }
-    cv.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { aimAt(e); if (hint) hint.textContent = 'Следующий бросок: ' + Math.round(aim / DEG) + '°, клик — бросить сейчас'; } });
-    cv.addEventListener('pointerdown', function (e) { aimAt(e); if (!reduceMotion) { pause = 0; relaunch(); } else { theta = aim; t = flight(theta) * 0.5; draw(); if (hint) hint.textContent = describe(theta); } });
+    cv.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { aimAt(e); hover = true; if (reduceMotion) draw(); } });
+    cv.addEventListener('pointerleave', function () { hover = false; if (reduceMotion) draw(); });
+    cv.addEventListener('pointerdown', function (e) { aimAt(e); if (!reduceMotion) { pause = 0; relaunch(); } else { theta = aim; t = flight(theta) * 0.5; draw(); } });
 
     resize();
     window.addEventListener('resize', resize);
-    if (hint) hint.textContent = describe(theta);
     if (reduceMotion) { t = flight(theta) * 0.5; draw(); return; }
     running = true;
     if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; start(); }).observe(cv);
@@ -115,6 +117,6 @@
     start();
   }
 
-  function boot() { var tc = document.getElementById('throw'); if (tc) ballistics(tc, document.getElementById('throw-hint')); }
+  function boot() { var tc = document.getElementById('throw'); if (tc) ballistics(tc); }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot); else boot();
 })();

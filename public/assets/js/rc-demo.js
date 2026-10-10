@@ -4,7 +4,6 @@
   'use strict';
   var cv = document.getElementById('rc');
   if (!cv) return;
-  var $ = function (id) { return document.getElementById(id); };
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var f = function (x, n) { var s = x.toFixed(n == null ? 1 : n); if (/^-0(\.0*)?$/.test(s)) s = s.slice(1); return s.replace('.', ',').replace('-', '−'); };
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -97,23 +96,18 @@
   function hbar(ctx, x, y, w, h, parts) { var cx = x; ctx.fillStyle = P.line; ctx.fillRect(x, y, w, h); parts.forEach(function (p) { var ww = w * clamp(p[0], 0, 1); ctx.fillStyle = p[1]; ctx.fillRect(cx, y, ww, h); cx += ww; }); }
 
   /* часы: пауза перед замыканием → рост → удержание → заново */
-  var K = { tn: 1, phase: 'run', timer: 0, run: !reduce, speed: 5 / 8, end: 5.3, pre: 0.9, hold: 1.4 };
+  var K = { tn: 1, phase: 'run', timer: 0, run: !reduce, speed: 5 / 8, end: 5.3, pre: 1.2, hold: 2.2 };
   function tick(dt) {
     if (!K.run) return;
     if (K.phase === 'pre') { K.timer += dt; if (K.timer >= K.pre) { K.phase = 'run'; K.tn = 0; K.timer = 0; } }
     else if (K.phase === 'run') { K.tn += dt * K.speed; if (K.tn >= K.end) { K.tn = K.end; K.phase = 'hold'; K.timer = 0; } }
     else { K.timer += dt; if (K.timer >= K.hold) { K.phase = 'pre'; K.tn = 0; K.timer = 0; } }
   }
-  var D = { E: 9, R: 4, C: 500, ph: 0 };
-  function slider(id, outId, set) { var s = $(id), o = $(outId); function u() { var v = +s.value; set(v); o.textContent = f(v, Number.isInteger(v) ? 0 : 1); } s.addEventListener('input', u); u(); }
-  slider('rcE', 'rcEo', function (v) { D.E = v; });
-  slider('rcR', 'rcRo', function (v) { D.R = v; });
-  slider('rcC', 'rcCo', function (v) { D.C = v; });
-  var pp = $('rcPP');
-  function ppText() { pp.textContent = K.run ? 'Пауза' : 'Продолжить'; }
-  pp.addEventListener('click', function () { K.run = !K.run; ppText(); start(); }); ppText();
-  $('rcRe').addEventListener('click', function () { K.phase = 'pre'; K.tn = 0; K.timer = 0; K.run = true; ppText(); start(); });
-  function setText(id, s) { var e = $(id); if (e && e.textContent !== s) e.textContent = s; }
+  /* параметры фиксированы: просто смотрим, как идёт зарядка */
+  var D = { E: 9, ph: 0 };
+  var stEls = {}; Array.prototype.forEach.call(document.querySelectorAll('#rcSt [data-st]'), function (e) { stEls[e.getAttribute('data-st')] = e; });
+  var stCur = '';
+  function setStatus(k) { if (k === stCur) return; if (stEls[stCur]) stEls[stCur].classList.remove('on'); if (stEls[k]) stEls[k].classList.add('on'); stCur = k; }
 
   function graphs(ctx, tn, closed) {
     var xt = [[0, '0'], [1, 'τ'], [2, '2τ'], [3, '3τ'], [4, '4τ'], [5, '5τ']];
@@ -154,16 +148,7 @@
     if (narrow) { ctx.save(); ctx.translate(-460, 410); graphs(ctx, tn, closed); ctx.restore(); }
     else graphs(ctx, tn, closed);
 
-    var tau = D.R * D.C / 1000;
-    setText('rcT', f(tn * tau, 2) + ' с');
-    setText('rcQ', f(D.C * D.E * qf / 1000, 2));
-    setText('rcI', f(D.E / D.R * If, 2));
-    setText('rcTau', f(tau, 2));
-    var st = !closed ? 'Ключ разомкнут: тока нет, конденсатор пуст'
-      : tn < 0.2 ? 'Только замкнули: пустой конденсатор ведёт себя как провод, ток максимален I = ε/R'
-      : tn > 4 ? 'Почти установилось: q ≈ Cε, ток почти ноль — конденсатор стал разрывом'
-      : 'Напряжение на C растёт, на резистор остаётся меньше — ток падает';
-    setText('rcSt', st);
+    setStatus(!closed ? 'open' : tn < 0.35 ? 'start' : tn > 4 ? 'end' : 'mid');
   }
 
   var raf = 0, last = 0, visible = true;
@@ -175,7 +160,6 @@
     if (K.run) raf = requestAnimationFrame(loop);
   }
   function start() { if (!raf && visible && K.run) { last = performance.now(); raf = requestAnimationFrame(loop); } else draw(); }
-  ['rcE', 'rcR', 'rcC'].forEach(function (id) { $(id).addEventListener('input', draw); });
   window.addEventListener('resize', draw);
   if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; start(); }).observe(cv);
   document.addEventListener('visibilitychange', start);
