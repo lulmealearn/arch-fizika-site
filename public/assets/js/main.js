@@ -85,3 +85,28 @@
     }).catch(function () { /* оставляем число из разметки */ });
   }
 })();
+
+/* Плавающая кнопка записи (только телефон, см. .float-cta в main.css):
+   появляется после первого экрана и прячется, пока на экране блок, где кнопка записи уже есть ([data-float-hide]). */
+(function () {
+  'use strict';
+  var cta = document.querySelector('.float-cta');
+  if (!cta || !('IntersectionObserver' in window)) return;
+  var visible = new Set(), ticking = false;
+  function update() {
+    ticking = false;
+    var drawerOpen = document.body.classList.contains('no-scroll');
+    var show = window.scrollY > window.innerHeight * 0.7 && visible.size === 0 && !drawerOpen;
+    cta.classList.toggle('is-on', show);
+    cta.setAttribute('aria-hidden', show ? 'false' : 'true');
+    cta.tabIndex = show ? 0 : -1;
+  }
+  function queue() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) visible.add(e.target); else visible.delete(e.target); });
+    queue();
+  }, { threshold: 0.05 });
+  document.querySelectorAll('[data-float-hide]').forEach(function (el) { io.observe(el); });
+  window.addEventListener('scroll', queue, { passive: true });
+  new MutationObserver(queue).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
