@@ -38,7 +38,7 @@
 
     /* масштаб подбирается один раз под размер поля: самый дальний бросок (45°) и самый высокий (80°) помещаются */
     function scale() {
-      var x0 = 22, y0 = S.h - 40;
+      var x0 = 22, y0 = S.h - 26;
       var byWidth = 0.92 * (S.w - x0 - 16);
       var byHeight = 2 * (y0 - 22) / Math.pow(Math.sin(MAX_ANGLE * DEG), 2);
       R45 = Math.min(byWidth, byHeight);
@@ -55,10 +55,6 @@
       var ctx = S.ctx, T = flight(theta);
       ctx.clearRect(0, 0, S.w, S.h);
       ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(8, P.y0 + 0.5); ctx.lineTo(S.w - 8, P.y0 + 0.5); ctx.stroke();
-      /* метка максимальной дальности (45°) */
-      var xm = P.x0 + R45;
-      ctx.setLineDash([2, 4]); ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xm, P.y0 - 14); ctx.lineTo(xm, P.y0 + 6); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = "10px 'JetBrains Mono', Menlo, monospace"; ctx.fillStyle = C.muted; ctx.textAlign = 'right'; ctx.fillText('макс. при 45°', xm - 4, P.y0 - 18); ctx.textAlign = 'left';
       trails.forEach(function (tr) {
         ctx.globalAlpha = tr.a; ctx.strokeStyle = C.violet; ctx.lineWidth = 1.5;
         ctx.beginPath(); tr.pts.forEach(function (p, i) { if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); }); ctx.stroke();
@@ -79,10 +75,10 @@
       ctx.font = MONO; ctx.fillStyle = C.ink; ctx.fillText(Math.round(theta / DEG) + '°', P.x0 + 26, P.y0 - 6);
       var b = pos(t, theta), vx = v * Math.cos(theta), vy = -v * Math.sin(theta) + g * t, sc = 38 / v;
       arrow(ctx, b.x, b.y, b.x + vx * sc, b.y + vy * sc, C.ink, 2); vec(ctx, 'v', b.x + vx * sc + 5, b.y + vy * sc - 2, C.ink);
-      arrow(ctx, b.x, b.y, b.x, b.y + 28, C.magenta, 2); vec(ctx, 'g', b.x + 6, b.y + 34, C.magenta);
       ctx.fillStyle = C.violet; ctx.beginPath(); ctx.arc(b.x, b.y, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.font = "11px 'JetBrains Mono', Menlo, monospace"; ctx.fillStyle = C.muted; ctx.textAlign = 'right';
-      ctx.fillText('дальность ' + Math.round(Math.sin(2 * theta) * 100) + '% от макс.', S.w - 10, 16); ctx.textAlign = 'left';
+      /* ускорение свободного падения — отдельно, в правом верхнем углу поля */
+      var gx = S.w - 22;
+      arrow(ctx, gx, 12, gx, 44, C.magenta, 2); vec(ctx, 'g', gx - 18, 36, C.magenta);
     }
     function relaunch() {
       var T = flight(theta), pts = []; for (var i = 0; i <= 40; i++) pts.push(pos(T * i / 40, theta));
