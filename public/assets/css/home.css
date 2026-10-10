@@ -378,34 +378,6 @@ html.is-pop-open { overflow: hidden; }
 .price__sticker { display: inline-block; background: #fbeab8; color: var(--ink); padding: 8px 12px; border-radius: 10px; transform: rotate(5deg);
   font-family: var(--display); font-weight: 700; font-size: 15px; line-height: 1.15; box-shadow: 0 10px 22px -14px rgba(0, 0, 0, .55); }
 
-/* Сравнение «самостоятельно / со мной», как на слайде пробного урока */
-.vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 14px; }
-.vs__card { position: relative; overflow: hidden; border-radius: var(--r-card); padding: 26px 24px 22px; display: flex; flex-direction: column; gap: 12px; }
-.vs__card--solo { background: var(--paper); border: 1.5px dashed var(--line-2, #d6d2c6); color: var(--ink-2); }
-.vs__card--me { background: var(--violet-tint); border: 1.5px solid var(--violet); color: var(--ink); }
-.vs__badge { position: absolute; top: 18px; right: 18px; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -12px rgba(24, 24, 32, .6); }
-.vs__badge--no { background: var(--magenta); transform: rotate(-8deg); }
-.vs__badge--yes { background: var(--violet); transform: rotate(8deg); }
-.vs__title { margin: 0; padding-right: 60px; font-family: var(--display); font-weight: 700; font-size: clamp(24px, 2.6vw, 32px); line-height: 1.1; }
-.vs__card--solo .vs__title { color: var(--muted); }
-.vs__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 17px; line-height: 1.4; position: relative; z-index: 1; }
-.vs__list li { display: flex; gap: 10px; align-items: baseline; }
-.vs__list li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; transform: translateY(-2px); }
-.vs__card--solo .vs__list li::before { background: var(--magenta); }
-.vs__card--solo .vs__list li.is-plus::before { background: var(--faint); }
-.vs__card--me .vs__list li::before { background: var(--violet); }
-.vs__chart { display: block; width: 100%; height: auto; margin-top: auto; padding-top: 8px; overflow: visible; }
-/* одна анимация на весь блок: график роста «прорисовывается» слева направо, когда карточка появляется */
-.vs__wipe { fill: var(--violet-tint); transform-box: fill-box; transform: translateX(101%); }
-.vs__card.reveal-pending .vs__wipe { transform: none; }
-.vs__card.reveal-in .vs__wipe { transition: transform 1.5s cubic-bezier(.45, .05, .25, 1) .25s; }
-.vs__mid { align-self: center; width: 52px; height: 52px; border-radius: 50%; background: var(--ink); color: var(--on-dark); display: flex; align-items: center; justify-content: center;
-  font-family: var(--display); font-weight: 700; font-size: 18px; transform: rotate(-6deg); }
-@media (max-width: 720px) {
-  .vs { grid-template-columns: minmax(0, 1fr); }
-  .vs__mid { margin: -24px 0; position: relative; z-index: 2; justify-self: center; }
-}
-
 /* Индивидуальные занятия: обычная карточка под группой, без акцента */
 .solo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px 40px; align-items: center; }
 .solo__title { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.2vw, 28px); }
@@ -495,4 +467,46 @@ html.is-pop-open { overflow: hidden; }
   .free__ticket .ticket__price b { font-size: 66px; }
   .free .banner { font-size: clamp(30px, 2.9vw, 42px); white-space: nowrap; }
   .free__ticket .ticket__cta { white-space: nowrap; font-size: 15px; }
+}
+
+/* ── Цены: «дуэль» — два столбца пунктов и общий график на одних осях ── */
+.duel { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-big); padding: clamp(18px, 3vw, 32px); display: flex; flex-direction: column; gap: clamp(18px, 2.4vw, 26px); }
+.duel__sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.duel__side { border-radius: 20px; padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 12px; }
+.duel__side--solo { border: 1.5px dashed var(--line-2); color: var(--ink-2); }
+.duel__side--me { background: var(--violet-tint); border: 1.5px solid var(--violet); }
+.duel__title { margin: 0; display: flex; align-items: center; gap: 12px; font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.4vw, 30px); line-height: 1.1; }
+.duel__side--solo .duel__title { color: var(--muted); }
+.duel__side { position: relative; }
+.duel__badge { position: absolute; top: 16px; right: 16px; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px -12px rgba(24, 24, 32, .6); }
+.duel__badge--no { background: var(--magenta); transform: rotate(-8deg); }
+.duel__badge--yes { background: var(--violet); transform: rotate(8deg); }
+.duel__title { padding-right: 52px; }
+.duel__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: 16px; line-height: 1.4; }
+.duel__list li { display: flex; gap: 10px; align-items: baseline; }
+.duel__list li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; transform: translateY(-2px); background: var(--violet); }
+.duel__side--solo .duel__list li::before { background: var(--magenta); }
+.duel__side--solo .duel__list li.is-plus::before { background: var(--faint); }
+.duel__vs { align-self: center; width: 54px; height: 54px; border-radius: 50%; background: var(--ink); color: var(--on-dark); display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; font-size: 18px; transform: rotate(-6deg); }
+
+.duel__plot { position: relative; border-radius: 20px; padding: 14px 10px 8px; overflow: hidden;
+  background-color: #fff; background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 24px 24px;
+  border: 1px solid var(--line); }
+.duel__chart { display: block; width: 100%; height: auto; overflow: visible; }
+.duel__chart--narrow { display: none; }
+.duel__legend { display: flex; justify-content: center; gap: 22px; padding: 6px 0 4px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.duel__key { display: inline-flex; align-items: center; gap: 8px; }
+.duel__key::before { content: ""; width: 22px; height: 4px; border-radius: 2px; background: #9b98a6; }
+.duel__key--me::before { background: var(--violet); }
+/* одна анимация на весь блок: путь «со мной» прорисовывается слева направо при появлении карточки */
+.duel__wipe { fill: #fff; transform-box: fill-box; transform: translateX(101%); }
+.duel.reveal-pending .duel__wipe { transform: none; }
+.duel.reveal-in .duel__wipe { transition: transform 1.8s cubic-bezier(.45, .05, .25, 1) .3s; }
+
+@media (max-width: 720px) {
+  .duel__sides { grid-template-columns: minmax(0, 1fr); }
+  .duel__vs { margin: -26px 0; position: relative; z-index: 2; justify-self: center; }
+  .duel__chart--wide { display: none; }
+  .duel__chart--narrow { display: block; }
+  .duel__plot { padding: 10px 4px 6px; margin-inline: -6px; }
 }
