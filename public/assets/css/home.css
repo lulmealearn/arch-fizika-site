@@ -369,15 +369,16 @@ html.is-pop-open { overflow: hidden; }
 .vs__card--solo .vs__list li::before { background: var(--magenta); }
 .vs__card--solo .vs__list li.is-plus::before { background: var(--faint); }
 .vs__card--me .vs__list li::before { background: var(--violet); }
-.vs__doodle { align-self: flex-end; width: 120px; height: 70px; margin-top: auto; }
-.vs__card--solo .vs__doodle { color: var(--faint); }
-.vs__card--me .vs__doodle { color: var(--violet); }
+.vs__chart { display: block; width: 100%; height: auto; margin-top: auto; padding-top: 8px; overflow: visible; }
+/* одна анимация на весь блок: график роста «прорисовывается» слева направо, когда карточка появляется */
+.vs__wipe { fill: var(--violet-tint); transform-box: fill-box; transform: translateX(101%); }
+.vs__card.reveal-pending .vs__wipe { transform: none; }
+.vs__card.reveal-in .vs__wipe { transition: transform 1.5s cubic-bezier(.45, .05, .25, 1) .25s; }
 .vs__mid { align-self: center; width: 52px; height: 52px; border-radius: 50%; background: var(--ink); color: var(--on-dark); display: flex; align-items: center; justify-content: center;
   font-family: var(--display); font-weight: 700; font-size: 18px; transform: rotate(-6deg); }
 @media (max-width: 720px) {
   .vs { grid-template-columns: minmax(0, 1fr); }
   .vs__mid { margin: -24px 0; position: relative; z-index: 2; justify-self: center; }
-  .vs__doodle { width: 96px; height: 56px; }
 }
 
 /* Индивидуальные занятия: обычная карточка под группой, без акцента */
@@ -389,3 +390,6 @@ html.is-pop-open { overflow: hidden; }
 .solo__list li { display: flex; align-items: center; gap: 10px; font-size: 17px; }
 .solo__list .check { width: 26px; height: 26px; border-radius: 7px; }
 .cross { flex: none; width: 26px; height: 26px; border-radius: 7px; background: #fae1eb; color: var(--magenta); display: flex; align-items: center; justify-content: center; }
+.price__main, .price__list { z-index: 1; }
+.price__art { position: absolute; left: 0; bottom: 0; width: min(600px, 52%); height: auto; opacity: .2; pointer-events: none; }
+@media (max-width: 720px) { .price__art { left: auto; right: -12%; bottom: auto; top: 30px; width: 92%; opacity: .14; } }
