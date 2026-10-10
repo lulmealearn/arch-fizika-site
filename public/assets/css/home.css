@@ -533,4 +533,3 @@ html.is-pop-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .ticket--gold::before { display: none; } }
 .ticket { overflow: hidden; }
 .free--dark .free__list .gift { color: #f1cf72; }
-.ticket--gold .ticket__paper { filter: sepia(1) saturate(1.6) hue-rotate(-12deg) brightness(.78) contrast(1.15); }
