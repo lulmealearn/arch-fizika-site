@@ -135,3 +135,19 @@
   bar.addEventListener('focusin', function () { setHidden(false); });
   upd();
 })();
+
+/* Графики с [data-draw] прорисовываются один раз, когда попадают на экран (даже на первом экране). */
+(function () {
+  'use strict';
+  var els = document.querySelectorAll('[data-draw]');
+  if (!els.length || !('IntersectionObserver' in window)) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      io.unobserve(e.target);
+      requestAnimationFrame(function () { requestAnimationFrame(function () { e.target.classList.add('is-drawn'); }); });
+    });
+  }, { threshold: 0.35 });
+  els.forEach(function (el) { el.classList.add('is-armed'); io.observe(el); });
+})();

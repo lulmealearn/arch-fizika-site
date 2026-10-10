@@ -498,10 +498,11 @@ html.is-pop-open { overflow: hidden; }
 .duel__key { display: inline-flex; align-items: center; gap: 8px; }
 .duel__key::before { content: ""; width: 22px; height: 4px; border-radius: 2px; background: #9b98a6; }
 .duel__key--me::before { background: var(--violet); }
-/* одна анимация на весь блок: путь «со мной» прорисовывается слева направо при появлении карточки */
-.duel__wipe { fill: #fff; transform-box: fill-box; transform: translateX(101%); }
-.duel.reveal-pending .duel__wipe { transform: none; }
-.duel.reveal-in .duel__wipe { transition: transform 1.8s cubic-bezier(.45, .05, .25, 1) .3s; }
+/* одна анимация на весь блок: обе траектории «проигрываются» слева направо, когда график на экране (main.js, [data-draw]).
+   Если браузер не умеет анимировать clipPath, график просто виден целиком. */
+.duel__clip { transform-box: fill-box; transform-origin: 0 50%; }
+.duel__plot.is-armed .duel__clip { transform: scaleX(0); }
+.duel__plot.is-armed.is-drawn .duel__clip { transform: scaleX(1); transition: transform 2.2s cubic-bezier(.45, .05, .25, 1) .2s; }
 
 @media (max-width: 720px) {
   .duel__sides { grid-template-columns: minmax(0, 1fr); }
