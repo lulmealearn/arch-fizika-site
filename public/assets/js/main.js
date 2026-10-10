@@ -117,15 +117,18 @@
   'use strict';
   var bar = document.querySelector('.topbar');
   if (!bar) return;
-  var root = document.documentElement, lastY = window.scrollY, ticking = false;
+  var root = document.documentElement, lastY = window.scrollY, ticking = false, upRun = 0;
+  function sbw() { root.style.setProperty('--sbw', Math.max(0, window.innerWidth - root.clientWidth) + 'px'); }
+  sbw(); window.addEventListener('resize', sbw);
+  var HIDE_AFTER = 150; /* столько пикселей прокрутки вверх подряд, прежде чем шапка уедет */
   function setHidden(h) { bar.classList.toggle('is-hidden', h); root.classList.toggle('topbar-hidden', h); }
   function upd() {
     ticking = false;
     var y = window.scrollY, dy = y - lastY;
     bar.classList.toggle('is-stuck', y > 6);
-    if (y < 80 || document.body.classList.contains('no-scroll') || bar.contains(document.activeElement)) setHidden(false);
-    else if (dy > 4) setHidden(false);
-    else if (dy < -4) setHidden(true);
+    if (y < 80 || document.body.classList.contains('no-scroll') || bar.contains(document.activeElement)) { upRun = 0; setHidden(false); }
+    else if (dy > 4) { upRun = 0; setHidden(false); }
+    else if (dy < -4) { upRun += -dy; if (upRun > HIDE_AFTER) setHidden(true); }
     if (Math.abs(dy) > 4) lastY = y;
   }
   window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(upd); } }, { passive: true });

@@ -108,15 +108,15 @@ h1, h2, h3 { text-wrap: balance; }
   margin-inline: calc(-1 * var(--gutter)); padding: 14px var(--gutter);
 }
 .topbar::before {
-  /* подложка на всю ширину окна: фон + тень-«растяжка» по бокам, обрезанная clip-path — ширину страницы не увеличивает */
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: rgba(247, 246, 242, .94); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  box-shadow: 0 0 0 100vmax rgba(247, 246, 242, .94), 0 1px 0 100vmax var(--line);
-  clip-path: inset(0 -100vmax -1px);
+  /* подложка на всю ширину окна; --sbw (ширина полосы прокрутки) ставит main.js, чтобы не было горизонтального скролла */
+  content: ""; position: absolute; top: 0; bottom: 0; z-index: -1; pointer-events: none;
+  left: calc(50% - 50vw + var(--sbw, 0px) / 2); right: calc(50% - 50vw + var(--sbw, 0px) / 2);
+  background: rgba(247, 246, 242, .6); -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid rgba(24, 24, 32, .08);
   opacity: 0; transition: opacity .2s;
 }
 .topbar.is-stuck::before { opacity: 1; }
-.topbar { transition: transform .3s var(--ease-out); }
+.topbar { transition: transform .5s var(--ease-out); }
 .topbar.is-hidden { transform: translateY(-100%); }
 @media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }
 /* якоря (#contacts и т. п.) не прячутся под шапкой */

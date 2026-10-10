@@ -122,6 +122,6 @@
 @media (hover: hover) { .row:hover .sheet__icon { transform: scale(1.06); } }
 
 /* когда шапка уехала вверх, фильтры поднимаются на её место */
-.filters { transition: transform .3s var(--ease-out), border-color .2s; }
+.filters { transition: transform .5s var(--ease-out), border-color .2s; }
 html.topbar-hidden .filters { transform: translateY(calc(-1 * var(--topbar-h))); }
 @media (prefers-reduced-motion: reduce) { .filters { transition: none; } }
