@@ -109,14 +109,14 @@
 @media (max-width: 520px) { .mini canvas { height: 270px; } }
 
 /* ── Обо мне ── */
-.about { display: flex; flex-wrap: wrap; gap: 16px; }
-.about__facts { flex: 3 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.about { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.about__facts { flex: 3 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .fact { display: flex; align-items: center; gap: 20px; padding: 18px 22px; }
 .fact__logo { flex: none; width: 86px; height: 86px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; }
 .fact__logo img { max-width: 64px; max-height: 58px; width: auto; height: auto; }
 .fact p { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(19px, 2vw, 24px); line-height: 1.3; }
 @media (max-width: 520px) { .fact { gap: 14px; padding: 14px 16px; } .fact__logo { width: 60px; height: 60px; } .fact__logo img { max-width: 44px; max-height: 40px; } }
-.science { flex: 2 1 300px; position: relative; overflow: hidden; background: var(--ink); color: var(--on-dark); border-color: var(--ink); display: flex; flex-direction: column; gap: 12px; }
+.science { flex: 2 1 300px; align-self: stretch; position: relative; overflow: hidden; background: var(--ink); color: var(--on-dark); border-color: var(--ink); display: flex; flex-direction: column; gap: 12px; }
 .science .eyebrow { color: var(--on-dark-accent); }
 .science p { margin: 0; color: var(--on-dark-2); font-size: 16px; }
 .science svg { position: absolute; right: -40px; bottom: -40px; opacity: .35; pointer-events: none; }
@@ -231,3 +231,75 @@
 
 /* Таблица рядом с широкой визуализацией: по центру карточки, а не прилипает к заголовку */
 .bento > .wide + .feature > .sheet-fig { margin-block: auto; }
+
+/* ── «Обо мне»: фото с награждения ── */
+.about__photo { flex: 0 1 260px; margin: 0; align-self: center; padding: 10px 10px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; transform: rotate(-2.5deg); box-shadow: 0 22px 40px -26px rgba(24, 24, 32, .55); }
+.about__photo img { display: block; width: 100%; height: auto; border-radius: 3px; }
+@media (max-width: 640px) { .about__photo { flex: none; width: min(240px, 66vw); margin: 4px auto 6px; } }
+
+/* ── Кликабельные факты: открывают окно поверх страницы ── */
+.fact--open { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform .28s var(--ease-out), box-shadow .28s, border-color .2s; }
+.fact__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+.fact__text { font-family: var(--display); font-weight: 700; font-size: clamp(19px, 2vw, 24px); line-height: 1.3; }
+.fact__more { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--violet); color: var(--violet-ink);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; transition: background .2s, color .2s; }
+.fact__more svg { transition: transform .2s var(--ease-out); }
+.fact--open:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 3px; }
+.fact--open:active { transform: scale(.985); }
+@media (hover: hover) {
+  .fact--open:hover { transform: translateY(-3px); border-color: var(--violet); box-shadow: 0 16px 32px -20px rgba(109, 40, 217, .45); }
+  .fact--open:hover .fact__more { background: var(--violet); color: #fff; }
+  .fact--open:hover .fact__more svg { transform: translate(2px, -2px); }
+}
+
+/* ── Окна поверх страницы ── */
+html.is-pop-open { overflow: hidden; }
+.pop { padding: 0; border: 0; background: transparent; color: var(--ink); max-width: none; max-height: none; width: 100%; height: 100%; margin: 0; overflow: hidden;
+  display: none; align-items: center; justify-content: center; }
+.pop[open] { display: flex; }
+.pop::backdrop { background: rgba(24, 24, 32, .62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.pop__box { position: relative; width: min(1120px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain;
+  background: var(--paper); border-radius: var(--r-big); padding: clamp(16px, 2.6vw, 28px); box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .6); }
+.pop--photo .pop__box { width: min(1000px, calc(100% - 32px)); }
+.pop[open] .pop__box { animation: pop-in .3s var(--ease-out) both; }
+.pop.is-closing .pop__box { animation: pop-out .18s ease-in both; }
+.pop[open]::backdrop { animation: pop-fade .3s ease-out both; }
+.pop.is-closing::backdrop { animation: pop-fade .18s ease-in reverse both; }
+@keyframes pop-in { from { opacity: 0; transform: scale(.9) translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop-out { to { opacity: 0; transform: scale(.95); } }
+@keyframes pop-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pop[open] .pop__box, .pop[open]::backdrop { animation: none; } }
+
+.pop__head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.pop__title { margin: 0; flex: 1; min-width: 0; font-family: var(--display); font-weight: 700; font-size: clamp(22px, 2.6vw, 30px); line-height: 1.15; }
+.pop__close { flex: none; width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s, color .2s; }
+.pop__close:hover { background: var(--ink); color: var(--on-dark); }
+.pop__back { flex: none; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--ink); }
+.pop__back:hover { border-color: var(--ink); }
+
+.pop__gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.pop__item { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.pop__shot { display: block; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; cursor: zoom-in; box-shadow: 0 16px 30px -22px rgba(24, 24, 32, .5); transition: transform .25s var(--ease-out); }
+.pop__shot img { display: block; width: 100%; height: min(56vh, 460px); object-fit: contain; background: #fff; }
+@media (hover: hover) { .pop__shot:hover { transform: translateY(-3px); } }
+.pop__item figcaption { display: flex; flex-direction: column; gap: 3px; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+.pop__item figcaption b { font-family: var(--display); font-size: 17px; color: var(--ink); }
+/* один диплом крупно */
+.pop__gallery.is-single { grid-template-columns: minmax(0, 1fr); }
+.pop__gallery.is-single .pop__item:not(.is-on) { display: none; }
+.pop__gallery.is-single .pop__shot { cursor: zoom-out; justify-self: center; }
+.pop__gallery.is-single .pop__shot img { height: auto; max-height: calc(100dvh - 210px); width: auto; max-width: 100%; margin: 0 auto; }
+.pop__gallery.is-single .pop__item { align-items: center; text-align: center; }
+.pop__gallery.is-single figcaption { align-items: center; }
+@media (max-width: 720px) {
+  .pop__box { width: calc(100% - 20px); max-height: calc(100dvh - 20px); border-radius: 22px; }
+  .pop__gallery:not(.is-single) { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -16px; padding: 0 16px 6px; scrollbar-width: none; }
+  .pop__gallery:not(.is-single)::-webkit-scrollbar { display: none; }
+  .pop__gallery:not(.is-single) .pop__item { flex: none; width: 76%; scroll-snap-align: center; }
+  .pop__shot img { height: auto; max-height: 60dvh; }
+  .pop__head { flex-wrap: wrap; }
+  .pop__back { order: 3; }
+}
+.pop__img { display: block; width: 100%; height: auto; border-radius: 14px; }
