@@ -44,56 +44,71 @@ def chip(x, y, text, fs):
             f'<text x="{x:.1f}" y="{yy + h / 2 + fs * 0.33:.1f}" text-anchor="middle" font-family="Jura, sans-serif" font-weight="700" font-size="{fs:.1f}" fill="{V}">{text}</text>')
 
 
-def chart(W, H, base, x0, x1, fs, me, chips, solo, fan, cls, uid):
+def label(x, y, text, fs, color, anchor='start', weight=700, family='Jura, sans-serif'):
+    return (f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="{anchor}" font-family="{family}" font-weight="{weight}" '
+            f'font-size="{fs:.1f}" fill="{color}" stroke="#fff" stroke-width="{fs * 0.32:.1f}" stroke-linejoin="round" paint-order="stroke">{text}</text>')
+
+
+def chart(W, H, base, x0, xe, top, fs, me, solo, fan, notes, months, cls, uid):
+    """Понятный график: оси подписаны (баллы ↑, месяцы →), вертикаль «ЕГЭ», подписи линий справа у их концов,
+    пометки «загорелся / забросил» на серой линии."""
     ex, ey = me[-1]
     path = smooth(me)
     sx, sy = solo[-1]
-    grid = ''.join(f'<path d="M{x0} {base - (base - 30) * k / 3:.0f}H{x1}"/>' for k in (1, 2, 3))
-    out = [f'<svg class="duel__chart {cls}" viewBox="0 0 {W} {H}" fill="none" role="img" aria-label="График: самостоятельно результат скачет вверх и вниз и итог непредсказуем; на занятиях баллы растут с небольшими колебаниями до 90+">',
-           f'<defs><linearGradient id="dg{uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{V}" stop-opacity=".28"/><stop offset="1" stop-color="{V}" stop-opacity="0"/></linearGradient><clipPath id="dc{uid}"><rect class="duel__clip" x="0" y="-30" width="{W}" height="{base + 28}"/></clipPath></defs>',
-           '__SOLO__',
-           '<g class="duel__me">',
-           f'<path d="{path}L{ex:.1f} {base}L{me[0][0]:.1f} {base}Z" fill="url(#dg{uid})"/>',
-           f'<path d="{path}" stroke="{V}" stroke-width="{fs * 0.3:.1f}" stroke-linecap="round" stroke-linejoin="round"/>']
-    for i, label in chips:
-        x, y = me[i]
-        out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{fs * 0.36:.1f}" fill="{V}" stroke="#fff" stroke-width="2.5"/>')
-        out.append(chip(x, y, label, fs * 0.9))
-    pill_w = fs * 6.2
-    out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="{fs * 1.05:.1f}" fill="{V}" fill-opacity=".18"/><circle cx="{ex:.1f}" cy="{ey:.1f}" r="{fs * 0.55:.1f}" fill="{V}"/>')
-    out.append(f'<g transform="rotate(-4 {ex:.1f} {ey:.1f})"><rect x="{ex - pill_w + fs * 0.6:.1f}" y="{ey - fs * 3.3:.1f}" width="{pill_w:.1f}" height="{fs * 2.1:.1f}" rx="{fs * 1.05:.1f}" fill="{INK}"/>'
-               f'<text x="{ex - pill_w / 2 + fs * 0.6:.1f}" y="{ey - fs * 3.3 + fs * 1.42:.1f}" text-anchor="middle" font-family="Jura, sans-serif" font-weight="700" font-size="{fs * 1.1:.1f}" fill="#fff">ЕГЭ 90+</text></g>')
-    out.append('</g>')
-    out.append('</g>')  # конец обрезки-проявления
-    solo_parts = [f'<g stroke="{V}" stroke-opacity=".14" stroke-width="1.2" stroke-dasharray="3 6">{grid}</g>',
-                  f'<path d="{smooth(solo)}" stroke="{G}" stroke-width="{fs * 0.24:.1f}" stroke-linecap="round" stroke-linejoin="round"/>']
+    M = '#6c6a78'
+    lx = xe + fs * 1.1  # колонка подписей справа
+    out = [f'<svg class="duel__chart {cls}" viewBox="0 0 {W} {H}" fill="none" role="img" aria-label="График за учебный год: самостоятельно баллы то растут, то падают, и итог непредсказуем; на занятиях баллы стабильно растут до 90+ к ЕГЭ">',
+           f'<defs><linearGradient id="dg{uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{V}" stop-opacity=".25"/><stop offset="1" stop-color="{V}" stop-opacity="0"/></linearGradient>'
+           f'<clipPath id="dc{uid}"><rect class="duel__clip" x="0" y="-40" width="{W}" height="{base + 38}"/></clipPath></defs>']
+    out.append(f'<g stroke="{INK}" stroke-opacity=".12" stroke-width="1" stroke-dasharray="3 6">' +
+               ''.join(f'<path d="M{x0} {base - (base - top) * k / 4:.0f}H{xe}"/>' for k in (1, 2, 3, 4)) + '</g>')
+    out.append(f'<path d="M{x0} {base}V{top - fs * 1.2:.0f}" stroke="{INK}" stroke-opacity=".45" stroke-width="1.6"/>'
+               f'<path d="M{x0 - fs * .35:.1f} {top - fs * .6:.1f}L{x0} {top - fs * 1.3:.1f}L{x0 + fs * .35:.1f} {top - fs * .6:.1f}" stroke="{INK}" stroke-opacity=".45" stroke-width="1.6"/>')
+    out.append(f'<text x="{x0 + fs * .6:.1f}" y="{top - fs * .55:.1f}" font-family="JetBrains Mono, monospace" font-size="{fs * .85:.1f}" fill="{M}">баллы</text>')
+    out.append(f'<path d="M{x0} {base}H{xe}" stroke="{INK}" stroke-opacity=".45" stroke-width="1.6"/>')
+    # вертикаль «ЕГЭ» — финиш, где сравниваются результаты
+    out.append(f'<path d="M{xe} {base}V{top - fs * .4:.0f}" stroke="{INK}" stroke-opacity=".35" stroke-width="1.4" stroke-dasharray="4 4"/>')
+    for x, t, a in months:
+        out.append(f'<text x="{x:.1f}" y="{base + fs * 1.55:.1f}" text-anchor="{a}" font-family="JetBrains Mono, monospace" font-size="{fs * .85:.1f}" fill="{M}">{t}</text>')
+    out.append(f'<text x="{xe:.1f}" y="{base + fs * 1.55:.1f}" text-anchor="middle" font-family="Jura, sans-serif" font-weight="700" font-size="{fs:.1f}" fill="{INK}">ЕГЭ</text>')
+    out.append(f'<g clip-path="url(#dc{uid})">')
+    out.append(f'<path d="{smooth(solo)}" stroke="{G}" stroke-width="{fs * 0.24:.1f}" stroke-linecap="round" stroke-linejoin="round"/>')
     for fy in fan:
-        solo_parts.append(f'<path d="M{sx:.1f} {sy:.1f}Q{(sx + x1) / 2:.1f} {sy:.1f} {x1 - fs * 1.2:.1f} {fy:.1f}" stroke="{G}" stroke-width="{fs * 0.14:.1f}" stroke-dasharray="2 5" stroke-linecap="round"/>'
-                          f'<circle cx="{x1 - fs * 1.2:.1f}" cy="{fy:.1f}" r="{fs * 0.26:.1f}" fill="{G}" fill-opacity=".6"/>')
-    fm = sorted(fan)[len(fan) // 2]
-    solo_parts.append(f'<g transform="rotate(6 {x1 - fs * 1.2:.1f} {fm:.1f})"><rect x="{x1 - fs * 2.6:.1f}" y="{fm - fs * 3.4:.1f}" width="{fs * 2.6:.1f}" height="{fs * 2:.1f}" rx="{fs:.1f}" fill="#e4e1d8"/>'
-                      f'<text x="{x1 - fs * 1.3:.1f}" y="{fm - fs * 3.4 + fs * 1.45:.1f}" text-anchor="middle" font-family="Jura, sans-serif" font-weight="700" font-size="{fs * 1.2:.1f}" fill="#6c6a78">?</text></g>')
-    k = out.index('__SOLO__')
-    out[k:k + 1] = [f'<g clip-path="url(#dc{uid})">'] + solo_parts
-    # проявление обеих линий слева направо — через clipPath (.duel__clip), клетка фона остаётся видна
-    out.append(f'<circle cx="{solo[0][0]:.1f}" cy="{solo[0][1]:.1f}" r="{fs * 0.42:.1f}" fill="#fff" stroke="{V}" stroke-width="3"/>')
-    out.append(f'<path d="M{x0} {base}H{x1 + 10}" stroke="{INK}" stroke-opacity=".35" stroke-width="1.6"/>')
-    out.append(f'<text x="{x0}" y="{base + fs * 1.6:.1f}" font-family="JetBrains Mono, monospace" font-size="{fs * 0.85:.1f}" fill="#6c6a78">старт</text>')
-    out.append(f'<text x="{x1}" y="{base + fs * 1.6:.1f}" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="{fs * 0.85:.1f}" fill="#6c6a78">экзамен</text>')
+        out.append(f'<path d="M{sx:.1f} {sy:.1f}Q{(sx + xe) / 2:.1f} {sy:.1f} {xe:.1f} {fy:.1f}" stroke="{G}" stroke-width="{fs * 0.14:.1f}" stroke-dasharray="2 5" stroke-linecap="round"/>'
+                   f'<circle cx="{xe:.1f}" cy="{fy:.1f}" r="{fs * 0.28:.1f}" fill="{G}"/>')
+    for (nx, ny, txt, up) in notes:
+        ty = ny - fs * 1.0 if up else ny + fs * 1.75
+        out.append(f'<circle cx="{nx:.1f}" cy="{ny:.1f}" r="{fs * .3:.1f}" fill="{G}"/>' + label(nx, ty, txt, fs * .85, M, 'middle', 600, 'JetBrains Mono, monospace'))
+    out.append(f'<path d="{path}L{ex:.1f} {base}L{me[0][0]:.1f} {base}Z" fill="url(#dg{uid})"/>')
+    out.append(f'<path d="{path}" stroke="{V}" stroke-width="{fs * 0.3:.1f}" stroke-linecap="round" stroke-linejoin="round"/>')
+    out.append(f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="{fs * 1.05:.1f}" fill="{V}" fill-opacity=".18"/><circle cx="{ex:.1f}" cy="{ey:.1f}" r="{fs * 0.55:.1f}" fill="{V}"/>')
+    # подписи справа: со мной → ЕГЭ 90+; самостоятельно → итог непредсказуем
+    out.append(f'<text x="{lx:.1f}" y="{ey - fs * .5:.1f}" font-family="Jura, sans-serif" font-weight="700" font-size="{fs * 1.1:.1f}" fill="{V}">со мной</text>')
+    pw = fs * 5.6
+    out.append(f'<rect x="{lx:.1f}" y="{ey + fs * .2:.1f}" width="{pw:.1f}" height="{fs * 1.9:.1f}" rx="{fs * .95:.1f}" fill="{INK}"/>'
+               f'<text x="{lx + pw / 2:.1f}" y="{ey + fs * .2 + fs * 1.32:.1f}" text-anchor="middle" font-family="Jura, sans-serif" font-weight="700" font-size="{fs:.1f}" fill="#fff">ЕГЭ 90+</text>')
+    fm = sorted(fan)[1]
+    out.append(f'<text x="{lx:.1f}" y="{fm - fs * .35:.1f}" font-family="Jura, sans-serif" font-weight="700" font-size="{fs * 1.1:.1f}" fill="{M}">самостоятельно</text>')
+    out.append(f'<text x="{lx:.1f}" y="{fm + fs * 1.0:.1f}" font-family="JetBrains Mono, monospace" font-size="{fs * .85:.1f}" fill="{M}">итог — лотерея</text>')
+    out.append('</g>')
+    out.append(f'<circle cx="{solo[0][0]:.1f}" cy="{solo[0][1]:.1f}" r="{fs * 0.42:.1f}" fill="#fff" stroke="{INK}" stroke-opacity=".6" stroke-width="2.5"/>')
     out.append('</svg>')
     return '\n            '.join(out)
 
 
-# широкий график (компьютер)
-me_w = me_points(48, 816, 236, 52, 24, 9, 3)
-solo_w = [(48, 236), (92, 214), (128, 172), (156, 226), (196, 244), (238, 150), (270, 104), (304, 214), (346, 240),
-          (392, 196), (430, 232), (468, 132), (500, 186), (540, 246), (590, 214), (628, 120), (664, 226), (706, 192), (744, 168)]
-wide = chart(900, 300, 258, 40, 860, 15, me_w, [(8, 'план подготовки'), (13, 'разбор ошибок'), (18, 'пробные варианты')],
-             solo_w, [96, 168, 238], 'duel__chart--wide', 'w')
+# широкий график (компьютер): справа колонка подписей
+me_w = me_points(80, 780, 270, 84, 22, 8, 3)
+solo_w = [(80, 270), (118, 250), (150, 208), (180, 258), (214, 276), (254, 190), (286, 146), (320, 246), (360, 274),
+          (404, 232), (440, 262), (476, 170), (508, 214), (546, 252), (590, 228), (626, 160), (660, 252), (696, 222), (730, 206)]
+wide = chart(1000, 330, 286, 66, 780, 52, 15, me_w, solo_w, [126, 206, 262],
+             [(286, 146, 'загорелся', True), (546, 252, 'забросил', False)],
+             [(80, 'сентябрь', 'start'), (430, 'январь', 'middle'), (690, 'май', 'middle')], 'duel__chart--wide', 'w')
 # узкий график (телефон)
-me_n = me_points(26, 318, 240, 72, 14, 6, 7)
-solo_n = [(26, 240), (52, 196), (70, 236), (96, 136), (118, 226), (146, 246), (168, 168), (190, 222), (214, 120), (238, 214), (262, 186)]
-narrow = chart(360, 300, 262, 20, 346, 14, me_n, [(5, 'план'), (10, 'пробники')], solo_n, [112, 178, 244], 'duel__chart--narrow', 'n')
+me_n = me_points(40, 232, 266, 92, 12, 5, 7)
+solo_n = [(40, 266), (58, 230), (74, 262), (94, 170), (114, 250), (134, 270), (154, 198), (174, 248), (192, 156), (210, 222)]
+narrow = chart(400, 330, 282, 30, 232, 60, 15, me_n, solo_n, [130, 206, 268],
+               [(94, 170, 'загорелся', True)],
+               [(40, 'сент.', 'start'), (136, 'янв.', 'middle')], 'duel__chart--narrow', 'n')
 
 s = open(PAGE, encoding='utf-8').read()
 s, n1 = re.subn(r'<svg class="duel__chart duel__chart--wide".*?</svg>', lambda m: wide, s, count=1, flags=re.S)
