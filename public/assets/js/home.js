@@ -4,7 +4,7 @@
   'use strict';
   var list = document.getElementById('reviews-list'), dots = document.querySelector('.reviews-dots');
   if (!list || !dots) return;
-  var cards = Array.prototype.slice.call(list.children), btns = [];
+  var cards = Array.prototype.slice.call(list.querySelectorAll('.review')), btns = [];
   cards.forEach(function (c, i) {
     var b = document.createElement('button'); b.type = 'button'; b.tabIndex = -1;
     b.addEventListener('click', function () { list.scrollTo({ left: c.offsetLeft - list.offsetLeft - parseFloat(getComputedStyle(list).paddingLeft || 0), behavior: 'smooth' }); });

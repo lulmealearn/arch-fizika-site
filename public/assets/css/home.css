@@ -534,3 +534,16 @@ html.is-pop-open { overflow: hidden; }
 .ticket { overflow: hidden; }
 .free--dark .free__list .gift { color: #f1cf72; }
 .stars__plus { font-size: .7em; margin-left: 1px; vertical-align: super; line-height: 0; }
+
+/* Отзывы: три колонки по паре карточек, низ колонок выровнен (последняя карточка тянется) */
+@media (min-width: 641px) {
+  .reviews { columns: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+  .reviews__col { display: contents; }
+  .reviews .review { margin: 0; }
+}
+@media (min-width: 900px) {
+  .reviews { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .reviews__col { display: flex; flex-direction: column; gap: 16px; }
+  .reviews__col .review:last-child { flex: 1 1 auto; }
+}
+@media (max-width: 640px) { .reviews__col { display: contents; } }
