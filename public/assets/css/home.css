@@ -511,3 +511,14 @@ html.is-pop-open { overflow: hidden; }
   .duel__chart--narrow { display: block; }
   .duel__plot { padding: 10px 4px 6px; margin-inline: -6px; }
 }
+
+/* ── Билет на тёмном фоне (страница цен): в фирменном фиолетовом, а не белый ── */
+.free--dark .ticket { background: var(--violet); color: #fff; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .45)); }
+.free--dark .ticket:hover { color: #fff; }
+.free--dark .ticket__kicker { color: var(--violet-soft); }
+.free--dark .ticket__price b { color: #fff; }
+.free--dark .ticket__price s { color: #a99be0; }
+.free--dark .ticket__code { fill: #fff; opacity: .5; }
+.free--dark .ticket__stub { background: #8b5cf6; border-left-color: rgba(255, 255, 255, .45); }
+.free--dark .ticket__gift { color: #fff; }
+.free--dark .free__list .gift { color: var(--violet-soft); }
