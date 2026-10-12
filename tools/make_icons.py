@@ -146,6 +146,69 @@ I['kondensator-v-cepyah'] = svg(
     '<path d="M72 68V92M90 68V86"/>' +
     '<path d="M46 76V86M41 81H51" stroke-width="2.8"/>')
 
+# ── Векторы и проекции: сложение по правилу параллелограмма и проекция на ось ──
+O, A, Bv = (36, 80), (96, 66), (58, 30)
+C = (A[0] + Bv[0] - O[0], A[1] + Bv[1] - O[1])
+para = f'<path d="{poly([O, A, C, Bv])}Z"/>'
+I['vektory-i-proekcii-pravila-slozheniya-vektorov'] = svg(
+    shade(para, 4, 3) + f'<path d="{poly([O, A, C, Bv])}Z" fill="{L}" stroke="none"/>' +
+    '<path d="M22 90H146" stroke-width="2.2" opacity=".55"/>' +
+    f'<path d="M{A[0]} {A[1]}L{C[0]} {C[1]}M{Bv[0]} {Bv[1]}L{C[0]} {C[1]}" stroke-width="2.2" stroke-dasharray="4 5"/>' +
+    f'<path d="M{C[0]} {C[1]}V90" stroke-width="2.2" stroke-dasharray="3 5"/>' +
+    f'<path d="M{O[0]} 90H{C[0]}" stroke-width="5"/>' +
+    arrow(*O, *A, 8, 2.8) + arrow(*O, *Bv, 8, 2.8) + arrow(*O, *C, 10) + dot(*O, 4))
+
+# ── Статика: рычаг на опоре, грузы на разных плечах ──
+fulcrum = '<path d="M80 58L94 84H66Z"/>'
+w_big = '<rect x="32" y="62" width="22" height="18" rx="3"/>'
+w_small = '<rect x="118" y="62" width="14" height="12" rx="2"/>'
+I['statika'] = svg(
+    '<path d="M18 86H142" stroke-width="2.6"/>' +
+    shade(fulcrum) + f'<path d="M80 58L94 84H66Z" fill="{L}"/>' +
+    '<path d="M24 54H136" stroke-width="5"/>' + dot(80, 56, 3.4, L) +
+    '<path d="M43 54V62M125 54V62" stroke-width="2.4"/>' +
+    shade(w_big, 3, 3) + w_big + shade(w_small, 3, 3) + w_small +
+    '<g stroke-width="2.2" opacity=".7"><path d="M43 30H80M80 22V38M43 24V36"/><path d="M80 40H125M125 34V46"/></g>')
+
+# ── Закон изменения энергии в цепях: лампочка, энергия уходит в свет и тепло ──
+bulb = '<path d="M80 12C62 12 52 26 52 40C52 52 60 58 64 66V72H96V66C100 58 108 52 108 40C108 26 98 12 80 12Z"/>'
+I['zakon-izmeneniya-energii-v-cepyah'] = svg(
+    shade(bulb) + f'<path d="M80 12C62 12 52 26 52 40C52 52 60 58 64 66V72H96V66C100 58 108 52 108 40C108 26 98 12 80 12Z" fill="{L}"/>' +
+    '<path d="M72 60V48M88 60V48" stroke-width="2.4"/>' +
+    '<path d="M72 48C72 40 77 40 77 46C77 52 83 52 83 46C83 40 88 40 88 48" stroke-width="2.6"/>' +
+    f'<rect x="66" y="72" width="28" height="14" rx="4" fill="{M}"/>' + '<path d="M66 79H94" stroke-width="2.2"/>' +
+    '<path d="M74 92H86" stroke-width="3.4"/>' +
+    '<g stroke-width="2.6"><path d="M36 22L28 16M32 40H22M36 58L28 64M124 22L132 16M128 40H138M124 58L132 64"/></g>')
+
+# ── Напряжённость и потенциал: заряд, силовые линии и эквипотенциали ──
+qx, qy = 80, 50
+rays = ''.join(arrow(qx + 16 * math.cos(a), qy + 16 * math.sin(a), qx + 44 * math.cos(a), qy + 44 * math.sin(a), 7, 2.6)
+               for a in [math.radians(d) for d in (0, 60, 120, 180, 240, 300)])
+I['napryazhennost-i-potencial-polya-interaktivnyj-razbor'] = svg(
+    f'<circle cx="{qx}" cy="{qy}" r="28" stroke-width="2" stroke-dasharray="3 5" opacity=".7"/>' +
+    f'<circle cx="{qx}" cy="{qy}" r="40" stroke-width="2" stroke-dasharray="3 5" opacity=".5"/>' +
+    rays +
+    shade(f'<circle cx="{qx}" cy="{qy}" r="12"/>', 3, 3) + f'<circle cx="{qx}" cy="{qy}" r="12" fill="{L}"/>' +
+    f'<path d="M{qx - 6} {qy}H{qx + 6}M{qx} {qy - 6}V{qy + 6}" stroke-width="3"/>')
+
+# ── Внутренняя энергия и работа газа: цилиндр с поршнем над огнём ──
+cyl = '<path d="M50 20V78H110V20"/>'
+gas = ''.join(dot(x, y, 3, M) for x, y in [(62, 66), (78, 58), (96, 68), (70, 50), (90, 48), (100, 56), (60, 54), (84, 70)])
+I['vnutrennyaya-energiya-rabota-gaza-i-pervoe-nachalo-termodina'] = svg(
+    '<g transform="translate(0 -10)">' +
+    shade('<rect x="50" y="36" width="60" height="42"/>', 4, 3, L) + gas + cyl +
+    f'<rect x="52" y="30" width="56" height="9" rx="2" fill="{M}"/>' + '<path d="M80 30V14" stroke-width="3"/>' +
+    arrow(124, 44, 124, 18, 8, 2.8) + '</g>' +
+    f'<path d="M80 96C70 96 66 88 72 82C72 88 76 88 76 84C76 80 80 78 80 74C84 78 90 82 88 88C87 93 84 96 80 96Z" fill="{L}" stroke-width="2.6"/>')
+
+# ── Проводники и диэлектрики: пластина во внешнем поле, заряды на гранях ──
+plate = '<rect x="62" y="20" width="36" height="60" rx="5"/>'
+I['provodniki-i-dielektriki-v-elektricheskom-pole'] = svg(
+    ''.join(arrow(14, y, 56, y, 7, 2.6) + arrow(104, y, 146, y, 7, 2.6) for y in (30, 50, 70)) +
+    shade(plate) + f'<rect x="62" y="20" width="36" height="60" rx="5" fill="{L}"/>' +
+    ''.join(f'<path d="M66 {y}H72" stroke-width="2.8"/>' for y in (32, 50, 68)) +
+    ''.join(f'<path d="M88 {y}H94M91 {y - 3}V{y + 3}" stroke-width="2.6"/>' for y in (32, 50, 68)))
+
 # ── Запасные иконки разделов ──
 sine = [(40 + i, 52 - 20 * math.sin(i / 80 * 2 * math.pi)) for i in range(0, 81)]
 chart = '<rect x="28" y="14" width="104" height="74" rx="10"/>'
