@@ -188,15 +188,16 @@ textarea.input { resize: vertical; min-height: 84px; }
 .picker__search { flex: 1 1 180px; min-height: 44px; }
 .picker__btn { min-height: 40px; padding: 0 14px; font-size: 11px; }
 .picker__count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.picker__list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.picker__list { display: flex; flex-direction: column; max-height: min(420px, 55vh); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
 .picker__empty { margin: 0; padding: 16px; border: 1.5px dashed var(--dash); border-radius: 14px; color: var(--muted); font-size: 15px; }
-.pick { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+/* flex: none — иначе в списке ограниченной высоты строки сжимаются и текст наезжает друг на друга */
+.pick { flex: none; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .pick:last-child { border-bottom: 0; }
 .pick:hover { background: var(--bg); }
 .pick input { flex: none; width: 20px; height: 20px; accent-color: var(--violet); cursor: pointer; }
 .pick__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pick__label { font-family: var(--display); font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
-.pick__sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.pick__label { font-family: var(--display); font-weight: 700; font-size: 16px; line-height: 1.25; overflow-wrap: break-word; }
+.pick__sub { font-size: 13px; line-height: 1.3; color: var(--muted); overflow-wrap: break-word; }
 
 /* ── Строки ДЗ, уроков, учеников ── */
 .adm-row--plain { min-height: 76px; }
