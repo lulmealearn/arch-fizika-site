@@ -1,9 +1,9 @@
-/* Админка: вкладки, ученики и их доступы, домашние задания (PDF) и уроки (ссылки).
+/* Админка: вкладки, ученики и их доступы, занятия (запись, конспект, ДЗ и визуализации в одной папке).
    Визуализациями занимается admin.js; отсюда он берёт список учеников и «пикер» для поля «Кому открыта». */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var data = { users: [], hw: [], lessons: [], viz: [] };
+  var data = { users: [], lessons: [], viz: [] };
   var started = false;
 
   /* ── Общее ── */
@@ -115,8 +115,9 @@
   }
 
   /* ── Вкладки ── */
-  var TABS = ['viz', 'hw', 'lessons', 'users'];
+  var TABS = ['viz', 'lessons', 'users'];
   function setTab(name, push) {
+    if (name === 'hw') name = 'lessons';  /* старая вкладка «Домашки» */
     if (TABS.indexOf(name) < 0) name = 'viz';
     document.querySelectorAll('.tabs__btn').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === name)); });
     TABS.forEach(function (t) { $('panel-' + t).hidden = t !== name; });
@@ -129,120 +130,123 @@
   /* ── Загрузка ── */
   function loadAll() {
     return Promise.all([
-      api('GET', '/api/admin/users'), api('GET', '/api/admin/homeworks'), api('GET', '/api/admin/lessons'),
+      api('GET', '/api/admin/users'), api('GET', '/api/admin/lessons'), api('GET', '/api/admin/visualizations'),
     ]).then(function (r) {
-      data.users = r[0].users; data.hw = r[1].items; data.lessons = r[2].items;
-      renderUsers(); renderHw(); renderLessons(); counts();
+      data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items;
+      renderUsers(); renderLessons(); counts();
     }).catch(function (e) { toast(e.message, true); });
   }
   function counts() {
-    $('tn-hw').textContent = data.hw.length || '';
     $('tn-lessons').textContent = data.lessons.length || '';
     $('tn-users').textContent = data.users.length || '';
-  }
-
-  /* ── Домашки ── */
-  function renderHw() {
-    var list = $('hw-list'); list.textContent = '';
-    $('hw-summary').textContent = data.hw.length + ' ' + plural(data.hw.length, 'задание', 'задания', 'заданий');
-    if (!data.hw.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить ДЗ» и загрузи PDF.')); return; }
-    data.hw.forEach(function (h) {
-      var li = el('li', 'adm-row adm-row--plain');
-      var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'ДЗ')); num.appendChild(el('b', null, String(h.number)));
-      var text = el('div', 'adm-row__text');
-      text.appendChild(el('h2', 'adm-row__title', h.title || 'Домашнее задание № ' + h.number));
-      text.appendChild(el('span', 'adm-row__meta', '/hw/' + h.number + '  ·  ' + whoLine(h.user_ids)));
-      var actions = el('div', 'row-actions');
-      var open = el('a', 'btn btn--small', 'PDF'); open.href = h.url; open.target = '_blank'; open.rel = 'noopener';
-      var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
-      edit.addEventListener('click', function () { editHw(h); });
-      var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
-      del.addEventListener('click', function () {
-        armDelete(del, function () { return api('DELETE', '/api/admin/homeworks/' + h.pk).then(function () { toast('ДЗ № ' + h.number + ' удалено'); return loadAll(); }); });
-      });
-      actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
-      li.appendChild(num); li.appendChild(text); li.appendChild(actions);
-      list.appendChild(li);
-    });
   }
 
   function nextNumber(items) {
     return items.reduce(function (m, x) { return Math.max(m, x.number); }, 0) + 1;
   }
 
-  function editHw(h) {
-    openEditor2(h ? 'ДЗ № ' + h.number : 'Новое ДЗ', function (body) {
-      body.appendChild(field('Номер *', numberInput('e-number', h ? h.number : nextNumber(data.hw))));
-      body.appendChild(field('Название', textInput('e-title', h ? h.title : '', 'Например: Кинематика, равноускоренное движение')));
-      var drop = el('label', 'drop');
-      var inp = el('input', 'drop__input'); inp.type = 'file'; inp.id = 'e-pdf'; inp.accept = 'application/pdf,.pdf';
-      var t = el('span', 'drop__text', h ? 'Сейчас загружен PDF. Перетащи новый, чтобы заменить' : 'Перетащи PDF сюда или нажми, чтобы выбрать');
-      drop.appendChild(inp); drop.appendChild(t);
-      inp.addEventListener('change', function () {
-        var f = inp.files[0]; if (!f) return;
-        drop.classList.add('has-file'); t.textContent = f.name + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ';
-        var m = f.name.match(/(\d+)/);
-        if (!h && m && !$('e-number').dataset.touched) $('e-number').value = m[1];
-      });
-      body.appendChild(field(h ? 'Заменить PDF (необязательно)' : 'PDF *', drop));
-      var box = el('div', 'picker');
-      var get = picker(box, userItems(), h ? h.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
-      body.appendChild(field('Кому открыто', box));
-      return function () {
-        var fd = new FormData();
-        var pdf = inp.files[0];
-        if (!h && !pdf) throw new Error('Выбери PDF-файл.');
-        if (pdf && !/\.pdf$/i.test(pdf.name)) throw new Error('Нужен файл .pdf.');
-        fd.append('number', $('e-number').value.trim());
-        fd.append('title', $('e-title').value.trim());
-        fd.append('user_ids', JSON.stringify(get()));
-        if (pdf) fd.append('pdf', pdf);
-        return (h ? api('PATCH', '/api/admin/homeworks/' + h.pk, fd) : api('POST', '/api/admin/homeworks', fd))
-          .then(function (r) { toast((h ? 'Сохранено: ДЗ № ' : 'Добавлено: ДЗ № ') + r.number); });
-      };
-    });
+  /* ── Занятия ── */
+  function vizTitle(id) {
+    for (var i = 0; i < data.viz.length; i++) if (data.viz[i].pk === id) return data.viz[i].title;
+    return '?';
   }
-
-  /* ── Уроки ── */
+  function lessonContents(l) {
+    var parts = [];
+    if (l.url) parts.push('запись');
+    if (l.notes_url) parts.push('конспект');
+    if (l.hw_url) parts.push('ДЗ');
+    if (l.viz_ids.length) parts.push(l.viz_ids.length + ' ' + plural(l.viz_ids.length, 'визуализация', 'визуализации', 'визуализаций'));
+    return parts.length ? parts.join(' · ') : 'пока пусто';
+  }
   function renderLessons() {
     var list = $('lessons-list'); list.textContent = '';
-    $('lessons-summary').textContent = data.lessons.length + ' ' + plural(data.lessons.length, 'урок', 'урока', 'уроков');
-    if (!data.lessons.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить урок» и вставь ссылку на запись.')); return; }
+    $('lessons-summary').textContent = data.lessons.length + ' ' + plural(data.lessons.length, 'занятие', 'занятия', 'занятий');
+    if (!data.lessons.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить занятие»: запись, конспект, ДЗ и визуализации — в одной папке.')); return; }
     data.lessons.forEach(function (l) {
       var li = el('li', 'adm-row adm-row--plain');
-      var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Урок')); num.appendChild(el('b', null, String(l.number)));
+      var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Занятие')); num.appendChild(el('b', null, String(l.number)));
       var text = el('div', 'adm-row__text');
-      text.appendChild(el('h2', 'adm-row__title', l.title || 'Запись урока № ' + l.number));
-      text.appendChild(el('span', 'adm-row__meta', whoLine(l.user_ids)));
+      text.appendChild(el('h2', 'adm-row__title', l.title || 'Занятие № ' + l.number));
+      text.appendChild(el('span', 'adm-row__meta', lessonContents(l) + '  ·  ' + whoLine(l.user_ids)));
       var actions = el('div', 'row-actions');
-      var open = el('a', 'btn btn--small', 'Ссылка'); open.href = l.url; open.target = '_blank'; open.rel = 'noopener noreferrer';
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
       edit.addEventListener('click', function () { editLesson(l); });
       var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
       del.addEventListener('click', function () {
-        armDelete(del, function () { return api('DELETE', '/api/admin/lessons/' + l.pk).then(function () { toast('Урок № ' + l.number + ' удалён'); return loadAll(); }); });
+        armDelete(del, function () { return api('DELETE', '/api/admin/lessons/' + l.pk).then(function () { toast('Занятие № ' + l.number + ' удалено'); return loadAll(); }); });
       });
-      actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
+      actions.appendChild(edit); actions.appendChild(del);
       li.appendChild(num); li.appendChild(text); li.appendChild(actions);
       list.appendChild(li);
     });
   }
 
+  /* Поле для PDF: выбрать, заменить или убрать. Возвращает {box, file(), remove()} */
+  function pdfField(id, currentUrl, emptyText) {
+    var wrap = el('div', 'pdf-field');
+    var drop = el('label', 'drop' + (currentUrl ? ' has-file' : ''));
+    var inp = el('input', 'drop__input'); inp.type = 'file'; inp.id = id; inp.accept = 'application/pdf,.pdf';
+    var t = el('span', 'drop__text', currentUrl ? 'Загружен. Перетащи новый PDF, чтобы заменить' : emptyText);
+    drop.appendChild(inp); drop.appendChild(t);
+    wrap.appendChild(drop);
+    var removed = false;
+    var tools = el('div', 'pdf-field__tools');
+    if (currentUrl) {
+      var open = el('a', 'btn btn--small', 'Открыть'); open.href = currentUrl; open.target = '_blank'; open.rel = 'noopener';
+      var rm = el('button', 'btn btn--small btn--danger', 'Убрать'); rm.type = 'button';
+      rm.addEventListener('click', function () {
+        removed = !removed; inp.value = '';
+        rm.textContent = removed ? 'Вернуть' : 'Убрать';
+        t.textContent = removed ? 'Файл будет убран после сохранения' : 'Загружен. Перетащи новый PDF, чтобы заменить';
+        drop.classList.toggle('has-file', !removed);
+      });
+      tools.appendChild(open); tools.appendChild(rm);
+      wrap.appendChild(tools);
+    }
+    inp.addEventListener('change', function () {
+      var f = inp.files[0]; if (!f) return;
+      removed = false;
+      drop.classList.add('has-file'); t.textContent = f.name + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ';
+      var m = f.name.match(/(\d+)/);
+      if (m && !$('e-number').dataset.touched && $('e-number').dataset.fresh === '1') $('e-number').value = m[1];
+    });
+    return { box: wrap, file: function () { return inp.files[0] || null; }, remove: function () { return removed; } };
+  }
+
   function editLesson(l) {
-    openEditor2(l ? 'Урок № ' + l.number : 'Новый урок', function (body) {
-      body.appendChild(field('Номер *', numberInput('e-number', l ? l.number : nextNumber(data.lessons))));
-      body.appendChild(field('Название', textInput('e-title', l ? l.title : '', 'Например: Законы Ньютона')));
-      var url = textInput('e-url', l ? l.url : '', 'https://…'); url.type = 'url'; url.inputMode = 'url'; url.spellcheck = false;
-      body.appendChild(field('Ссылка на запись *', url));
-      var box = el('div', 'picker');
-      var get = picker(box, userItems(), l ? l.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
-      body.appendChild(field('Кому открыт', box));
+    openEditor2(l ? 'Занятие № ' + l.number : 'Новое занятие', function (body) {
+      var num = numberInput('e-number', l ? l.number : nextNumber(data.lessons));
+      if (!l) num.dataset.fresh = '1';  /* номер нового занятия подставляется из имени PDF, например dz-12.pdf */
+      body.appendChild(field('Номер *', num));
+      body.appendChild(field('Тема', textInput('e-title', l ? l.title : '', 'Например: Законы Ньютона')));
+      var url = textInput('e-url', l ? l.url : '', 'https://… (можно добавить позже)'); url.type = 'url'; url.inputMode = 'url'; url.spellcheck = false;
+      body.appendChild(field('Ссылка на запись', url));
+      var notes = pdfField('e-notes', l && l.notes_url, 'Перетащи PDF конспекта или нажми, чтобы выбрать');
+      body.appendChild(field('Конспект (PDF)', notes.box));
+      var hw = pdfField('e-hw', l && l.hw_url, 'Перетащи PDF домашнего задания или нажми, чтобы выбрать');
+      body.appendChild(field('Домашнее задание (PDF)', hw.box));
+      var boxV = el('div', 'picker');
+      var getV = picker(boxV, data.viz.map(function (v) {
+        return { id: v.pk, label: v.title, sub: (v.access === 'private' ? 'закрытая' : 'открыта всем') + (v.parts ? ' · ' + v.parts : '') };
+      }), l ? l.viz_ids : [], 'Визуализаций пока нет.');
+      body.appendChild(field('Визуализации в папке', boxV));
+      var boxU = el('div', 'picker');
+      var getU = picker(boxU, userItems(), l ? l.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
+      body.appendChild(field('Кому открыто', boxU));
       return function () {
         var u = $('e-url').value.trim();
-        if (!/^https?:\/\/\S+$/i.test(u)) throw new Error('Ссылка должна начинаться с https://');
-        var payload = { number: Number($('e-number').value), title: $('e-title').value.trim(), url: u, user_ids: get() };
-        return (l ? api('PATCH', '/api/admin/lessons/' + l.pk, payload) : api('POST', '/api/admin/lessons', payload))
-          .then(function (r) { toast((l ? 'Сохранено: урок № ' : 'Добавлено: урок № ') + r.number); });
+        if (u && !/^https?:\/\/\S+$/i.test(u)) throw new Error('Ссылка на запись должна начинаться с https://');
+        [notes.file(), hw.file()].forEach(function (f) { if (f && !/\.pdf$/i.test(f.name)) throw new Error('Конспект и ДЗ — файлы .pdf.'); });
+        var fd = new FormData();
+        fd.append('number', $('e-number').value.trim());
+        fd.append('title', $('e-title').value.trim());
+        fd.append('url', u);
+        fd.append('viz_ids', JSON.stringify(getV()));
+        fd.append('user_ids', JSON.stringify(getU()));
+        if (notes.file()) fd.append('notes', notes.file()); else if (notes.remove()) fd.append('remove_notes', 'true');
+        if (hw.file()) fd.append('hw', hw.file()); else if (hw.remove()) fd.append('remove_hw', 'true');
+        return (l ? api('PATCH', '/api/admin/lessons/' + l.pk, fd) : api('POST', '/api/admin/lessons', fd))
+          .then(function (r) { toast((l ? 'Сохранено: занятие № ' : 'Добавлено: занятие № ') + r.number); });
       };
     });
   }
@@ -261,7 +265,7 @@
       text.appendChild(el('h2', 'adm-row__title', u.nickname));
       var g = u.grants;
       text.appendChild(el('span', 'adm-row__meta',
-        'ДЗ: ' + g.hw.length + '  ·  уроки: ' + g.lesson.length + '  ·  визуализации: ' + g.viz.length +
+        'занятия: ' + g.lesson.length + '  ·  отдельные визуализации: ' + g.viz.length +
         '  ·  с ' + date(u.created_at) + (u.last_login_at ? ', заходил ' + date(u.last_login_at) : '')));
       var actions = el('div', 'row-actions');
       var acc = el('button', 'btn btn--small btn--solid', 'Доступ'); acc.type = 'button';
@@ -280,25 +284,20 @@
   $('users-search').addEventListener('input', renderUsers);
 
   function editUserAccess(u) {
-    /* закрытые визуализации берём свежими: их могли только что закрыть на соседней вкладке */
-    api('GET', '/api/admin/visualizations').then(function (d) {
-      var priv = d.items.filter(function (v) { return v.access === 'private'; });
-      openEditor2('Доступ: ' + u.nickname, function (body) {
-        body.appendChild(el('p', 'hint', 'Отметь, что открыть ученику. Изменения появятся у него в личном кабинете сразу после сохранения.'));
-        var boxHw = el('div', 'picker'), boxL = el('div', 'picker'), boxV = el('div', 'picker');
-        var getHw = picker(boxHw, data.hw.map(function (h) { return { id: h.pk, label: 'ДЗ № ' + h.number, sub: h.title }; }), u.grants.hw, 'Домашек пока нет.');
-        var getL = picker(boxL, data.lessons.map(function (l) { return { id: l.pk, label: 'Урок № ' + l.number, sub: l.title }; }), u.grants.lesson, 'Уроков пока нет.');
-        var getV = picker(boxV, priv.map(function (v) { return { id: v.pk, label: v.title, sub: v.parts }; }), u.grants.viz,
-          'Закрытых визуализаций нет: все открыты всем. Закрыть можно на вкладке «Визуализации».');
-        body.appendChild(field('Домашки', boxHw));
-        body.appendChild(field('Уроки', boxL));
-        body.appendChild(field('Визуализации (только закрытые)', boxV));
-        return function () {
-          return api('PUT', '/api/admin/users/' + u.id + '/grants', { hw: getHw(), lesson: getL(), viz: getV() })
-            .then(function () { toast('Доступ сохранён: ' + u.nickname); });
-        };
-      });
-    }).catch(function (e) { toast(e.message, true); });
+    var priv = data.viz.filter(function (v) { return v.access === 'private'; });
+    openEditor2('Доступ: ' + u.nickname, function (body) {
+      body.appendChild(el('p', 'hint', 'Отметь занятия, которые открыть ученику: вместе с ними откроется всё, что лежит в их папках, включая закрытые визуализации. Ниже — закрытые визуализации, которые можно открыть отдельно, без занятия.'));
+      var boxL = el('div', 'picker'), boxV = el('div', 'picker');
+      var getL = picker(boxL, data.lessons.map(function (l) { return { id: l.pk, label: 'Занятие № ' + l.number, sub: [l.title, lessonContents(l)].filter(Boolean).join(' · ') }; }), u.grants.lesson, 'Занятий пока нет.');
+      var getV = picker(boxV, priv.map(function (v) { return { id: v.pk, label: v.title, sub: v.parts }; }), u.grants.viz,
+        'Закрытых визуализаций нет: все открыты всем. Закрыть можно на вкладке «Визуализации».');
+      body.appendChild(field('Занятия', boxL));
+      body.appendChild(field('Отдельные визуализации (только закрытые)', boxV));
+      return function () {
+        return api('PUT', '/api/admin/users/' + u.id + '/grants', { lesson: getL(), viz: getV() })
+          .then(function () { toast('Доступ сохранён: ' + u.nickname); });
+      };
+    });
   }
 
   function editUserPassword(u) {
@@ -368,7 +367,6 @@
       .then(function () { btn.disabled = false; btn.textContent = 'Сохранить'; });
   });
 
-  $('hw-add').addEventListener('click', function () { editHw(null); });
   $('lesson-add').addEventListener('click', function () { editLesson(null); });
 
   /* ── Для admin.js ── */

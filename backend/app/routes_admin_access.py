@@ -1,29 +1,28 @@
-"""Админка: ученики и ручные доступы, домашние задания (PDF) и уроки (ссылки на записи)."""
+"""Админка: ученики и ручные доступы, занятия (запись, конспект, ДЗ и визуализации в одной папке)."""
 import json
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from . import files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
-from .models import GRANT_KINDS, Grant, Homework, Lesson, User, Visualization
+from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, User, Visualization
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
-from .serialize import hw_out, lesson_out, user_out
+from .serialize import lesson_out, user_out
 
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
 
-KIND_MODEL = {"viz": Visualization, "hw": Homework, "lesson": Lesson}
+KIND_MODEL = {"viz": Visualization, "lesson": Lesson}
 
 
 class GrantsIn(BaseModel):
     viz: Optional[List[int]] = None
-    hw: Optional[List[int]] = None
     lesson: Optional[List[int]] = None
 
 
@@ -33,13 +32,6 @@ class UsersIn(BaseModel):
 
 class PasswordIn(BaseModel):
     password: str
-
-
-class LessonIn(BaseModel):
-    number: Optional[int] = None
-    title: Optional[str] = None
-    url: Optional[str] = None
-    user_ids: Optional[List[int]] = None
 
 
 # ── Помощники ──
@@ -78,22 +70,25 @@ def _title(value: Optional[str]) -> str:
 
 
 def _url(value: Optional[str]) -> str:
+    """Ссылка на запись; пустая — записи у занятия нет."""
     v = (value or "").strip()
+    if not v:
+        return ""
     p = urlparse(v)
     if p.scheme not in ("http", "https") or not p.netloc or len(v) > 1000:
         raise HTTPException(400, "Ссылка на урок должна начинаться с https:// (или http://).")
     return v
 
 
-def _parse_user_ids(raw: Optional[str]) -> Optional[List[int]]:
-    """user_ids в форме приходят строкой JSON: «[1, 4, 7]»."""
+def _parse_ids(raw: Optional[str]) -> Optional[List[int]]:
+    """Списки id в форме приходят строкой JSON: «[1, 4, 7]»."""
     if raw is None or raw == "":
         return None
     try:
         data = json.loads(raw)
         return [int(x) for x in data]
     except (ValueError, TypeError):
-        raise HTTPException(400, "Список учеников передан в неверном виде.")
+        raise HTTPException(400, "Список передан в неверном виде.")
 
 
 # ── Ученики ──
@@ -130,8 +125,8 @@ def users_reset_password(pk: int, body: PasswordIn, db: Session = Depends(get_db
 @router.delete("/users/{pk}")
 def users_delete(pk: int, db: Session = Depends(get_db)):
     u = _user(db, pk)
-    for g in db.scalars(select(Grant).where(Grant.user_id == u.id)).all():
-        db.delete(g)
+    db.execute(delete(Grant).where(Grant.user_id == u.id))
+    db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id))
     db.delete(u)
     db.commit()
     return {"ok": True}
@@ -149,134 +144,123 @@ def access_set(kind: str, item_id: int, body: UsersIn, db: Session = Depends(get
     return {"user_ids": sorted(item_users(db, kind).get(item_id, []))}
 
 
-# ── Домашние задания ──
-def _hw_all(db: Session) -> Dict[str, list]:
-    who = item_users(db, "hw")
-    return {"items": [hw_out(h, who.get(h.id, [])) for h in db.scalars(select(Homework).order_by(Homework.number.desc()))]}
+# ── Занятия ──
+def _lesson_viz(db: Session) -> Dict[int, List[int]]:
+    out: Dict[int, List[int]] = {}
+    for lv in db.scalars(select(LessonViz).order_by(LessonViz.position, LessonViz.id)):
+        out.setdefault(lv.lesson_id, []).append(lv.viz_id)
+    return out
 
 
-def _hw_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
-    q = select(Homework.id).where(Homework.number == number)
-    if pk is not None:
-        q = q.where(Homework.id != pk)
-    if db.scalar(q):
-        raise HTTPException(409, f"ДЗ № {number} уже есть. Измените его или выберите другой номер.")
+def _lesson_json(db: Session, l: Lesson) -> dict:
+    return lesson_out(l, item_users(db, "lesson").get(l.id, []), _lesson_viz(db).get(l.id, []))
 
 
-@router.get("/homeworks")
-def hw_list(db: Session = Depends(get_db)):
-    return _hw_all(db)
+def set_lesson_viz(db: Session, lesson_id: int, viz_ids: List[int]) -> None:
+    """Состав визуализаций в папке занятия, порядок — как прислали."""
+    ids = []
+    for v in viz_ids:
+        if v not in ids:
+            ids.append(v)
+    _existing_ids(db, Visualization, ids)
+    db.execute(delete(LessonViz).where(LessonViz.lesson_id == lesson_id))
+    for pos, vid in enumerate(ids):
+        db.add(LessonViz(lesson_id=lesson_id, viz_id=vid, position=pos))
 
 
-@router.post("/homeworks", status_code=201)
-async def hw_create(
-    number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
-    pdf: UploadFile = File(...), db: Session = Depends(get_db),
-):
-    n = _number(number, "ДЗ")
-    _hw_number_free(db, n)
-    ids = _parse_user_ids(user_ids)
-    file_name = await files.save_hw_pdf(n, pdf)
-    h = Homework(number=n, title=_title(title), file_name=file_name)
-    db.add(h)
-    db.flush()
-    if ids:
-        set_item_users(db, "hw", h.id, _existing_ids(db, User, ids))
-    db.commit()
-    return hw_out(h, item_users(db, "hw").get(h.id, []))
-
-
-@router.patch("/homeworks/{pk}")
-async def hw_update(
-    pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None),
-    user_ids: Optional[str] = Form(None), pdf: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
-):
-    h = db.get(Homework, pk)
-    if not h:
-        raise HTTPException(404, "Задание не найдено.")
-    if number is not None:
-        n = _number(number, "ДЗ")
-        _hw_number_free(db, n, h.id)
-        h.number = n
-    if title is not None:
-        h.title = _title(title)
-    if pdf is not None and pdf.filename:
-        new_name = await files.save_hw_pdf(h.number, pdf)
-        if new_name != h.file_name:
-            files.delete_hw(h.file_name)
-        h.file_name = new_name
-    ids = _parse_user_ids(user_ids)
-    if ids is not None:
-        set_item_users(db, "hw", h.id, _existing_ids(db, User, ids))
-    db.commit()
-    return hw_out(h, item_users(db, "hw").get(h.id, []))
-
-
-@router.delete("/homeworks/{pk}")
-def hw_delete(pk: int, db: Session = Depends(get_db)):
-    h = db.get(Homework, pk)
-    if not h:
-        raise HTTPException(404, "Задание не найдено.")
-    files.delete_hw(h.file_name)
-    drop_item(db, "hw", h.id)
-    db.delete(h)
-    db.commit()
-    return {"ok": True}
-
-
-# ── Уроки ──
 def _lesson_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
     q = select(Lesson.id).where(Lesson.number == number)
     if pk is not None:
         q = q.where(Lesson.id != pk)
     if db.scalar(q):
-        raise HTTPException(409, f"Урок № {number} уже есть. Измените его или выберите другой номер.")
+        raise HTTPException(409, f"Занятие № {number} уже есть. Измените его или выберите другой номер.")
 
 
 @router.get("/lessons")
 def lessons_list(db: Session = Depends(get_db)):
-    who = item_users(db, "lesson")
-    return {"items": [lesson_out(l, who.get(l.id, [])) for l in db.scalars(select(Lesson).order_by(Lesson.number.desc()))]}
+    who, viz = item_users(db, "lesson"), _lesson_viz(db)
+    lessons = db.scalars(select(Lesson).order_by(Lesson.number.desc())).all()
+    return {"items": [lesson_out(l, who.get(l.id, []), viz.get(l.id, [])) for l in lessons]}
 
 
 @router.post("/lessons", status_code=201)
-def lessons_create(body: LessonIn, db: Session = Depends(get_db)):
-    n = _number(body.number, "урока")
+async def lessons_create(
+    number: str = Form(...), title: str = Form(""), url: str = Form(""),
+    user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
+    notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+):
+    n = _number(number, "занятия")
     _lesson_number_free(db, n)
-    l = Lesson(number=n, title=_title(body.title), url=_url(body.url))
+    users, vizs = _parse_ids(user_ids), _parse_ids(viz_ids)
+    l = Lesson(number=n, title=_title(title), url=_url(url))
+    if notes is not None and notes.filename:
+        l.notes_file = await files.save_lesson_pdf("notes", n, notes)
+    if hw is not None and hw.filename:
+        l.hw_file = await files.save_lesson_pdf("hw", n, hw)
     db.add(l)
     db.flush()
-    if body.user_ids:
-        set_item_users(db, "lesson", l.id, _existing_ids(db, User, body.user_ids))
+    if vizs:
+        set_lesson_viz(db, l.id, vizs)
+    if users:
+        set_item_users(db, "lesson", l.id, _existing_ids(db, User, users))
     db.commit()
-    return lesson_out(l, item_users(db, "lesson").get(l.id, []))
+    return _lesson_json(db, l)
+
+
+async def _replace_pdf(kind: str, l: Lesson, upload: Optional[UploadFile], remove: Optional[str]) -> None:
+    attr = "notes_file" if kind == "notes" else "hw_file"
+    old = getattr(l, attr)
+    if upload is not None and upload.filename:
+        new = await files.save_lesson_pdf(kind, l.number, upload)
+        if old and old != new:
+            files.delete_hw(old)
+        setattr(l, attr, new)
+    elif (remove or "").lower() in ("1", "true", "yes") and old:
+        files.delete_hw(old)
+        setattr(l, attr, None)
 
 
 @router.patch("/lessons/{pk}")
-def lessons_update(pk: int, body: LessonIn, db: Session = Depends(get_db)):
+async def lessons_update(
+    pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), url: Optional[str] = Form(None),
+    user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
+    notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
+    remove_notes: Optional[str] = Form(None), remove_hw: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
     l = db.get(Lesson, pk)
     if not l:
-        raise HTTPException(404, "Урок не найден.")
-    if body.number is not None:
-        n = _number(body.number, "урока")
+        raise HTTPException(404, "Занятие не найдено.")
+    if number is not None:
+        n = _number(number, "занятия")
         _lesson_number_free(db, n, l.id)
         l.number = n
-    if body.title is not None:
-        l.title = _title(body.title)
-    if body.url is not None:
-        l.url = _url(body.url)
-    if body.user_ids is not None:
-        set_item_users(db, "lesson", l.id, _existing_ids(db, User, body.user_ids))
+    if title is not None:
+        l.title = _title(title)
+    if url is not None:
+        l.url = _url(url)
+    await _replace_pdf("notes", l, notes, remove_notes)
+    await _replace_pdf("hw", l, hw, remove_hw)
+    vizs, users = _parse_ids(viz_ids), _parse_ids(user_ids)
+    if vizs is not None:
+        set_lesson_viz(db, l.id, vizs)
+    if users is not None:
+        set_item_users(db, "lesson", l.id, _existing_ids(db, User, users))
     db.commit()
-    return lesson_out(l, item_users(db, "lesson").get(l.id, []))
+    return _lesson_json(db, l)
 
 
 @router.delete("/lessons/{pk}")
 def lessons_delete(pk: int, db: Session = Depends(get_db)):
     l = db.get(Lesson, pk)
     if not l:
-        raise HTTPException(404, "Урок не найден.")
+        raise HTTPException(404, "Занятие не найдено.")
+    files.delete_hw(l.notes_file)
+    files.delete_hw(l.hw_file)
     drop_item(db, "lesson", l.id)
+    db.execute(delete(LessonViz).where(LessonViz.lesson_id == l.id))
+    db.execute(delete(LessonProgress).where(LessonProgress.lesson_id == l.id))
     db.delete(l)
     db.commit()
     return {"ok": True}

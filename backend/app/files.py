@@ -133,13 +133,15 @@ def cover_path(name: str) -> Path:
     return config.COVERS_DIR / name
 
 
-# ── Домашние задания (PDF) ──
-async def save_hw_pdf(number: int, upload: UploadFile) -> str:
-    data = await read_limited(upload, config.MAX_PDF_BYTES, "PDF")
+# ── PDF занятий: конспекты и домашние задания (storage/hw/) ──
+async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
+    """kind: hw или notes. Имя файла с хешем содержимого — замена файла не путается со старым в кэше."""
+    what = "ДЗ" if kind == "hw" else "Конспект"
+    data = await read_limited(upload, config.MAX_PDF_BYTES, f"{what} (PDF)")
     if not data.lstrip()[:5] == b"%PDF-":
-        raise HTTPException(400, "Нужен PDF-файл.")
+        raise HTTPException(400, f"{what}: нужен PDF-файл.")
     digest = hashlib.sha1(data).hexdigest()[:8]
-    name = f"hw-{number}-{digest}.pdf"
+    name = f"{kind}-{number}-{digest}.pdf"
     _atomic_write(config.HW_DIR / name, data)
     return name
 

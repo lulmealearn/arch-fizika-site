@@ -96,7 +96,7 @@
     var sw = el('span', 'row__sec', s.label); sw.style.background = s.tint; sw.style.color = s.ink;
     meta.appendChild(document.createTextNode(num + ' · '));
     meta.appendChild(sw);
-    if (it.access === 'private') meta.appendChild(el('span', 'row__access', it.locked ? 'для учеников' : 'открыто вам'));
+    if (it.access === 'private') meta.appendChild(el('span', 'row__access', it.locked ? 'для учеников' : (data.admin ? 'закрыта · вы в админке' : 'открыто вам')));
     text.appendChild(meta);
     text.appendChild(el('h2', 'row__title', it.title));
 
@@ -141,6 +141,18 @@
     shownEl.textContent = 'показано ' + list.length + ' из ' + all.length;
   }
 
+  /* В этом браузере открыта админка: закрытые визуализации открываются, хотя ученик бы их не увидел */
+  function adminBanner() {
+    var box = el('div', 'admin-banner');
+    box.appendChild(el('p', null, 'В этом браузере открыта админка, поэтому закрытые визуализации открываются без входа. Чтобы увидеть хранилище глазами ученика, выйдите из админки или откройте сайт в режиме инкогнито.'));
+    var b = el('button', 'btn btn--small', 'Выйти из админки'); b.type = 'button';
+    b.addEventListener('click', function () {
+      fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' }).then(function () { location.reload(); });
+    });
+    box.appendChild(b);
+    filtersEl.parentNode.insertBefore(box, filtersEl);
+  }
+
   function fail() {
     listEl.textContent = '';
     var li = el('li', 'empty');
@@ -158,6 +170,7 @@
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (json) {
       data = json;
+      if (data.admin) adminBanner();
       data.sections.forEach(function (s) { sectionsById[s.id] = s; });
       var n = data.items.length;
       if (totalEl) totalEl.textContent = n + ' ' + plural(n, 'материал', 'материала', 'материалов');

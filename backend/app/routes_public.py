@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import config, files
 from .db import get_db
-from .access import can_open, current_user, granted_ids
-from .models import Homework, Section, Visualization
+from .access import can_open, current_user, opened_viz_ids
+from .models import Lesson, Section, Visualization
 from .security import is_admin
 from .serialize import section_out, viz_public
 
@@ -40,13 +40,14 @@ def list_visualizations(request: Request, response: Response, db: Session = Depe
     ).all()
     admin = is_admin(request)
     user = None if admin else current_user(request, db)
-    opened = granted_ids(db, user.id, "viz") if user else set()
+    opened = opened_viz_ids(db, user.id) if user else set()
     out = []
     for v in items:
         d = viz_public(v)
         d["locked"] = d["access"] == "private" and not admin and v.id not in opened
         out.append(d)
-    return {"sections": [section_out(s) for s in sections], "items": out}
+    # admin: в этом браузере открыта админка — закрытые открываются без входа, страница об этом предупредит
+    return {"sections": [section_out(s) for s in sections], "items": out, "admin": admin}
 
 
 def _to_account(next_path: str, signed_in: bool) -> RedirectResponse:
@@ -87,19 +88,32 @@ def open_cover(name: str):
     return FileResponse(path, media_type=media, headers=COVER_HEADERS)
 
 
-@router.get("/hw/{number}")
-def open_homework(number: int, request: Request, db: Session = Depends(get_db)):
-    """PDF домашнего задания по номеру: /hw/42. Только тем, кому оно открыто."""
-    h = db.scalar(select(Homework).where(Homework.number == number))
+def _lesson_pdf(kind: str, number: int, request: Request, db: Session):
+    """PDF занятия по номеру (ДЗ или конспект). Только тем, кому открыто занятие."""
+    prefix = "hw" if kind == "hw" else "notes"
+    l = db.scalar(select(Lesson).where(Lesson.number == number))
     user = current_user(request, db)
-    if not h or not can_open(db, request, "hw", h.id, user):
-        # не говорим, существует ли задание: без доступа всё выглядит одинаково
-        return _to_account(f"/hw/{number}", user is not None)
-    path = files.hw_path(h.file_name)
-    if not path.exists():
-        raise HTTPException(404, "Файл задания не найден на диске.")
-    return FileResponse(path, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="DZ-{number}.pdf"',
+    name = (l.hw_file if kind == "hw" else l.notes_file) if l else None
+    if not l or not can_open(db, request, "lesson", l.id, user):
+        # не говорим, существует ли занятие: без доступа всё выглядит одинаково
+        return _to_account(f"/{prefix}/{number}", user is not None)
+    if not name or not files.hw_path(name).exists():
+        raise HTTPException(404, "В этом занятии нет такого файла.")
+    label = "DZ" if kind == "hw" else "Konspekt"
+    return FileResponse(files.hw_path(name), media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="{label}-{number}.pdf"',
         "Cache-Control": "private, no-cache",
         "X-Content-Type-Options": "nosniff",
     })
+
+
+@router.get("/hw/{number}")
+def open_homework(number: int, request: Request, db: Session = Depends(get_db)):
+    """ДЗ занятия: /hw/42."""
+    return _lesson_pdf("hw", number, request, db)
+
+
+@router.get("/notes/{number}")
+def open_notes(number: int, request: Request, db: Session = Depends(get_db)):
+    """Конспект занятия: /notes/42."""
+    return _lesson_pdf("notes", number, request, db)

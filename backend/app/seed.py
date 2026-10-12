@@ -5,7 +5,7 @@ from sqlalchemy import func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
-from .models import Section, Visualization
+from .models import Grant, Homework, Lesson, Section, Visualization
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
 SECTION_REMAP = {
@@ -39,18 +39,55 @@ def _sync_sections(db, wanted):
     db.commit()
 
 
+# create_all не меняет существующие таблицы: новые колонки добавляем сами (SQL одинаков для SQLite и MySQL)
+NEW_COLUMNS = [
+    ("visualizations", "access", "VARCHAR(10) NOT NULL DEFAULT 'free'"),
+    ("lessons", "notes_file", "VARCHAR(160) NULL"),
+    ("lessons", "hw_file", "VARCHAR(160) NULL"),
+]
+
+
 def _add_missing_columns() -> None:
-    """create_all не меняет существующие таблицы: новые колонки добавляем сами (одинаково для SQLite и MySQL)."""
-    cols = {c["name"] for c in inspect(engine).get_columns("visualizations")}
-    if "access" not in cols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE visualizations ADD COLUMN access VARCHAR(10) NOT NULL DEFAULT 'free'"))
-        print("[db] Добавлена колонка visualizations.access (все визуализации пока открыты всем)")
+    insp = inspect(engine)
+    for table, column, ddl in NEW_COLUMNS:
+        if column not in {c["name"] for c in insp.get_columns(table)}:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+            print(f"[db] Добавлена колонка {table}.{column}")
+
+
+def _migrate_homeworks(db) -> None:
+    """Раньше ДЗ было отдельным материалом. Теперь ДЗ лежит в папке занятия с тем же номером:
+    файл переезжает в занятие (создаётся, если его не было), доступы к ДЗ становятся доступами к занятию."""
+    hws = db.scalars(select(Homework)).all()
+    for h in hws:
+        lesson = db.scalar(select(Lesson).where(Lesson.number == h.number))
+        if lesson is None:
+            lesson = Lesson(number=h.number, title=h.title or "", url="")
+            db.add(lesson)
+            db.flush()
+        if not lesson.hw_file:
+            lesson.hw_file = h.file_name
+        for g in db.scalars(select(Grant).where(Grant.kind == "hw", Grant.item_id == h.id)).all():
+            exists = db.scalar(select(Grant.id).where(
+                Grant.user_id == g.user_id, Grant.kind == "lesson", Grant.item_id == lesson.id))
+            if exists:
+                db.delete(g)
+            else:
+                g.kind, g.item_id = "lesson", lesson.id
+            db.flush()  # autoflush выключен: следующий запрос должен видеть эту правку
+        db.delete(h)
+        db.flush()
+    db.commit()
+    if hws:
+        print(f"[db] ДЗ перенесены в занятия: {len(hws)}")
 
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
+    with SessionLocal() as db:
+        _migrate_homeworks(db)
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

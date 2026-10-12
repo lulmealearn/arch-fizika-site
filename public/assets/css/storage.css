@@ -139,3 +139,9 @@ html.topbar-hidden .filters { transform: translateY(calc(-1 * var(--topbar-h)));
   border: 1px dashed var(--line-2); color: var(--muted);
 }
 .row:not(.row--locked) .row__access { border: 0; background: var(--violet-tint); color: var(--violet-ink); }
+
+/* Предупреждение: в этом браузере открыта админка */
+.admin-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 18px; border-radius: 14px; background: var(--ink); color: var(--on-dark); }
+.admin-banner p { margin: 0; flex: 1 1 320px; font-size: 16px; line-height: 1.45; color: var(--on-dark-2); }
+.admin-banner .btn { border-color: #fff; color: #fff; }
+.admin-banner .btn:hover { background: #fff; color: var(--ink); }

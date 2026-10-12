@@ -99,81 +99,205 @@
     $('acc-eyebrow').textContent = 'Личный кабинет';
   }
 
-  /* ── Материалы ── */
+  /* ── Занятия: папки ── */
+  var lessons = [], filter = 'all', current = null;
+
   function plural(n, one, few, many) {
     var a = n % 10, b = n % 100;
     if (a === 1 && b !== 11) return one;
     if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
     return many;
   }
+  function vizIcon(v) {
+    return v.cover ? ['../' + v.cover] : ['../assets/icons/viz/' + v.id + '.svg', '../assets/icons/viz/_' + v.section + '.svg'];
+  }
+  function iconImg(tries) {
+    var img = el('img'); img.alt = ''; img.loading = 'lazy';
+    tries = tries.slice();
+    img.onerror = function () { tries.shift(); if (tries.length) img.src = tries[0]; else img.remove(); };
+    img.src = tries[0];
+    return img;
+  }
+  var ICONS = {
+    video: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>',
+    notes: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/></svg>',
+    hw: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v17H5z"/><path d="M9 4V2.8h6V4M8.5 11l2 2 4-4M8.5 17h7"/></svg>'
+  };
 
-  function row(href, kind, num, title, go, external, icon) {
+  /* что лежит в папке — коротко, для карточки */
+  function contents(l) {
+    var parts = [];
+    if (l.url) parts.push('запись');
+    if (l.notes_url) parts.push('конспект');
+    if (l.hw_url) parts.push('ДЗ');
+    if (l.viz.length) parts.push(l.viz.length + ' ' + plural(l.viz.length, 'визуализация', 'визуализации', 'визуализаций'));
+    return parts.length ? parts.join(' · ') : 'материалы скоро появятся';
+  }
+  function lessonTitle(l) { return l.title || 'Занятие № ' + l.number; }
+
+  function folderCard(l) {
     var li = el('li');
-    var a = el('a', 'mat');
-    a.href = href;
-    if (external) { a.target = '_blank'; a.rel = 'noopener'; }
-    var badge = el('span', 'mat__num' + (icon ? ' mat__num--icon' : ''));
-    if (icon) {
-      /* иконка визуализации, как в хранилище: своя → иконка раздела */
-      var img = el('img'); img.alt = ''; img.loading = 'lazy';
-      var tries = icon.slice();
-      img.onerror = function () { tries.shift(); if (tries.length) img.src = tries[0]; else img.remove(); };
-      img.src = tries[0];
-      badge.appendChild(img);
-    } else {
-      badge.appendChild(el('span', 'mat__kind', kind));
-      if (num != null) badge.appendChild(el('b', null, String(num)));
-    }
-    a.appendChild(badge);
-    a.appendChild(el('span', 'mat__title', title));
-    var g = el('span', 'mat__go', go); g.setAttribute('aria-hidden', 'true');
-    a.appendChild(g);
-    li.appendChild(a);
+    var b = el('button', 'folder folder--' + (l.done ? 'done' : 'todo'));
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Занятие № ' + l.number + ': ' + lessonTitle(l) + '. ' + (l.done ? 'Просмотрено' : 'Не просмотрено'));
+    var tab = el('span', 'folder__tab');
+    tab.appendChild(el('span', null, 'Занятие'));
+    tab.appendChild(el('b', null, '№ ' + l.number));
+    var body = el('span', 'folder__body');
+    body.appendChild(el('span', 'folder__title', lessonTitle(l)));
+    body.appendChild(el('span', 'folder__what', contents(l)));
+    var st = el('span', 'folder__state', l.done ? 'просмотрено' : 'не просмотрено');
+    body.appendChild(st);
+    b.appendChild(tab); b.appendChild(body);
+    b.addEventListener('click', function () { openLesson(l); });
+    li.appendChild(b);
     return li;
   }
 
-  function fill(listId, countId, items, make, emptyText) {
-    var list = $(listId); list.textContent = '';
-    $(countId).textContent = items.length ? String(items.length) : '';
-    if (!items.length) { list.appendChild(el('li', 'mats__empty', emptyText)); return; }
-    items.forEach(function (it) { list.appendChild(make(it)); });
+  function matches(l, q) {
+    if (!q) return true;
+    if (/^\d+$/.test(q)) return String(l.number) === q || String(l.number).indexOf(q) === 0;
+    var hay = (lessonTitle(l) + ' ' + l.viz.map(function (v) { return v.title; }).join(' ')).toLowerCase();
+    return q.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) >= 0; });
   }
+
+  function renderFolders() {
+    var q = $('f-find').value.trim();
+    var list = $('folders'); list.textContent = '';
+    var todo = lessons.filter(function (l) { return !l.done; }).length;
+    $('c-all').textContent = lessons.length; $('c-todo').textContent = todo; $('c-done').textContent = lessons.length - todo;
+    var shown = lessons.filter(function (l) {
+      return matches(l, q) && (filter === 'all' || (filter === 'done') === l.done);
+    });
+    shown.forEach(function (l) { list.appendChild(folderCard(l)); });
+    var hint = $('finder-hint');
+    if (!lessons.length) {
+      list.appendChild(el('li', 'folders__empty', 'Занятий пока нет. Я открою их после первого урока.'));
+      hint.hidden = true;
+    } else if (!shown.length) {
+      list.appendChild(el('li', 'folders__empty', q ? 'Ничего не нашлось. Попробуйте номер занятия или другое слово.' : 'Здесь пока пусто.'));
+      hint.hidden = true;
+    } else {
+      hint.hidden = !q;
+      hint.textContent = 'Найдено: ' + shown.length + ' из ' + lessons.length;
+    }
+  }
+
+  $('f-find').addEventListener('input', renderFolders);
+  document.querySelectorAll('.fchip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.dataset.filter;
+      document.querySelectorAll('.fchip').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      renderFolders();
+    });
+  });
+  /* Enter / «Открыть»: точный номер или единственная найденная папка — сразу открываем */
+  $('finder').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var q = $('f-find').value.trim();
+    if (!q) { $('f-find').focus(); return; }
+    var exact = lessons.filter(function (l) { return String(l.number) === q; });
+    var found = exact.length ? exact : lessons.filter(function (l) { return matches(l, q); });
+    var hint = $('finder-hint');
+    if (found.length === 1) { openLesson(found[0]); return; }
+    hint.hidden = false;
+    hint.textContent = found.length ? 'Нашлось несколько занятий — выберите нужное ниже.' :
+      (/^\d+$/.test(q) ? 'Занятие № ' + q + ' вам пока не открыто.' : 'Ничего не нашлось.');
+  });
+
+  /* ── Открытая папка ── */
+  var dlg = $('lesson');
+  function item(href, icon, kind, title, go, external) {
+    var li = el('li');
+    var a = el('a', 'litem');
+    a.href = href;
+    if (external) { a.target = '_blank'; a.rel = 'noopener'; }
+    var ic = el('span', 'litem__ic');
+    if (typeof icon === 'string') ic.innerHTML = icon; else { ic.classList.add('litem__ic--img'); ic.appendChild(icon); }
+    var txt = el('span', 'litem__text');
+    txt.appendChild(el('span', 'litem__kind', kind));
+    txt.appendChild(el('span', 'litem__title', title));
+    a.appendChild(ic); a.appendChild(txt);
+    var g = el('span', 'litem__go', go); g.setAttribute('aria-hidden', 'true'); a.appendChild(g);
+    li.appendChild(a);
+    return li;
+  }
+  function paintDone(l) {
+    dlg.classList.toggle('is-done', l.done);
+    $('lesson-done').checked = l.done;
+    $('lesson-done-label').textContent = l.done ? 'Просмотрено' : 'Не просмотрено';
+  }
+  function openLesson(l) {
+    current = l;
+    $('lesson-tab').textContent = 'Занятие № ' + l.number;
+    $('lesson-title').textContent = lessonTitle(l);
+    var list = $('lesson-items'); list.textContent = '';
+    if (l.url) list.appendChild(item(l.url, ICONS.video, 'Запись', 'Смотреть запись занятия', 'Смотреть →', true));
+    if (l.notes_url) list.appendChild(item(l.notes_url, ICONS.notes, 'Конспект', 'Конспект занятия', 'PDF →', true));
+    if (l.hw_url) list.appendChild(item(l.hw_url, ICONS.hw, 'Домашнее задание', 'ДЗ к занятию № ' + l.number, 'PDF →', true));
+    l.viz.forEach(function (v) { list.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false)); });
+    if (!list.children.length) list.appendChild(el('li', 'lesson__empty', 'Материалы этого занятия скоро появятся.'));
+    paintDone(l);
+    try { history.replaceState(null, '', '#z' + l.number); } catch (e) { /* без истории */ }
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    document.documentElement.classList.add('pop-lock');
+  }
+  function closeLesson() {
+    if (dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+  }
+  dlg.addEventListener('close', function () {
+    document.documentElement.classList.remove('pop-lock');
+    current = null;
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* без истории */ }
+    renderFolders();
+  });
+  dlg.querySelectorAll('[data-close-lesson]').forEach(function (b) { b.addEventListener('click', closeLesson); });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) closeLesson(); });
+
+  $('lesson-done').addEventListener('change', function () {
+    var l = current, want = this.checked, box = this;
+    if (!l) return;
+    l.done = want; paintDone(l);
+    box.disabled = true;
+    api('PUT', '/api/me/progress/' + l.pk, { done: want }).catch(function (e) {
+      l.done = !want; paintDone(l); note(e.message);
+    }).then(function () { box.disabled = false; });
+  });
 
   function loadDash() {
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
-      $('acc-title').textContent = 'Мои материалы';
-      /* вошли: подсказка «войдите, чтобы открыть» больше не нужна, адрес чистим */
+      $('acc-title').textContent = 'Мои занятия';
+      /* вошли: подсказка «войдите, чтобы открыть» больше не нужна */
       if (params.get('locked') !== '1' && $('acc-note').dataset.kind === 'next') note('');
-      if (location.search) { try { history.replaceState(null, '', location.pathname); } catch (e) { /* без истории */ } }
-      fill('list-hw', 'n-hw', d.homeworks, function (h) {
-        return row(h.url, 'ДЗ', h.number, h.title || 'Домашнее задание № ' + h.number, 'PDF →', true);
-      }, 'Домашних заданий пока нет. Я открою их после занятия.');
-      fill('list-lessons', 'n-lessons', d.lessons, function (l) {
-        return row(l.url, 'Урок', l.number, l.title || 'Запись урока № ' + l.number, 'Смотреть →', true);
-      }, 'Записей пока нет.');
-      fill('list-viz', 'n-viz', d.viz, function (v) {
-        var icon = v.cover ? ['../' + v.cover] : ['../assets/icons/viz/' + v.id + '.svg', '../assets/icons/viz/_' + v.section + '.svg'];
-        return row('../viz/' + v.file, 'Визуализация', null, v.title, '→', false, icon);
-      }, 'Закрытых визуализаций вам пока не открыто. Бесплатные доступны всем по ссылке ниже.');
+      var hash = location.hash;
+      if (location.search) { try { history.replaceState(null, '', location.pathname + hash); } catch (e) { /* без истории */ } }
+      lessons = d.lessons;
+      renderFolders();
+      var extra = $('list-viz'); extra.textContent = '';
+      d.viz.forEach(function (v) {
+        extra.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false));
+      });
+      $('extra-viz').hidden = !d.viz.length;
       show('dash');
+      /* ссылка вида /account/#z12 сразу открывает папку */
+      openFromHash(hash);
     }).catch(function (e) {
       if (e.status === 401) { toAuth(); return; }
       note(e.message); show('auth');
     });
   }
 
-  /* ── ДЗ по номеру ── */
-  $('f-jump').addEventListener('input', function () {
-    var v = this.value.replace(/\D/g, '');
-    if (v !== this.value) this.value = v;
-  });
-  $('jump-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var n = $('f-jump').value.trim();
-    if (!/^\d{1,6}$/.test(n) || n === '0') { $('f-jump').focus(); return showError('jump-error', 'Введите номер задания, например 42.'); }
-    showError('jump-error', '');
-    location.href = '/hw/' + Number(n);
+  function openFromHash(hash) {
+    var m = /^#z(\d+)$/.exec(hash || '');
+    if (!m || dlg.open) return;
+    lessons.forEach(function (l) { if (String(l.number) === m[1]) openLesson(l); });
+  }
+  window.addEventListener('hashchange', function () { openFromHash(location.hash); });
+
+  /* ── Админка в этом же браузере ── */
+  $('admin-logout').addEventListener('click', function () {
+    api('POST', '/api/admin/logout').then(function () { $('admin-note').hidden = true; });
   });
 
   /* ── Старт ── */
@@ -186,6 +310,7 @@
   setMode(params.get('mode') === 'register' ? 'register' : 'login');
 
   api('GET', '/api/auth/me').then(function (d) {
+    $('admin-note').hidden = !d.admin;
     if (d.user) loadDash(); else toAuth();
   }).catch(function (e) { toAuth(); showError('auth-error', e.message); });
 })();

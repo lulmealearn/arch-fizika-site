@@ -1,6 +1,7 @@
 """Ученики: регистрация, вход, выход и «мои материалы» для личного кабинета."""
 import re
 from datetime import datetime, timezone
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
@@ -11,10 +12,10 @@ from sqlalchemy.orm import Session, joinedload
 from . import config
 from .access import current_user, granted_ids
 from .db import get_db
-from .models import Homework, Lesson, User, Visualization
-from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, make_user_token,
+from .models import Lesson, LessonProgress, LessonViz, User, Visualization
+from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
                        register_limit, user_login_limit, verify_password)
-from .serialize import hw_out, lesson_out, viz_public
+from .serialize import lesson_files, viz_public
 
 router = APIRouter(prefix="/api")
 
@@ -27,6 +28,10 @@ _DUMMY_HASH = hash_password("dummy-password-for-timing")
 class Credentials(BaseModel):
     nickname: str
     password: str
+
+
+class ProgressIn(BaseModel):
+    done: bool
 
 
 def _ip(request: Request) -> str:
@@ -51,7 +56,8 @@ def _set_session(response: Response, user: User) -> None:
 def me(request: Request, response: Response, db: Session = Depends(get_db)):
     response.headers["Cache-Control"] = "no-store"
     user = current_user(request, db)
-    return {"user": {"nickname": user.nickname} if user else None}
+    # admin: в этом браузере открыта админка — тогда сайт показывает всё, и об этом надо предупредить
+    return {"user": {"nickname": user.nickname} if user else None, "admin": is_admin(request)}
 
 
 @router.post("/auth/register", status_code=201)
@@ -105,22 +111,56 @@ def logout(request: Request, response: Response):
 
 @router.get("/me/materials")
 def my_materials(request: Request, response: Response, db: Session = Depends(get_db)):
-    """Всё, что админ открыл этому ученику: закрытые визуализации, домашки и уроки."""
+    """Папки занятий, открытые ученику (с записью, конспектом, ДЗ и визуализациями), и отдельные визуализации."""
     response.headers["Cache-Control"] = "no-store"
     user = current_user(request, db)
     if not user:
         raise HTTPException(401, "Войдите в личный кабинет.")
-    viz_ids, hw_ids, lesson_ids = (granted_ids(db, user.id, k) for k in ("viz", "hw", "lesson"))
-    viz = db.scalars(
-        select(Visualization).options(joinedload(Visualization.section))
-        .where(Visualization.id.in_(viz_ids or [-1]), Visualization.is_published.is_(True), Visualization.access == "private")
-        .order_by(Visualization.position, Visualization.id)
-    ).all() if viz_ids else []
-    hws = db.scalars(select(Homework).where(Homework.id.in_(hw_ids)).order_by(Homework.number.desc())).all() if hw_ids else []
+    lesson_ids = granted_ids(db, user.id, "lesson")
     lessons = db.scalars(select(Lesson).where(Lesson.id.in_(lesson_ids)).order_by(Lesson.number.desc())).all() if lesson_ids else []
+
+    # визуализации по занятиям (только опубликованные), в порядке, заданном админом
+    by_lesson: Dict[int, List[int]] = {}
+    if lesson_ids:
+        for lv in db.scalars(select(LessonViz).where(LessonViz.lesson_id.in_(lesson_ids)).order_by(LessonViz.position, LessonViz.id)):
+            by_lesson.setdefault(lv.lesson_id, []).append(lv.viz_id)
+    extra_ids = granted_ids(db, user.id, "viz")
+    all_viz = {vid for ids in by_lesson.values() for vid in ids} | extra_ids
+    viz = {v.id: v for v in db.scalars(
+        select(Visualization).options(joinedload(Visualization.section))
+        .where(Visualization.id.in_(all_viz), Visualization.is_published.is_(True))
+    )} if all_viz else {}
+    done = set(db.scalars(select(LessonProgress.lesson_id).where(
+        LessonProgress.user_id == user.id, LessonProgress.done.is_(True))))
+
+    in_lessons = {vid for ids in by_lesson.values() for vid in ids}
+    extra = [viz[i] for i in sorted(extra_ids - in_lessons, key=lambda i: (viz[i].position, i) if i in viz else (0, i)) if i in viz]
+    out_lessons = []
+    for l in lessons:
+        item = {"pk": l.id, "number": l.number, "title": l.title, "url": l.url or None, "done": l.id in done}
+        item.update(lesson_files(l))
+        item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
+        out_lessons.append(item)
     return {
         "user": {"nickname": user.nickname},
-        "viz": [viz_public(v) for v in viz],
-        "homeworks": [hw_out(h) for h in hws],
-        "lessons": [lesson_out(l) for l in lessons],
+        "lessons": out_lessons,
+        "viz": [viz_public(v) for v in extra],
     }
+
+
+@router.put("/me/progress/{lesson_pk}")
+def set_progress(lesson_pk: int, body: ProgressIn, request: Request, db: Session = Depends(get_db)):
+    """Ученик отмечает занятие просмотренным (зелёная папка) или снимает отметку (красная)."""
+    check_same_origin(request)
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(401, "Войдите в личный кабинет.")
+    if lesson_pk not in granted_ids(db, user.id, "lesson"):
+        raise HTTPException(404, "Занятие не найдено.")
+    row = db.scalar(select(LessonProgress).where(LessonProgress.user_id == user.id, LessonProgress.lesson_id == lesson_pk))
+    if row is None:
+        row = LessonProgress(user_id=user.id, lesson_id=lesson_pk)
+        db.add(row)
+    row.done = body.done
+    db.commit()
+    return {"done": row.done}

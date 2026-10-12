@@ -53,8 +53,7 @@
   <main id="view-list" class="adm" hidden>
     <nav class="tabs" role="tablist" aria-label="Разделы админки">
       <button type="button" role="tab" class="tabs__btn" data-tab="viz" aria-selected="true">Визуализации <span class="tabs__n" id="tn-viz"></span></button>
-      <button type="button" role="tab" class="tabs__btn" data-tab="hw" aria-selected="false">Домашки <span class="tabs__n" id="tn-hw"></span></button>
-      <button type="button" role="tab" class="tabs__btn" data-tab="lessons" aria-selected="false">Уроки <span class="tabs__n" id="tn-lessons"></span></button>
+      <button type="button" role="tab" class="tabs__btn" data-tab="lessons" aria-selected="false">Занятия <span class="tabs__n" id="tn-lessons"></span></button>
       <button type="button" role="tab" class="tabs__btn" data-tab="users" aria-selected="false">Ученики <span class="tabs__n" id="tn-users"></span></button>
     </nav>
 
@@ -70,28 +69,16 @@
       <ol class="adm-list" id="adm-list" aria-label="Визуализации"></ol>
     </section>
 
-    <section class="panel" id="panel-hw" role="tabpanel" hidden>
-      <div class="adm-head">
-        <div>
-          <span class="eyebrow" id="hw-summary">Домашние задания</span>
-          <h1 class="adm-h1">Домашки</h1>
-        </div>
-        <button class="btn btn--accent" type="button" id="hw-add"><span aria-hidden="true">+</span> Добавить ДЗ</button>
-      </div>
-      <p class="hint">PDF по номеру. Ученик открывает в кабинете или по адресу <code>/hw/номер</code> — только если ты открыл ему это ДЗ.</p>
-      <ol class="adm-list" id="hw-list" aria-label="Домашние задания"></ol>
-    </section>
-
     <section class="panel" id="panel-lessons" role="tabpanel" hidden>
       <div class="adm-head">
         <div>
-          <span class="eyebrow" id="lessons-summary">Записи уроков</span>
-          <h1 class="adm-h1">Уроки</h1>
+          <span class="eyebrow" id="lessons-summary">Занятия</span>
+          <h1 class="adm-h1">Занятия</h1>
         </div>
-        <button class="btn btn--accent" type="button" id="lesson-add"><span aria-hidden="true">+</span> Добавить урок</button>
+        <button class="btn btn--accent" type="button" id="lesson-add"><span aria-hidden="true">+</span> Добавить занятие</button>
       </div>
-      <p class="hint">Ссылка на запись (Телебосс, VK и т. п.). Ученик видит её в кабинете, только если ты открыл ему этот урок.</p>
-      <ol class="adm-list" id="lessons-list" aria-label="Уроки"></ol>
+      <p class="hint">Занятие — папка ученика: запись (ссылка на Телебосс, VK и т. п.), конспект и ДЗ в PDF и визуализации. Всё необязательно, можно дополнять потом. Открытое ученику занятие открывает и закрытые визуализации внутри него. ДЗ и конспект открываются и по адресам <code>/hw/номер</code>, <code>/notes/номер</code>.</p>
+      <ol class="adm-list" id="lessons-list" aria-label="Занятия"></ol>
     </section>
 
     <section class="panel" id="panel-users" role="tabpanel" hidden>
@@ -101,7 +88,7 @@
           <h1 class="adm-h1">Ученики</h1>
         </div>
       </div>
-      <p class="hint">Ученик сам регистрируется в «Личном кабинете» и присылает ник. Здесь открываешь ему материалы, задаёшь новый пароль или удаляешь аккаунт.</p>
+      <p class="hint">Ученик сам регистрируется в «Личном кабинете» и присылает ник. Здесь открываешь ему занятия и отдельные визуализации, задаёшь новый пароль или удаляешь аккаунт.</p>
       <input class="input users-search" type="search" id="users-search" placeholder="Найти по нику" autocomplete="off" aria-label="Найти ученика по нику">
       <ol class="adm-list" id="users-list" aria-label="Ученики"></ol>
     </section>

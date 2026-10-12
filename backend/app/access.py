@@ -1,11 +1,14 @@
-"""Кто что может открыть: текущий ученик, его ручные доступы и проверка перед выдачей материала."""
+"""Кто что может открыть: текущий ученик, его ручные доступы и проверка перед выдачей материала.
+
+Ученику открыто занятие (grants.kind = lesson) — значит, открыто и всё в его папке, включая закрытые визуализации.
+Отдельную закрытую визуализацию можно открыть и без занятия (grants.kind = viz)."""
 from typing import Dict, Iterable, List, Optional, Set
 
 from fastapi import Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import GRANT_KINDS, Grant, User
+from .models import GRANT_KINDS, Grant, LessonViz, User
 from .security import is_admin, read_user_token
 
 
@@ -24,6 +27,13 @@ def granted_ids(db: Session, user_id: int, kind: str) -> Set[int]:
     return set(db.scalars(select(Grant.item_id).where(Grant.user_id == user_id, Grant.kind == kind)))
 
 
+def opened_viz_ids(db: Session, user_id: int) -> Set[int]:
+    """Визуализации, открытые ученику: отдельно или через открытые ему занятия."""
+    lessons = granted_ids(db, user_id, "lesson")
+    via_lessons = set(db.scalars(select(LessonViz.viz_id).where(LessonViz.lesson_id.in_(lessons)))) if lessons else set()
+    return granted_ids(db, user_id, "viz") | via_lessons
+
+
 def can_open(db: Session, request: Request, kind: str, item_id: int, user: Optional[User] = None) -> bool:
     """Закрытый материал: админ видит всё, ученик — только то, что ему открыли."""
     if is_admin(request):
@@ -31,14 +41,16 @@ def can_open(db: Session, request: Request, kind: str, item_id: int, user: Optio
     user = user or current_user(request, db)
     if not user:
         return False
+    if kind == "viz":
+        return item_id in opened_viz_ids(db, user.id)
     return db.scalar(select(Grant.id).where(
         Grant.user_id == user.id, Grant.kind == kind, Grant.item_id == item_id)) is not None
 
 
 def user_grants(db: Session) -> Dict[int, Dict[str, List[int]]]:
-    """Все доступы одним запросом: {user_id: {"viz": [...], "hw": [...], "lesson": [...]}}."""
+    """Все доступы одним запросом: {user_id: {"viz": [...], "lesson": [...]}}."""
     out: Dict[int, Dict[str, List[int]]] = {}
-    for g in db.scalars(select(Grant)):
+    for g in db.scalars(select(Grant).where(Grant.kind.in_(GRANT_KINDS))):
         out.setdefault(g.user_id, {k: [] for k in GRANT_KINDS})[g.kind].append(g.item_id)
     return out
 

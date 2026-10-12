@@ -65,7 +65,7 @@ class User(Base):
 
 
 class Homework(Base):
-    """Домашнее задание: номер, название и PDF на диске storage/hw/<file_name>."""
+    """Устарело: раньше ДЗ было отдельным материалом. При запуске переносится в занятия (seed._migrate_homeworks)."""
     __tablename__ = "homeworks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -76,21 +76,47 @@ class Homework(Base):
 
 
 class Lesson(Base):
-    """Урок: номер, название и ссылка на запись (Телебосс, VK и т. п.)."""
+    """Занятие — папка ученика: запись (ссылка), конспект и ДЗ (PDF в storage/hw/) и визуализации к нему."""
     __tablename__ = "lessons"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
     title: Mapped[str] = mapped_column(String(200), default="")
-    url: Mapped[str] = mapped_column(String(1000))
+    # ссылка на запись (Телебосс, VK); пустая строка — записи нет
+    url: Mapped[str] = mapped_column(String(1000), default="")
+    notes_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    hw_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
-GRANT_KINDS = ("viz", "hw", "lesson")
+class LessonViz(Base):
+    """Какие визуализации лежат в папке занятия (в нужном порядке)."""
+    __tablename__ = "lesson_viz"
+    __table_args__ = (UniqueConstraint("lesson_id", "viz_id", name="uq_lesson_viz"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
+    viz_id: Mapped[int] = mapped_column(ForeignKey("visualizations.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class LessonProgress(Base):
+    """Отметка ученика «просмотрено» (зелёная папка). Нет строки — не просмотрено (красная)."""
+    __tablename__ = "lesson_progress"
+    __table_args__ = (UniqueConstraint("user_id", "lesson_id", name="uq_lesson_progress"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+GRANT_KINDS = ("viz", "lesson")
 
 
 class Grant(Base):
-    """Ручной доступ: какому ученику открыт какой материал (kind = viz / hw / lesson)."""
+    """Ручной доступ: какому ученику открыто занятие (kind = lesson) или отдельная визуализация (kind = viz)."""
     __tablename__ = "grants"
     __table_args__ = (UniqueConstraint("user_id", "kind", "item_id", name="uq_grant"),)
 

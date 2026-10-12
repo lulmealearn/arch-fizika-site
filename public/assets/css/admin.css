@@ -217,3 +217,8 @@ textarea.input { resize: vertical; min-height: 84px; }
   .adm-row--plain .row-actions { margin-left: 0; flex-wrap: wrap; }
 }
 @media (max-width: 420px) { .adm-row--plain .numbadge, .adm-row--plain .avatar { display: flex; } }
+
+/* PDF занятия: поле с кнопками «Открыть» и «Убрать» */
+.pdf-field { display: flex; flex-direction: column; gap: 8px; }
+.pdf-field__tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.pdf-field__tools .btn { min-height: 40px; padding: 0 14px; font-size: 11px; }

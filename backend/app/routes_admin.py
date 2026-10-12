@@ -3,13 +3,13 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete as sql_delete, func, select
 from sqlalchemy.orm import Session, joinedload
 
 from . import config, files
 from .access import drop_item, item_users
 from .db import get_db
-from .models import Section, Visualization
+from .models import LessonViz, Section, Visualization
 from .security import (COOKIE_NAME, check_login_rate, clear_login_failures, is_admin, make_session_token,
                        record_login_failure, require_admin, verify_password)
 from .serialize import section_out, viz_admin
@@ -236,6 +236,7 @@ def delete(pk: int, db: Session = Depends(get_db)):
     files.delete_viz(v.file_name)
     files.delete_cover(v.cover_name)
     drop_item(db, "viz", v.id)
+    db.execute(sql_delete(LessonViz).where(LessonViz.viz_id == v.id))
     db.delete(v)
     db.commit()
     return {"ok": True}
