@@ -6,6 +6,7 @@ from sqlalchemy import func, inspect, select, text
 from . import config, files
 from .db import Base, SessionLocal, engine
 from .models import Grant, Homework, Lesson, Section, Visualization
+from .tracking import prune
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
 SECTION_REMAP = {
@@ -88,6 +89,7 @@ def init_db() -> None:
     _add_missing_columns()
     with SessionLocal() as db:
         _migrate_homeworks(db)
+        prune(db)  # журнал активности старше года не храним
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

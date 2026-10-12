@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import config
 from .access import current_user, granted_ids
+from .tracking import touch
 from .db import get_db
 from .models import Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
 from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
@@ -56,6 +57,8 @@ def _set_session(response: Response, user: User) -> None:
 def me(request: Request, response: Response, db: Session = Depends(get_db)):
     response.headers["Cache-Control"] = "no-store"
     user = current_user(request, db)
+    if user and not is_admin(request):
+        touch(db, user, request)
     # admin: в этом браузере открыта админка — тогда сайт показывает всё, и об этом надо предупредить
     return {"user": {"nickname": user.nickname} if user else None, "admin": is_admin(request)}
 
@@ -81,6 +84,7 @@ def register(body: Credentials, request: Request, response: Response, db: Sessio
         db.rollback()
         raise HTTPException(409, "Такой ник уже занят. Выберите другой.")
     register_limit.hit(ip)
+    touch(db, user, request)
     _set_session(response, user)
     return {"user": {"nickname": user.nickname}}
 
@@ -98,6 +102,7 @@ def login(body: Credentials, request: Request, response: Response, db: Session =
     user_login_limit.clear(ip)
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
+    touch(db, user, request)
     _set_session(response, user)
     return {"user": {"nickname": user.nickname}}
 
@@ -137,7 +142,8 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     extra = [viz[i] for i in sorted(extra_ids - in_lessons, key=lambda i: (viz[i].position, i) if i in viz else (0, i)) if i in viz]
     out_lessons = []
     for l in lessons:
-        item = {"pk": l.id, "number": l.number, "title": l.title, "url": l.url or None, "done": l.id in done}
+        # запись открывается через /watch/<номер>: так виден факт просмотра, а ссылка не лежит в кабинете в открытую
+        item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None, "done": l.id in done}
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
         out_lessons.append(item)
@@ -193,3 +199,15 @@ def set_mock_progress(mock_pk: int, body: ProgressIn, request: Request, db: Sess
     row.done = body.done
     db.commit()
     return {"done": row.done}
+
+
+@router.post("/me/ping")
+def ping(request: Request, db: Session = Depends(get_db)):
+    """Кабинет открыт и виден на экране — продлеваем сеанс (раз в минуту), чтобы длительность была честнее."""
+    check_same_origin(request)
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(401, "Войдите в личный кабинет.")
+    if not is_admin(request):
+        touch(db, user, request)
+    return {"ok": True}

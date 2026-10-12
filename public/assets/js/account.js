@@ -365,6 +365,12 @@
   }
   window.addEventListener('hashchange', function () { openFromHash(location.hash); });
 
+  /* Пока кабинет открыт и виден на экране, раз в минуту продлеваем сеанс (для статистики в админке) */
+  setInterval(function () {
+    if (document.visibilityState !== 'visible' || $('view-dash').hidden) return;
+    fetch('/api/me/ping', { method: 'POST', credentials: 'same-origin' }).catch(function () { /* не важно */ });
+  }, 60000);
+
   /* ── Админка в этом же браузере ── */
   $('admin-logout').addEventListener('click', function () {
     api('POST', '/api/admin/logout').then(function () { $('admin-note').hidden = true; });

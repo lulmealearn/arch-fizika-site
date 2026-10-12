@@ -46,6 +46,40 @@
     var d = new Date(iso);
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
   }
+  /* «2 ч назад», «вчера», «5 дн. назад» */
+  function ago(iso) {
+    if (!iso) return 'ещё не заходил';
+    var m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 2) return 'только что';
+    if (m < 60) return m + ' мин назад';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + ' ч назад';
+    var d = Math.round(h / 24);
+    if (d === 1) return 'вчера';
+    return d + ' ' + plural(d, 'день', 'дня', 'дней') + ' назад';
+  }
+  function dateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+  function timeOnly(iso) { return iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : ''; }
+  function duration(min) {
+    if (min < 60) return min + ' мин';
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + ' ч' + (m ? ' ' + m + ' мин' : '');
+  }
+  /* полоска «сделано из открытого» */
+  function meter(label, done, total) {
+    var w = el('span', 'meter' + (total && done === total ? ' meter--full' : ''));
+    w.appendChild(el('span', 'meter__label', label));
+    var bar = el('span', 'meter__bar'); var fill = el('span', 'meter__fill');
+    fill.style.transform = 'scaleX(' + (total ? done / total : 0) + ')';
+    bar.appendChild(fill); w.appendChild(bar);
+    w.appendChild(el('span', 'meter__num', total ? done + ' / ' + total : '—'));
+    return w;
+  }
+
   function armDelete(btn, run) {
     if (btn.classList.contains('is-armed')) { btn.disabled = true; run().catch(function (e) { toast(e.message, true); btn.disabled = false; }); return; }
     var label = btn.textContent;
@@ -316,13 +350,28 @@
       var li = el('li', 'adm-row adm-row--plain');
       var av = el('span', 'avatar', u.nickname.charAt(0).toUpperCase()); av.setAttribute('aria-hidden', 'true');
       var text = el('div', 'adm-row__text');
-      text.appendChild(el('h2', 'adm-row__title', u.nickname));
-      var g = u.grants;
-      text.appendChild(el('span', 'adm-row__meta',
-        'занятия: ' + g.lesson.length + '  ·  пробники: ' + g.mock.length + '  ·  отдельные визуализации: ' + g.viz.length +
-        '  ·  отчёты: ' + (u.reports || []).length +
-        '  ·  с ' + date(u.created_at) + (u.last_login_at ? ', заходил ' + date(u.last_login_at) : '')));
+      var st = u.stats || {};
+      var head = el('div', 'urow__head');
+      head.appendChild(el('h2', 'adm-row__title', u.nickname));
+      var seen = el('span', 'urow__seen' + (st.last_seen_at && Date.now() - new Date(st.last_seen_at) < 864e5 ? ' is-fresh' : ''), ago(st.last_seen_at));
+      seen.title = st.last_seen_at ? 'Последняя активность: ' + dateTime(st.last_seen_at) : '';
+      head.appendChild(seen);
+      text.appendChild(head);
+      var facts = el('div', 'urow__facts');
+      facts.appendChild(el('span', null, 'сеансов за 30 дней: ' + (st.visits_30d || 0)));
+      var dev = el('span', st.devices_30d >= 3 ? 'urow__warn' : null, 'устройств: ' + (st.devices_30d || 0));
+      if (st.devices_30d >= 3) dev.title = 'Заходили с трёх и более устройств за месяц — возможно, аккаунтом пользуются несколько человек';
+      facts.appendChild(dev);
+      facts.appendChild(el('span', null, 'отчётов: ' + (u.reports || []).length));
+      text.appendChild(facts);
+      var meters = el('div', 'urow__meters');
+      meters.appendChild(meter('Занятия просмотрены', st.lessons_done || 0, st.lessons_total || 0));
+      meters.appendChild(meter('Пробники решены', st.mocks_done || 0, st.mocks_total || 0));
+      text.appendChild(meters);
       var actions = el('div', 'row-actions');
+      var more = el('button', 'btn btn--small', 'Подробнее'); more.type = 'button';
+      more.addEventListener('click', function () { showActivity(u); });
+      actions.appendChild(more);
       var acc = el('button', 'btn btn--small btn--solid', 'Доступ'); acc.type = 'button';
       acc.addEventListener('click', function () { editUserAccess(u); });
       var rep = el('button', 'btn btn--small', 'Отчёты'); rep.type = 'button';
@@ -339,6 +388,82 @@
     });
   }
   $('users-search').addEventListener('input', renderUsers);
+
+  /* ── Подробно об ученике: только просмотр ── */
+  var KIND = { video: 'Запись', notes: 'Конспект', hw: 'ДЗ', viz: 'Визуализация', mock: 'Пробник', report: 'Отчёт' };
+  function viewLabel(w) {
+    if (w.kind === 'viz' || w.kind === 'report') return KIND[w.kind] + ' · ' + (w.title || w.ref);
+    if (w.kind === 'mock') return 'Пробник № ' + w.ref + (w.title ? ' · ' + w.title : '');
+    return KIND[w.kind] + ' · занятие № ' + w.ref + (w.title ? ' · ' + w.title : '');
+  }
+  function showActivity(u) {
+    openEditor2(u.nickname, function (body) {
+      body.appendChild(el('p', 'hint', 'Загружаю…'));
+      api('GET', '/api/admin/users/' + u.id + '/activity').then(function (a) {
+        body.textContent = '';
+        var s = a.summary;
+        var tiles = el('div', 'tiles');
+        function tile(label, value, sub, warn) {
+          var t = el('div', 'tile' + (warn ? ' tile--warn' : ''));
+          t.appendChild(el('span', 'tile__label', label));
+          t.appendChild(el('b', 'tile__value', value));
+          if (sub) t.appendChild(el('span', 'tile__sub', sub));
+          tiles.appendChild(t);
+        }
+        var lastV = a.visits[0];
+        tile('Последний заход', lastV ? ago(lastV.last_seen_at) : 'не заходил', lastV ? dateTime(lastV.last_seen_at) : '');
+        tile('Сеансов за 30 дней', String(s.visits_30d), s.visits_30d ? 'в сумме ≈ ' + duration(s.minutes_30d) : '');
+        tile('Открыл материалов', String(s.views_30d), 'за 30 дней');
+        tile('Устройства', String(s.devices_30d.length), s.devices_30d.join(', ') || '—', s.devices_30d.length >= 3);
+        body.appendChild(tiles);
+        if (s.devices_30d.length >= 3) body.appendChild(el('p', 'act-warn', 'За месяц заходили с ' + s.devices_30d.length + ' разных устройств. Это бывает у одного ученика (телефон, ноутбук, школьный компьютер), но может значить, что аккаунтом пользуются несколько человек.'));
+
+        function progressList(items, kind) {
+          var ul = el('ul', 'plist');
+          if (!items.length) ul.appendChild(el('li', 'picker__empty', kind === 'mock' ? 'Пробники не открыты.' : 'Занятия не открыты.'));
+          items.forEach(function (it) {
+            var li = el('li', 'prow prow--' + (it.done ? 'done' : 'todo'));
+            li.appendChild(el('span', 'prow__dot'));
+            var t = el('span', 'prow__text');
+            t.appendChild(el('b', null, (kind === 'mock' ? 'Пробник № ' : 'Занятие № ') + it.number + (it.title ? ' · ' + it.title : '')));
+            t.appendChild(el('span', null,
+              (it.done ? (kind === 'mock' ? 'решён ' : 'просмотрено ') + dateTime(it.marked_at) : 'не отмечено') +
+              '  ·  ' + (it.opened_at ? 'открывал ' + dateTime(it.opened_at) : 'не открывал')));
+            li.appendChild(t);
+            ul.appendChild(li);
+          });
+          return ul;
+        }
+        var ld = a.lessons.filter(function (x) { return x.done; }).length, md = a.mocks.filter(function (x) { return x.done; }).length;
+        body.appendChild(field('Занятия: просмотрено ' + ld + ' из ' + a.lessons.length, progressList(a.lessons, 'lesson')));
+        body.appendChild(field('Пробники: решено ' + md + ' из ' + a.mocks.length, progressList(a.mocks, 'mock')));
+
+        var sess = el('ul', 'slist');
+        if (!a.visits.length) sess.appendChild(el('li', 'picker__empty', 'Сеансов пока нет.'));
+        a.visits.slice(0, 30).forEach(function (v) {
+          var li = el('li', 'srow');
+          li.appendChild(el('b', null, dateTime(v.started_at) + '–' + timeOnly(v.last_seen_at)));
+          li.appendChild(el('span', null, '≈ ' + duration(v.minutes)));
+          li.appendChild(el('span', null, v.device));
+          li.appendChild(el('span', null, v.opened ? 'открыл ' + v.opened : 'только кабинет'));
+          sess.appendChild(li);
+        });
+        body.appendChild(field('Сеансы (последние)', sess));
+
+        var vl = el('ul', 'slist');
+        if (!a.views.length) vl.appendChild(el('li', 'picker__empty', 'Пока ничего не открывал.'));
+        a.views.slice(0, 40).forEach(function (w) {
+          var li = el('li', 'srow srow--view');
+          li.appendChild(el('b', null, viewLabel(w)));
+          li.appendChild(el('span', null, dateTime(w.at)));
+          vl.appendChild(li);
+        });
+        body.appendChild(field('Что открывал', vl));
+        body.appendChild(el('p', 'hint', 'Сеанс — заходы без перерыва дольше 30 минут; длительность приблизительная. Записи на Телебоссе учитываются как открытые, но сколько из них досмотрено, сайт не знает. Дата регистрации: ' + date(a.user.created_at)));
+      }).catch(function (e) { body.textContent = ''; body.appendChild(el('p', 'form-error', e.message)); });
+      return null;  /* только просмотр: без кнопки «Сохранить» */
+    });
+  }
 
   function editUserAccess(u) {
     var priv = data.viz.filter(function (v) { return v.access === 'private'; });
@@ -445,6 +570,9 @@
     showError('');
     var body = $('editor2-body'); body.textContent = '';
     submitFn = build(body);
+    /* окно только для просмотра — без «Сохранить», «Отмена» становится «Закрыть» */
+    $('editor2-save').hidden = !submitFn;
+    ed.querySelector('.editor__foot [data-close-editor2]').textContent = submitFn ? 'Отмена' : 'Закрыть';
     lastFocus = document.activeElement;
     ed.classList.add('is-open'); ed.setAttribute('aria-hidden', 'false');
     document.body.classList.add('no-scroll');

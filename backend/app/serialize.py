@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import Any, Dict, List, Optional
 
 from .models import Lesson, Mock, Report, Section, User, Visualization
@@ -30,14 +31,19 @@ def viz_admin(v: Visualization, user_ids: Optional[List[int]] = None) -> Dict[st
         "slug": v.slug,
         "position": v.position,
         "is_published": v.is_published,
-        "created_at": v.created_at.isoformat() if v.created_at else None,
-        "updated_at": v.updated_at.isoformat() if v.updated_at else None,
+        "created_at": _iso(v.created_at),
+        "updated_at": _iso(v.updated_at),
     })
     return out
 
 
 def _iso(dt) -> Optional[str]:
-    return dt.isoformat() if dt else None
+    """Время с часовым поясом: SQLite отдаёт его без пояса, а хранится UTC — иначе браузер сдвинет на 3 часа."""
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
 
 
 def lesson_files(l: Lesson) -> Dict[str, Any]:

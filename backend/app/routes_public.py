@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import config, files
 from .db import get_db
 from .access import can_open, current_user, opened_viz_ids
+from .tracking import record_view
 from .models import Lesson, Mock, Report, Section, Visualization
 from .security import is_admin
 from .serialize import section_out, viz_public
@@ -50,6 +51,12 @@ def list_visualizations(request: Request, response: Response, db: Session = Depe
     return {"sections": [section_out(s) for s in sections], "items": out, "admin": admin}
 
 
+def _track(db: Session, request: Request, user, kind: str, ref: str, title: str) -> None:
+    """Записать, что ученик открыл материал. Админа не считаем: в его браузере ученик может быть тоже залогинен."""
+    if user is not None and not is_admin(request):
+        record_view(db, user, request, kind, ref, title)
+
+
 def _to_account(next_path: str, signed_in: bool) -> RedirectResponse:
     """Нет доступа: отправляем в личный кабинет, а оттуда после входа — обратно."""
     q = "next=" + quote(next_path, safe="/")
@@ -67,13 +74,13 @@ def open_visualization(name: str, request: Request, db: Session = Depends(get_db
     v = db.scalar(select(Visualization).where(Visualization.file_name == name))
     if not v or (not v.is_published and not is_admin(request)):
         raise HTTPException(404, "Нет такой визуализации.")
-    if v.access == "private":
-        user = current_user(request, db)
-        if not can_open(db, request, "viz", v.id, user):
-            return _to_account(f"/viz/{name}", user is not None)
+    user = current_user(request, db)
+    if v.access == "private" and not can_open(db, request, "viz", v.id, user):
+        return _to_account(f"/viz/{name}", user is not None)
     path = files.viz_path(name)
     if not path.exists():
         raise HTTPException(404, "Файл визуализации не найден на диске.")
+    _track(db, request, user, "viz", v.slug, v.title)
     return FileResponse(path, media_type="text/html; charset=utf-8", headers=VIZ_HEADERS)
 
 
@@ -97,7 +104,9 @@ def _lesson_pdf(kind: str, number: int, request: Request, db: Session):
     if not l or not can_open(db, request, "lesson", l.id, user):
         # не говорим, существует ли занятие: без доступа всё выглядит одинаково
         return _to_account(f"/{prefix}/{number}", user is not None)
-    return _pdf(name, ("DZ" if kind == "hw" else "Konspekt") + f"-{number}")
+    out = _pdf(name, ("DZ" if kind == "hw" else "Konspekt") + f"-{number}")
+    _track(db, request, user, kind, str(number), l.title)
+    return out
 
 
 def _pdf(name, label: str):
@@ -130,6 +139,7 @@ def open_mock(number: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not m or not can_open(db, request, "mock", m.id, user):
         return _to_account(f"/mock/{number}", user is not None)
+    _track(db, request, user, "mock", str(number), m.title)
     if m.file_name.endswith(".html"):
         if not files.hw_path(m.file_name).exists():
             raise HTTPException(404, "Такого файла нет.")
@@ -145,4 +155,19 @@ def open_report(pk: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not r or not (is_admin(request) or (user and user.id == r.user_id)):
         return _to_account(f"/report/{pk}", user is not None)
-    return _pdf(r.file_name, f"Otchet-{pk}")
+    out = _pdf(r.file_name, f"Otchet-{pk}")
+    _track(db, request, user, "report", str(pk), r.title)
+    return out
+
+
+@router.get("/watch/{number}")
+def watch_lesson(number: int, request: Request, db: Session = Depends(get_db)):
+    """Запись занятия: проверяем доступ, отмечаем просмотр и перенаправляем на Телебосс / VK."""
+    l = db.scalar(select(Lesson).where(Lesson.number == number))
+    user = current_user(request, db)
+    if not l or not can_open(db, request, "lesson", l.id, user):
+        return _to_account(f"/watch/{number}", user is not None)
+    if not l.url:
+        raise HTTPException(404, "У этого занятия пока нет записи.")
+    _track(db, request, user, "video", str(number), l.title)
+    return RedirectResponse(l.url, status_code=303, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})

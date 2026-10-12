@@ -147,6 +147,31 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class Visit(Base):
+    """Сеанс ученика на сайте: от первого до последнего запроса; перерыв больше 30 минут — новый сеанс.
+    Храним только примерное устройство (браузер и система), без IP."""
+    __tablename__ = "visits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    device: Mapped[str] = mapped_column(String(80), default="")
+    hits: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class View(Base):
+    """Что ученик открывал: запись, конспект, ДЗ, визуализацию, пробник, отчёт."""
+    __tablename__ = "views"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(12))
+    ref: Mapped[str] = mapped_column(String(120), default="")
+    title: Mapped[str] = mapped_column(String(200), default="")
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
 GRANT_KINDS = ("viz", "lesson", "mock")
 
 

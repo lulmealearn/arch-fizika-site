@@ -1,5 +1,6 @@
 """Админка: ученики и ручные доступы, занятия (запись, конспект, ДЗ и визуализации в одной папке)."""
 import json
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Session
 from . import files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
-from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
+from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, View, Visit, Visualization
+from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
 from .serialize import lesson_out, mock_out, report_out, user_out
@@ -100,12 +102,100 @@ def users_list(db: Session = Depends(get_db)):
     reports: Dict[int, list] = {}
     for r in db.scalars(select(Report).order_by(Report.created_at.desc(), Report.id.desc())):
         reports.setdefault(r.user_id, []).append(report_out(r))
+    # сводка активности: последний заход, сеансы за 30 дней, сделано из открытого
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    last_seen: Dict[int, datetime] = {}
+    visits30: Dict[int, int] = {}
+    devices30: Dict[int, set] = {}
+    for v in db.scalars(select(Visit)):
+        seen = _aware(v.last_seen_at)
+        if v.user_id not in last_seen or seen > last_seen[v.user_id]:
+            last_seen[v.user_id] = seen
+        if seen >= month_ago:
+            visits30[v.user_id] = visits30.get(v.user_id, 0) + 1
+            devices30.setdefault(v.user_id, set()).add(v.device)
+    done_l = _done_map(db, LessonProgress, LessonProgress.lesson_id)
+    done_m = _done_map(db, MockProgress, MockProgress.mock_id)
     out = []
     for u in users:
-        d = user_out(u, grants.get(u.id))
+        g = grants.get(u.id) or {}
+        d = user_out(u, g)
         d["reports"] = reports.get(u.id, [])
+        seen = last_seen.get(u.id) or _aware(u.last_login_at)
+        d["stats"] = {
+            "last_seen_at": seen.isoformat() if seen else None,
+            "visits_30d": visits30.get(u.id, 0),
+            "devices_30d": len(devices30.get(u.id, ())),
+            "lessons_done": len(done_l.get(u.id, set()) & set(g.get("lesson", []))),
+            "lessons_total": len(g.get("lesson", [])),
+            "mocks_done": len(done_m.get(u.id, set()) & set(g.get("mock", []))),
+            "mocks_total": len(g.get("mock", [])),
+        }
         out.append(d)
     return {"users": out}
+
+
+def _done_map(db: Session, model, item_col) -> Dict[int, set]:
+    """{user_id: {id отмеченных сделанными}} — для занятий или пробников."""
+    out: Dict[int, set] = {}
+    for uid, item in db.execute(select(model.user_id, item_col).where(model.done.is_(True))):
+        out.setdefault(uid, set()).add(item)
+    return out
+
+
+def _iso(dt) -> Optional[str]:
+    dt = _aware(dt)
+    return dt.isoformat() if dt else None
+
+
+@router.get("/users/{pk}/activity")
+def user_activity(pk: int, db: Session = Depends(get_db)):
+    """Подробно об ученике: сеансы, что открывал, что отмечено сделанным."""
+    u = _user(db, pk)
+    visits = db.scalars(select(Visit).where(Visit.user_id == u.id).order_by(Visit.started_at.desc(), Visit.id.desc()).limit(60)).all()
+    views = db.scalars(select(View).where(View.user_id == u.id).order_by(View.at.desc(), View.id.desc()).limit(300)).all()
+
+    # что открывал за сеанс: просмотры, попавшие в его промежуток
+    out_visits = []
+    for v in visits:
+        a, b = _aware(v.started_at), _aware(v.last_seen_at)
+        opened = [w for w in views if a - timedelta(seconds=5) <= _aware(w.at) <= b + timedelta(seconds=5)]
+        out_visits.append({
+            "started_at": _iso(a), "last_seen_at": _iso(b), "minutes": max(1, round((b - a).total_seconds() / 60)),
+            "device": v.device, "opened": len(opened),
+        })
+
+    g = user_grants(db).get(u.id) or {}
+    lesson_ids, mock_ids = g.get("lesson", []), g.get("mock", [])
+    lp = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == u.id))}
+    mp = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == u.id))}
+    # последний раз открывал материалы занятия / пробник
+    last_open: Dict[str, datetime] = {}
+    for w in views:
+        key = ("mock:" if w.kind == "mock" else "lesson:" if w.kind in ("video", "notes", "hw") else w.kind + ":") + w.ref
+        if key not in last_open:
+            last_open[key] = _aware(w.at)
+    lessons = db.scalars(select(Lesson).where(Lesson.id.in_(lesson_ids)).order_by(Lesson.number.desc())).all() if lesson_ids else []
+    mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
+
+    def prog(p):
+        return {"done": bool(p and p.done), "marked_at": _iso(p.updated_at) if p and p.done else None}
+
+    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    recent = [v for v in visits if _aware(v.last_seen_at) >= month_ago]
+    return {
+        "user": {"id": u.id, "nickname": u.nickname, "created_at": _iso(u.created_at), "last_login_at": _iso(u.last_login_at)},
+        "summary": {
+            "visits_30d": len(recent),
+            "minutes_30d": sum(max(1, round((_aware(v.last_seen_at) - _aware(v.started_at)).total_seconds() / 60)) for v in recent),
+            "devices_30d": sorted({v.device for v in recent}),
+            "views_30d": len([w for w in views if _aware(w.at) >= month_ago]),
+        },
+        "visits": out_visits,
+        "views": [{"kind": w.kind, "ref": w.ref, "title": w.title, "at": _iso(w.at)} for w in views[:80]],
+        "lessons": [dict(number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))), **prog(lp.get(l.id))) for l in lessons],
+        "mocks": [dict(number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))), **prog(mp.get(m.id))) for m in mocks],
+    }
 
 
 @router.put("/users/{pk}/grants")
@@ -137,6 +227,8 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
     db.execute(delete(Grant).where(Grant.user_id == u.id))
     db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id))
     db.execute(delete(MockProgress).where(MockProgress.user_id == u.id))
+    db.execute(delete(Visit).where(Visit.user_id == u.id))
+    db.execute(delete(View).where(View.user_id == u.id))
     for r in db.scalars(select(Report).where(Report.user_id == u.id)).all():
         files.delete_hw(r.file_name)
         db.delete(r)

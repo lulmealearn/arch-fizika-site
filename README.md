@@ -58,6 +58,7 @@ python run.py --lan
 - Пробники — вкладка «Пробники»: вариант в HTML (как визуализация) или PDF, без решений. Открываются ученикам так же вручную.
 - Отчёты для родителей — «Ученики» → «Отчёты»: раз в месяц загружаешь PDF, его видит только этот ученик в кабинете.
 - Забытый пароль: «Ученики» → «Пароль», задаёшь новый и передаёшь ученику.
+- Активность: «Ученики» — когда заходил, сколько сеансов и устройств, сколько отмечено сделанным; «Подробнее» — по каждому занятию, сеансы и что открывал.
 - Если ты вошёл в админку, в этом же браузере открывается всё. Проверять, как видит ученик, — в режиме инкогнито.
 
 ## Структура
@@ -76,7 +77,7 @@ backend/app/             сервер
   routes_auth.py         регистрация и вход учеников, /api/me/materials
   routes_admin_access.py ученики, доступы, занятия
   access.py              кто что может открыть
-  models.py              таблицы sections, visualizations, users, lessons, lesson_viz, lesson_progress, mocks, mock_progress, reports, grants
+  models.py              таблицы sections, visualizations, users, lessons, lesson_viz, lesson_progress, mocks, mock_progress, reports, grants, visits, views
   files.py               проверка и сохранение файлов
   security.py            пароль, сессия, лимит попыток входа
   seed.py                первый импорт из seed/
