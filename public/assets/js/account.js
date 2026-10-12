@@ -346,6 +346,11 @@
         extra.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false));
       });
       $('extra-viz').hidden = !d.viz.length;
+      /* в кабинете только последние 3; остальные — в хранилище, там они без замка */
+      var more = (d.viz_total || 0) - d.viz.length;
+      $('extra-more').hidden = more <= 0;
+      $('extra-more').textContent = more > 0 ? 'Ещё ' + more + ' ' + plural(more, 'визуализация открыта', 'визуализации открыты', 'визуализаций открыто') +
+        ' вам — они в общем списке визуализаций с пометкой «открыто вам».' : '';
       show('dash');
       /* ссылка вида /account/#z12 сразу открывает папку */
       openFromHash(hash);

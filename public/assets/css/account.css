@@ -209,3 +209,5 @@ html.pop-lock { overflow: hidden; }
 .kpanel__lead { margin: 0; font-size: 17px; line-height: 1.5; color: var(--ink-2); }
 .mats__list--one { grid-template-columns: minmax(0, 720px); }
 @media (prefers-reduced-motion: reduce) { .ktabs__btn { transition: none; } }
+
+.mats__note { margin: 0; font-size: 15px; color: var(--muted); }

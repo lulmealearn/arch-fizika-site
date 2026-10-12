@@ -13,7 +13,7 @@ from . import config
 from .access import current_user, granted_ids
 from .tracking import touch
 from .db import get_db
-from .models import Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
+from .models import Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
 from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
                        register_limit, user_login_limit, verify_password)
 from .serialize import lesson_files, mock_out, report_out, viz_public
@@ -29,6 +29,9 @@ _DUMMY_HASH = hash_password("dummy-password-for-timing")
 class Credentials(BaseModel):
     nickname: str
     password: str
+
+
+EXTRA_VIZ_SHOWN = 3
 
 
 class ProgressIn(BaseModel):
@@ -139,7 +142,10 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         LessonProgress.user_id == user.id, LessonProgress.done.is_(True))))
 
     in_lessons = {vid for ids in by_lesson.values() for vid in ids}
-    extra = [viz[i] for i in sorted(extra_ids - in_lessons, key=lambda i: (viz[i].position, i) if i in viz else (0, i)) if i in viz]
+    # отдельные визуализации: в кабинете только 3 последних открытых, остальные ученик найдёт в хранилище (там они без замка)
+    granted_at = {g.item_id: g.created_at for g in db.scalars(select(Grant).where(Grant.user_id == user.id, Grant.kind == "viz"))}
+    extra_all = sorted((i for i in extra_ids - in_lessons if i in viz), key=lambda i: (granted_at.get(i), i), reverse=True)
+    extra = [viz[i] for i in extra_all[:EXTRA_VIZ_SHOWN]]
     out_lessons = []
     for l in lessons:
         # запись открывается через /watch/<номер>: так виден факт просмотра, а ссылка не лежит в кабинете в открытую
@@ -160,6 +166,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         "user": {"nickname": user.nickname},
         "lessons": out_lessons,
         "viz": [viz_public(v) for v in extra],
+        "viz_total": len(extra_all),
         "mocks": out_mocks,
         "reports": [report_out(r) for r in reports],
     }
