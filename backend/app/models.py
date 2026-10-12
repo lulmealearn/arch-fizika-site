@@ -113,7 +113,7 @@ class LessonProgress(Base):
 
 
 class Mock(Base):
-    """Пробник: номер, название, PDF варианта и (необязательно) PDF решений. Не привязан к занятиям."""
+    """Пробник: номер, название, вариант и (необязательно) решения — HTML или PDF. Не привязан к занятиям."""
     __tablename__ = "mocks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

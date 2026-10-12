@@ -288,8 +288,8 @@
     $('lesson-tab').textContent = 'Пробник № ' + m.number;
     $('lesson-title').textContent = mockTitle(m);
     var list = $('lesson-items'); list.textContent = '';
-    list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'PDF →', true));
-    if (m.solutions_url) list.appendChild(item(m.solutions_url, ICONS.check, 'Решения', 'Решения пробника № ' + m.number, 'PDF →', true));
+    list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'Открыть →', false));
+    if (m.solutions_url) list.appendChild(item(m.solutions_url, ICONS.check, 'Решения', 'Решения пробника № ' + m.number, 'Открыть →', false));
     else list.appendChild(el('li', 'lesson__empty', 'Решения появятся позже.'));
     paintDone(m);
     showDialog();

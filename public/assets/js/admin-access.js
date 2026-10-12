@@ -183,11 +183,11 @@
   }
 
   /* Поле для PDF: выбрать, заменить или убрать. Возвращает {box, file(), remove()} */
-  function pdfField(id, currentUrl, emptyText) {
+  function pdfField(id, currentUrl, emptyText, accept) {
     var wrap = el('div', 'pdf-field');
     var drop = el('label', 'drop' + (currentUrl ? ' has-file' : ''));
-    var inp = el('input', 'drop__input'); inp.type = 'file'; inp.id = id; inp.accept = 'application/pdf,.pdf';
-    var t = el('span', 'drop__text', currentUrl ? 'Загружен. Перетащи новый PDF, чтобы заменить' : emptyText);
+    var inp = el('input', 'drop__input'); inp.type = 'file'; inp.id = id; inp.accept = accept || 'application/pdf,.pdf';
+    var t = el('span', 'drop__text', currentUrl ? 'Загружен. Перетащи новый файл, чтобы заменить' : emptyText);
     drop.appendChild(inp); drop.appendChild(t);
     wrap.appendChild(drop);
     var removed = false;
@@ -198,7 +198,7 @@
       rm.addEventListener('click', function () {
         removed = !removed; inp.value = '';
         rm.textContent = removed ? 'Вернуть' : 'Убрать';
-        t.textContent = removed ? 'Файл будет убран после сохранения' : 'Загружен. Перетащи новый PDF, чтобы заменить';
+        t.textContent = removed ? 'Файл будет убран после сохранения' : 'Загружен. Перетащи новый файл, чтобы заменить';
         drop.classList.toggle('has-file', !removed);
       });
       tools.appendChild(open); tools.appendChild(rm);
@@ -257,7 +257,7 @@
   function renderMocks() {
     var list = $('mocks-list'); list.textContent = '';
     $('mocks-summary').textContent = data.mocks.length + ' ' + plural(data.mocks.length, 'пробник', 'пробника', 'пробников');
-    if (!data.mocks.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить пробник» и загрузи PDF варианта.')); return; }
+    if (!data.mocks.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить пробник» и загрузи HTML или PDF варианта.')); return; }
     data.mocks.forEach(function (m) {
       var li = el('li', 'adm-row adm-row--plain');
       var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Пробник')); num.appendChild(el('b', null, String(m.number)));
@@ -265,7 +265,7 @@
       text.appendChild(el('h2', 'adm-row__title', m.title || 'Пробник № ' + m.number));
       text.appendChild(el('span', 'adm-row__meta', (m.solutions_url ? 'вариант · решения' : 'вариант, решений пока нет') + '  ·  ' + whoLine(m.user_ids)));
       var actions = el('div', 'row-actions');
-      var open = el('a', 'btn btn--small', 'PDF'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
+      var open = el('a', 'btn btn--small', 'Открыть'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
       edit.addEventListener('click', function () { editMock(m); });
       var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
@@ -284,17 +284,18 @@
       if (!m) num.dataset.fresh = '1';
       body.appendChild(field('Номер *', num));
       body.appendChild(field('Название', textInput('e-title', m ? m.title : '', 'Например: Вариант в формате ЕГЭ 2027')));
-      var pdf = pdfField('e-mock', m && m.url, 'Перетащи PDF варианта или нажми, чтобы выбрать');
-      body.appendChild(field(m ? 'Вариант (PDF)' : 'Вариант (PDF) *', pdf.box));
-      var sol = pdfField('e-sol', m && m.solutions_url, 'Перетащи PDF решений (можно позже)');
-      body.appendChild(field('Решения (PDF)', sol.box));
+      var ACCEPT = '.html,.htm,text/html,application/pdf,.pdf';
+      var pdf = pdfField('e-mock', m && m.url, 'Перетащи HTML (или PDF) варианта или нажми, чтобы выбрать', ACCEPT);
+      body.appendChild(field(m ? 'Вариант (HTML или PDF)' : 'Вариант (HTML или PDF) *', pdf.box));
+      var sol = pdfField('e-sol', m && m.solutions_url, 'Перетащи HTML (или PDF) решений — можно позже', ACCEPT);
+      body.appendChild(field('Решения (HTML или PDF)', sol.box));
       var boxU = el('div', 'picker');
       var getU = picker(boxU, userItems(), m ? m.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
       body.appendChild(field('Кому открыт', boxU));
       return function () {
-        if (!m && !pdf.file()) throw new Error('Выбери PDF варианта.');
+        if (!m && !pdf.file()) throw new Error('Выбери файл варианта (HTML или PDF).');
         if (m && pdf.remove()) throw new Error('Вариант нельзя убрать — можно заменить другим PDF или удалить пробник.');
-        [pdf.file(), sol.file()].forEach(function (f) { if (f && !/\.pdf$/i.test(f.name)) throw new Error('Нужны файлы .pdf.'); });
+        [pdf.file(), sol.file()].forEach(function (f) { if (f && !/\.(pdf|html?)$/i.test(f.name)) throw new Error('Нужен файл .html или .pdf.'); });
         var fd = new FormData();
         fd.append('number', $('e-number').value.trim());
         fd.append('title', $('e-title').value.trim());

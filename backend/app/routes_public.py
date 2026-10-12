@@ -129,7 +129,14 @@ def _mock_pdf(number: int, solutions: bool, request: Request, db: Session):
     path = f"/mock/{number}" + ("/solutions" if solutions else "")
     if not m or not can_open(db, request, "mock", m.id, user):
         return _to_account(path, user is not None)
-    return _pdf(m.solutions_file if solutions else m.file_name, ("Resheniya" if solutions else "Probnik") + f"-{number}")
+    name = m.solutions_file if solutions else m.file_name
+    if name and name.endswith(".html"):
+        # HTML-пробник открывается как визуализация: в «песочнице», с кнопкой «В личный кабинет»
+        if not files.hw_path(name).exists():
+            raise HTTPException(404, "Такого файла нет.")
+        return FileResponse(files.hw_path(name), media_type="text/html; charset=utf-8",
+                            headers={**VIZ_HEADERS, "Cache-Control": "private, no-cache"})
+    return _pdf(name, ("Resheniya" if solutions else "Probnik") + f"-{number}")
 
 
 @router.get("/mock/{number}")

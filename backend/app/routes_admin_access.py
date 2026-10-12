@@ -306,9 +306,9 @@ async def mocks_create(
     n = _number(number, "пробника")
     _mock_number_free(db, n)
     users = _parse_ids(user_ids)
-    m = Mock(number=n, title=_title(title), file_name=await files.save_lesson_pdf("mock", n, pdf))
+    m = Mock(number=n, title=_title(title), file_name=await files.save_mock_file("mock", n, pdf))
     if solutions is not None and solutions.filename:
-        m.solutions_file = await files.save_lesson_pdf("mocksol", n, solutions)
+        m.solutions_file = await files.save_mock_file("mocksol", n, solutions)
     db.add(m)
     db.flush()
     if users:
@@ -333,12 +333,12 @@ async def mocks_update(
     if title is not None:
         m.title = _title(title)
     if pdf is not None and pdf.filename:
-        new = await files.save_lesson_pdf("mock", m.number, pdf)
+        new = await files.save_mock_file("mock", m.number, pdf)
         if new != m.file_name:
             files.delete_hw(m.file_name)
         m.file_name = new
     if solutions is not None and solutions.filename:
-        new = await files.save_lesson_pdf("mocksol", m.number, solutions)
+        new = await files.save_mock_file("mocksol", m.number, solutions)
         if m.solutions_file and new != m.solutions_file:
             files.delete_hw(m.solutions_file)
         m.solutions_file = new

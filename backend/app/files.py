@@ -42,20 +42,23 @@ async def read_limited(upload: UploadFile, limit: int, what: str) -> bytes:
 
 # ── Визуализации ──
 BACKLINK_MARK = "<!-- site-backlink -->"
-BACKLINK = BACKLINK_MARK + """
-<a href="index.html" aria-label="Все визуализации"
+BACKLINK_TEMPLATE = BACKLINK_MARK + """
+<a href="{href}" aria-label="{aria}"
    style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:2147483000;
           display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;
           background:rgba(24,24,32,.88);color:#fff;text-decoration:none;
           font:500 12px/1 'JetBrains Mono',Menlo,Consolas,monospace;letter-spacing:.06em;
           box-shadow:0 8px 20px -10px rgba(24,24,32,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)">
-  <span aria-hidden="true" style="font-size:15px">←</span> ВСЕ ВИЗУАЛИЗАЦИИ
+  <span aria-hidden="true" style="font-size:15px">←</span> {label}
 </a>
 """
+BACKLINK = BACKLINK_TEMPLATE.format(href="index.html", aria="Все визуализации", label="ВСЕ ВИЗУАЛИЗАЦИИ")
+# пробник открывается из личного кабинета — туда и возвращаемся
+MOCK_BACKLINK = BACKLINK_TEMPLATE.format(href="/account/#probniki", aria="Назад в личный кабинет", label="В ЛИЧНЫЙ КАБИНЕТ")
 
 
-def prepare_html(raw: bytes) -> str:
-    """Проверяет, что это текстовый HTML, и добавляет кнопку «← Все визуализации»."""
+def prepare_html(raw: bytes, backlink: str = BACKLINK) -> str:
+    """Проверяет, что это текстовый HTML, и добавляет кнопку возврата («← Все визуализации» по умолчанию)."""
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -65,7 +68,7 @@ def prepare_html(raw: bytes) -> str:
         raise HTTPException(400, "Это не похоже на HTML-страницу.")
     if BACKLINK_MARK not in text:
         idx = low.rfind("</body>")
-        text = text[:idx] + BACKLINK + text[idx:] if idx != -1 else text + BACKLINK
+        text = text[:idx] + backlink + text[idx:] if idx != -1 else text + backlink
     return text
 
 
@@ -146,6 +149,22 @@ async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
     digest = hashlib.sha1(data).hexdigest()[:8]
     name = f"{kind}-{number}-{digest}.pdf"
     _atomic_write(config.HW_DIR / name, data)
+    return name
+
+
+async def save_mock_file(kind: str, number: int, upload: UploadFile) -> str:
+    """Пробник или решения: HTML (как визуализация, с кнопкой «В личный кабинет») или PDF."""
+    data = await read_limited(upload, max(config.MAX_PDF_BYTES, config.MAX_HTML_BYTES), "Файл пробника")
+    digest = hashlib.sha1(data).hexdigest()[:8]
+    if data.lstrip()[:5] == b"%PDF-":
+        name = f"{kind}-{number}-{digest}.pdf"
+        _atomic_write(config.HW_DIR / name, data)
+        return name
+    if len(data) > config.MAX_HTML_BYTES:
+        raise HTTPException(413, f"HTML-файл больше {config.MAX_HTML_BYTES // (1024 * 1024)} МБ.")
+    html = prepare_html(data, MOCK_BACKLINK)
+    name = f"{kind}-{number}-{digest}.html"
+    _atomic_write(config.HW_DIR / name, html.encode("utf-8"))
     return name
 
 
