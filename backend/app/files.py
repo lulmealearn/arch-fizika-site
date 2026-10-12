@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 from fastapi import HTTPException, UploadFile
 
 from . import config
+from .mockcheck import extract_key_from_html
 
 _TRANSLIT = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z",
@@ -152,20 +153,22 @@ async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
     return name
 
 
-async def save_mock_file(kind: str, number: int, upload: UploadFile) -> str:
-    """Пробник: HTML (как визуализация, с кнопкой «В личный кабинет») или PDF."""
+async def save_mock_file(kind: str, number: int, upload: UploadFile) -> Tuple[str, Optional[str]]:
+    """Пробник: HTML (как визуализация, с кнопкой «В личный кабинет») или PDF.
+    Возвращает (имя файла, текст ключа из <script id="answer-key"> или None). Ключ из страницы вырезается."""
     data = await read_limited(upload, max(config.MAX_PDF_BYTES, config.MAX_HTML_BYTES), "Файл пробника")
     digest = hashlib.sha1(data).hexdigest()[:8]
     if data.lstrip()[:5] == b"%PDF-":
         name = f"{kind}-{number}-{digest}.pdf"
         _atomic_write(config.HW_DIR / name, data)
-        return name
+        return name, None
     if len(data) > config.MAX_HTML_BYTES:
         raise HTTPException(413, f"HTML-файл больше {config.MAX_HTML_BYTES // (1024 * 1024)} МБ.")
     html = prepare_html(data, MOCK_BACKLINK)
+    html, key_text = extract_key_from_html(html)
     name = f"{kind}-{number}-{digest}.html"
     _atomic_write(config.HW_DIR / name, html.encode("utf-8"))
-    return name
+    return name, key_text
 
 
 def hw_path(name: str) -> Path:

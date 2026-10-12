@@ -121,6 +121,8 @@ class Mock(Base):
     title: Mapped[str] = mapped_column(String(200), default="")
     file_name: Mapped[str] = mapped_column(String(160))
     solutions_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)  # не используется: решений у пробников нет
+    # ключ первой части для автопроверки (см. mockcheck.py): [{n, answers, points, any_order}]
+    answer_key: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -134,6 +136,21 @@ class MockProgress(Base):
     mock_id: Mapped[int] = mapped_column(ForeignKey("mocks.id", ondelete="CASCADE"), index=True)
     done: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class MockAttempt(Base):
+    """Ответы ученика на первую часть пробника и результат автопроверки. Попытка одна."""
+    __tablename__ = "mock_attempts"
+    __table_args__ = (UniqueConstraint("user_id", "mock_id", name="uq_mock_attempt"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    mock_id: Mapped[int] = mapped_column(ForeignKey("mocks.id", ondelete="CASCADE"), index=True)
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    max_score: Mapped[int] = mapped_column(Integer, default=0)
+    details: Mapped[list] = mapped_column(JSON, default=list)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class Report(Base):

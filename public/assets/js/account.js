@@ -167,7 +167,8 @@
     tab.appendChild(el('b', null, '№ ' + m.number));
     var body = el('span', 'folder__body');
     body.appendChild(el('span', 'folder__title', mockTitle(m)));
-    body.appendChild(el('span', 'folder__what', 'вариант в формате ЕГЭ'));
+    body.appendChild(el('span', 'folder__what', m.result ? 'первая часть: ' + m.result.score + ' из ' + m.result.max + ' ' + plural(m.result.max, 'балла', 'баллов', 'баллов')
+      : m.tasks && m.tasks.length ? 'вариант · бланк ответов' : 'вариант в формате ЕГЭ'));
     body.appendChild(el('span', 'folder__state', m.done ? 'решён' : 'не решён'));
     b.appendChild(tab); b.appendChild(body);
     b.addEventListener('click', function () { openMock(m); });
@@ -288,11 +289,93 @@
     $('lesson-title').textContent = mockTitle(m);
     var list = $('lesson-items'); list.textContent = '';
     list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'Открыть →', false));
+    renderSheet(m);
     paintDone(m);
     showDialog();
   }
+
+  /* ── Бланк ответов первой части: проверяет сервер, попытка одна ── */
+  var NOTE_PART1 = 'Это баллы только за первую часть. Вторая часть в этот результат не входит.';
+  function draftKey(m) { return 'mock-draft-' + m.pk; }
+  function loadDraft(m) { try { return JSON.parse(localStorage.getItem(draftKey(m)) || '{}'); } catch (e) { return {}; } }
+  function saveDraft(m, d) { try { localStorage.setItem(draftKey(m), JSON.stringify(d)); } catch (e) { /* без хранилища тоже работает */ } }
+  function dropDraft(m) { try { localStorage.removeItem(draftKey(m)); } catch (e) { /* не важно */ } }
+
+  function renderSheet(m) {
+    var box = $('lesson-sheet'); box.textContent = '';
+    box.hidden = !(m.tasks && m.tasks.length);
+    if (box.hidden) return;
+    if (m.result) return renderResult(box, m.result);
+
+    box.appendChild(el('h3', 'bsheet__h', 'Бланк ответов · первая часть'));
+    box.appendChild(el('p', 'bsheet__hint', 'Решите вариант и впишите ответы. Дробные числа — через запятую, ответы из нескольких цифр — без пробелов. Отправить можно один раз; до отправки ответы сохраняются на этом устройстве.'));
+    var draft = loadDraft(m);
+    var grid = el('div', 'bsheet__grid');
+    m.tasks.forEach(function (n) {
+      var lab = el('label', 'cell');
+      lab.appendChild(el('span', 'cell__n', String(n)));
+      var inp = el('input', 'cell__in'); inp.type = 'text'; inp.maxLength = 20; inp.autocomplete = 'off'; inp.spellcheck = false;
+      inp.inputMode = 'decimal'; inp.dataset.n = n; inp.value = draft[n] || '';
+      inp.setAttribute('aria-label', 'Ответ на задание ' + n);
+      inp.addEventListener('input', function () { draft[n] = inp.value; saveDraft(m, draft); count(); });
+      lab.appendChild(inp);
+      grid.appendChild(lab);
+    });
+    box.appendChild(grid);
+    var foot = el('div', 'bsheet__foot');
+    var filled = el('span', 'bsheet__count');
+    var btn = el('button', 'btn btn--solid', 'Отправить ответы'); btn.type = 'button';
+    var err = el('p', 'form-error'); err.hidden = true;
+    foot.appendChild(filled); foot.appendChild(btn);
+    box.appendChild(foot); box.appendChild(err);
+    function count() {
+      var n = m.tasks.filter(function (t) { return (draft[t] || '').trim(); }).length;
+      filled.textContent = 'заполнено ' + n + ' из ' + m.tasks.length;
+    }
+    count();
+    var armed = false;
+    btn.addEventListener('click', function () {
+      if (!armed) {
+        armed = true; btn.textContent = 'Точно отправить? Изменить будет нельзя';
+        btn.classList.add('is-armed');
+        setTimeout(function () { if (btn.isConnected && armed) { armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed'); } }, 4000);
+        return;
+      }
+      btn.disabled = true; err.hidden = true;
+      var answers = {};
+      m.tasks.forEach(function (t) { answers[t] = (draft[t] || '').trim(); });
+      api('POST', '/api/me/mocks/' + m.pk + '/answers', { answers: answers }).then(function (r) {
+        m.result = r; m.done = true; dropDraft(m);
+        renderSheet(m); paintDone(m);
+      }).catch(function (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed'); });
+    });
+  }
+
+  function renderResult(box, r) {
+    var head = el('div', 'res');
+    head.appendChild(el('span', 'res__label', 'Первая часть'));
+    var big = el('b', 'res__score'); big.textContent = r.score + ' из ' + r.max;
+    head.appendChild(big);
+    head.appendChild(el('span', 'res__unit', plural(r.max, 'первичного балла', 'первичных баллов', 'первичных баллов')));
+    box.appendChild(head);
+    box.appendChild(el('p', 'bsheet__hint', NOTE_PART1));
+    var table = el('div', 'rtable');
+    var hdr = el('div', 'rrow rrow--head');
+    ['№', 'Ваш ответ', 'Правильный', 'Баллы'].forEach(function (t) { hdr.appendChild(el('span', null, t)); });
+    table.appendChild(hdr);
+    r.details.forEach(function (d) {
+      var row = el('div', 'rrow ' + (d.points === d.max ? 'rrow--ok' : d.points ? 'rrow--half' : 'rrow--bad'));
+      row.appendChild(el('span', 'rrow__n', String(d.n)));
+      row.appendChild(el('span', null, d.given || '—'));
+      row.appendChild(el('span', null, d.correct));
+      row.appendChild(el('span', 'rrow__pts', d.points + ' / ' + d.max));
+      table.appendChild(row);
+    });
+    box.appendChild(table);
+  }
   function openLesson(l) {
     current = l; currentKind = 'lesson';
+    $('lesson-sheet').hidden = true;
     $('lesson-tab').textContent = 'Занятие № ' + l.number;
     $('lesson-title').textContent = lessonTitle(l);
     var list = $('lesson-items'); list.textContent = '';

@@ -13,10 +13,11 @@ from . import config
 from .access import current_user, granted_ids
 from .tracking import touch
 from .db import get_db
-from .models import Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
+from .mockcheck import grade
+from .models import Grant, Lesson, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, Visualization
 from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
                        register_limit, user_login_limit, verify_password)
-from .serialize import lesson_files, mock_out, report_out, viz_public
+from .serialize import _iso, lesson_files, mock_out, report_out, viz_public
 
 router = APIRouter(prefix="/api")
 
@@ -36,6 +37,16 @@ EXTRA_VIZ_SHOWN = 3
 
 class ProgressIn(BaseModel):
     done: bool
+
+
+class AnswersIn(BaseModel):
+    answers: Dict[str, str]
+
+
+def attempt_out(a) -> dict:
+    """Результат первой части для ученика: баллы и разбор с правильными ответами (решение владельца — показывать все)."""
+    return {"score": a.score, "max": a.max_score, "submitted_at": _iso(a.submitted_at),
+            "details": a.details or []}
 
 
 def _ip(request: Request) -> str:
@@ -156,10 +167,12 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
     solved = set(db.scalars(select(MockProgress.mock_id).where(MockProgress.user_id == user.id, MockProgress.done.is_(True))))
+    tries = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == user.id))}
     out_mocks = []
     for m in mocks:
         item = mock_out(m)
         item["done"] = m.id in solved
+        item["result"] = attempt_out(tries[m.id]) if m.id in tries else None
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
@@ -218,3 +231,36 @@ def ping(request: Request, db: Session = Depends(get_db)):
     if not is_admin(request):
         touch(db, user, request)
     return {"ok": True}
+
+
+@router.post("/me/mocks/{mock_pk}/answers")
+def submit_answers(mock_pk: int, body: AnswersIn, request: Request, db: Session = Depends(get_db)):
+    """Бланк ответов первой части: проверка по ключу на сервере. Попытка одна; пробник сразу отмечается решённым."""
+    check_same_origin(request)
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(401, "Войдите в личный кабинет.")
+    m = db.get(Mock, mock_pk)
+    if not m or mock_pk not in granted_ids(db, user.id, "mock"):
+        raise HTTPException(404, "Пробник не найден.")
+    if not m.answer_key:
+        raise HTTPException(400, "У этого пробника нет автопроверки.")
+    if db.scalar(select(MockAttempt.id).where(MockAttempt.user_id == user.id, MockAttempt.mock_id == m.id)):
+        raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
+    allowed = {str(t["n"]) for t in m.answer_key}
+    answers = {k: (v or "").strip()[:60] for k, v in body.answers.items() if k in allowed}
+    score, total, details = grade(m.answer_key, answers)
+    a = MockAttempt(user_id=user.id, mock_id=m.id, answers=answers, score=score, max_score=total, details=details)
+    db.add(a)
+    row = db.scalar(select(MockProgress).where(MockProgress.user_id == user.id, MockProgress.mock_id == m.id))
+    if row is None:
+        db.add(MockProgress(user_id=user.id, mock_id=m.id, done=True))
+    else:
+        row.done = True
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
+    touch(db, user, request)
+    return attempt_out(a)

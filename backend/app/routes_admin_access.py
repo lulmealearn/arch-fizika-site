@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from . import files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
-from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, View, Visit, Visualization
+from .mockcheck import grade, parse_key
+from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
 from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
@@ -148,6 +149,13 @@ def _iso(dt) -> Optional[str]:
     return dt.isoformat() if dt else None
 
 
+def _attempt_out(a: Optional[MockAttempt]) -> Optional[dict]:
+    if a is None:
+        return None
+    return {"score": a.score, "max": a.max_score, "submitted_at": _iso(a.submitted_at),
+            "wrong": [d["n"] for d in (a.details or []) if d["points"] < d["max"]], "details": a.details or []}
+
+
 @router.get("/users/{pk}/activity")
 def user_activity(pk: int, db: Session = Depends(get_db)):
     """Подробно об ученике: сеансы, что открывал, что отмечено сделанным."""
@@ -178,6 +186,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     lessons = db.scalars(select(Lesson).where(Lesson.id.in_(lesson_ids)).order_by(Lesson.number.desc())).all() if lesson_ids else []
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
 
+    attempts = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == u.id))}
+
     def prog(p):
         return {"done": bool(p and p.done), "marked_at": _iso(p.updated_at) if p and p.done else None}
 
@@ -194,7 +204,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
         "visits": out_visits,
         "views": [{"kind": w.kind, "ref": w.ref, "title": w.title, "at": _iso(w.at)} for w in views[:80]],
         "lessons": [dict(number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))), **prog(lp.get(l.id))) for l in lessons],
-        "mocks": [dict(number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))), **prog(mp.get(m.id))) for m in mocks],
+        "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
+                       result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key), **prog(mp.get(m.id))) for m in mocks],
     }
 
 
@@ -227,6 +238,7 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
     db.execute(delete(Grant).where(Grant.user_id == u.id))
     db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id))
     db.execute(delete(MockProgress).where(MockProgress.user_id == u.id))
+    db.execute(delete(MockAttempt).where(MockAttempt.user_id == u.id))
     db.execute(delete(Visit).where(Visit.user_id == u.id))
     db.execute(delete(View).where(View.user_id == u.id))
     for r in db.scalars(select(Report).where(Report.user_id == u.id)).all():
@@ -384,6 +396,16 @@ def _mock_json(db: Session, m: Mock) -> dict:
     return mock_out(m, item_users(db, "mock").get(m.id, []))
 
 
+def _set_key(db: Session, m: Mock, text: Optional[str]) -> None:
+    """Задать ключ первой части. Если ученики уже сдали ответы — пересчитать их результаты по новому ключу."""
+    key = parse_key(text) if text and text.strip() else None
+    if key == m.answer_key:
+        return
+    m.answer_key = key
+    for a in db.scalars(select(MockAttempt).where(MockAttempt.mock_id == m.id)).all():
+        a.score, a.max_score, a.details = grade(key or [], a.answers or {})
+
+
 @router.get("/mocks")
 def mocks_list(db: Session = Depends(get_db)):
     who = item_users(db, "mock")
@@ -393,14 +415,19 @@ def mocks_list(db: Session = Depends(get_db)):
 @router.post("/mocks", status_code=201)
 async def mocks_create(
     number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
-    pdf: UploadFile = File(...), db: Session = Depends(get_db),
+    answer_key: Optional[str] = Form(None), pdf: UploadFile = File(...), db: Session = Depends(get_db),
 ):
     n = _number(number, "пробника")
     _mock_number_free(db, n)
     users = _parse_ids(user_ids)
-    m = Mock(number=n, title=_title(title), file_name=await files.save_mock_file("mock", n, pdf))
+    if answer_key and answer_key.strip():
+        parse_key(answer_key)  # проверить до сохранения файла
+    name, key_from_html = await files.save_mock_file("mock", n, pdf)
+    m = Mock(number=n, title=_title(title), file_name=name)
     db.add(m)
     db.flush()
+    # ключ: вписанный в админке важнее, иначе — из HTML пробника
+    _set_key(db, m, answer_key if answer_key and answer_key.strip() else key_from_html)
     if users:
         set_item_users(db, "mock", m.id, _existing_ids(db, User, users))
     db.commit()
@@ -410,6 +437,7 @@ async def mocks_create(
 @router.patch("/mocks/{pk}")
 async def mocks_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), user_ids: Optional[str] = Form(None),
+    answer_key: Optional[str] = Form(None), clear_key: Optional[str] = Form(None),
     pdf: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
 ):
     m = db.get(Mock, pk)
@@ -421,16 +449,36 @@ async def mocks_update(
         m.number = n
     if title is not None:
         m.title = _title(title)
+    if answer_key is not None and answer_key.strip():
+        parse_key(answer_key)
+    key_from_html = None
     if pdf is not None and pdf.filename:
-        new = await files.save_mock_file("mock", m.number, pdf)
+        new, key_from_html = await files.save_mock_file("mock", m.number, pdf)
         if new != m.file_name:
             files.delete_hw(m.file_name)
         m.file_name = new
+    if answer_key is not None and answer_key.strip():
+        _set_key(db, m, answer_key)
+    elif key_from_html:
+        _set_key(db, m, key_from_html)
+    elif (clear_key or "").lower() in ("1", "true", "yes"):
+        _set_key(db, m, None)  # пустая строка в форме приходит как «не прислано», поэтому очистка — отдельным флагом
     users = _parse_ids(user_ids)
     if users is not None:
         set_item_users(db, "mock", m.id, _existing_ids(db, User, users))
     db.commit()
     return _mock_json(db, m)
+
+
+@router.delete("/mocks/{pk}/attempts/{user_id}")
+def mocks_reset_attempt(pk: int, user_id: int, db: Session = Depends(get_db)):
+    """Разрешить ученику сдать ответы заново (например, отправил по ошибке)."""
+    a = db.scalar(select(MockAttempt).where(MockAttempt.mock_id == pk, MockAttempt.user_id == user_id))
+    if not a:
+        raise HTTPException(404, "Ответов этого ученика нет.")
+    db.delete(a)
+    db.commit()
+    return {"ok": True}
 
 
 @router.delete("/mocks/{pk}")
@@ -442,6 +490,7 @@ def mocks_delete(pk: int, db: Session = Depends(get_db)):
     files.delete_hw(m.solutions_file)
     drop_item(db, "mock", m.id)
     db.execute(delete(MockProgress).where(MockProgress.mock_id == m.id))
+    db.execute(delete(MockAttempt).where(MockAttempt.mock_id == m.id))
     db.delete(m)
     db.commit()
     return {"ok": True}

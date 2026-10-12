@@ -211,3 +211,36 @@ html.pop-lock { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .ktabs__btn { transition: none; } }
 
 .mats__note { margin: 0; font-size: 15px; color: var(--muted); }
+
+/* ── Бланк ответов первой части ── */
+.bsheet { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; background: var(--bg); border: 1px solid var(--line); }
+.bsheet__h { margin: 0; font-family: var(--display); font-weight: 700; font-size: 20px; }
+.bsheet__hint { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.bsheet__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.cell { display: flex; align-items: stretch; border: 1.5px solid var(--line-2); border-radius: 10px; background: var(--paper); overflow: hidden; }
+.cell:focus-within { border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-tint); }
+.cell__n { flex: none; width: 38px; display: flex; align-items: center; justify-content: center; background: var(--ink); color: #fff; font-family: var(--mono); font-size: 13px; }
+.cell__in { flex: 1 1 auto; min-width: 0; min-height: 46px; padding: 0 10px; border: 0; background: transparent; font-family: var(--mono); font-size: 17px; color: var(--ink); }
+.cell__in:focus { outline: none; }
+.bsheet__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.bsheet__count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.bsheet .btn.is-armed { background: #a61f1f; border-color: #a61f1f; }
+
+/* Результат */
+.res { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.res__label { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.res__score { font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1; color: var(--ink); }
+.res__unit { font-size: 15px; color: var(--ink-2); }
+.rtable { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); overflow: hidden; }
+.rrow { display: grid; grid-template-columns: 40px 1fr 1fr 56px; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 14px; }
+.rrow:last-child { border-bottom: 0; }
+.rrow span { overflow-wrap: anywhere; }
+.rrow--head { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rrow__n { font-weight: 500; }
+.rrow__pts { text-align: right; }
+.rrow--ok { background: #eef8f1; }
+.rrow--ok .rrow__pts { color: #17663a; }
+.rrow--half { background: #fdf6e3; }
+.rrow--half .rrow__pts { color: #8a5a00; }
+.rrow--bad { background: #fdf0ee; }
+.rrow--bad .rrow__pts { color: #a61f1f; }

@@ -298,7 +298,9 @@
       var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Пробник')); num.appendChild(el('b', null, String(m.number)));
       var text = el('div', 'adm-row__text');
       text.appendChild(el('h2', 'adm-row__title', m.title || 'Пробник № ' + m.number));
-      text.appendChild(el('span', 'adm-row__meta', whoLine(m.user_ids)));
+      text.appendChild(el('span', 'adm-row__meta',
+        (m.tasks && m.tasks.length ? 'автопроверка: ' + m.tasks.length + ' ' + plural(m.tasks.length, 'задание', 'задания', 'заданий') + ', ' + m.key_points + ' б.' : 'без автопроверки') +
+        '  ·  ' + whoLine(m.user_ids)));
       var actions = el('div', 'row-actions');
       var open = el('a', 'btn btn--small', 'Открыть'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
@@ -322,6 +324,11 @@
       var ACCEPT = '.html,.htm,text/html,application/pdf,.pdf';
       var pdf = pdfField('e-mock', m && m.url, 'Перетащи HTML (или PDF) варианта или нажми, чтобы выбрать', ACCEPT);
       body.appendChild(field(m ? 'Вариант (HTML или PDF)' : 'Вариант (HTML или PDF) *', pdf.box));
+      var key = el('textarea', 'input input--key'); key.id = 'e-key'; key.rows = 8; key.spellcheck = false;
+      key.value = m ? (m.key_text || '') : '';
+      key.placeholder = '1: 2,5\n2: -3 | -3,0\n5: 24 (2, любой порядок)\n7: 31 (2)';
+      body.appendChild(field('Ключ первой части (автопроверка)', key));
+      body.appendChild(el('p', 'hint', 'По строке на задание: «номер: ответ». Несколько допустимых ответов — через «|». В скобках: 2 — задание на 2 балла (одна ошибка — 1 балл), «любой порядок» — цифры можно писать в любом порядке. Если ключ вписан в HTML пробника (<script id="answer-key">), он подставится сам при загрузке. Пусто — без автопроверки. Если ученики уже сдали ответы, после изменения ключа их баллы пересчитаются.'));
       var boxU = el('div', 'picker');
       var getU = picker(boxU, userItems(), m ? m.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
       body.appendChild(field('Кому открыт', boxU));
@@ -334,8 +341,14 @@
         fd.append('title', $('e-title').value.trim());
         fd.append('user_ids', JSON.stringify(getU()));
         if (pdf.file()) fd.append('pdf', pdf.file());
+        var keyText = $('e-key').value.trim();
+        if (keyText) fd.append('answer_key', keyText);
+        else if (m && m.key_text) fd.append('clear_key', 'true');
         return (m ? api('PATCH', '/api/admin/mocks/' + m.pk, fd) : api('POST', '/api/admin/mocks', fd))
-          .then(function (r) { toast((m ? 'Сохранено: пробник № ' : 'Добавлено: пробник № ') + r.number); });
+          .then(function (r) {
+            toast((m ? 'Сохранено: пробник № ' : 'Добавлено: пробник № ') + r.number +
+              (r.tasks.length ? ' · автопроверка: ' + r.tasks.length + ' ' + plural(r.tasks.length, 'задание', 'задания', 'заданий') : ''));
+          });
       };
     });
   }
@@ -430,6 +443,27 @@
             t.appendChild(el('span', null,
               (it.done ? (kind === 'mock' ? 'решён ' : 'просмотрено ') + dateTime(it.marked_at) : 'не отмечено') +
               '  ·  ' + (it.opened_at ? 'открывал ' + dateTime(it.opened_at) : 'не открывал')));
+            if (kind === 'mock' && it.result) {
+              var r = it.result;
+              var res = el('span', 'prow__res');
+              res.appendChild(el('b', null, 'Первая часть: ' + r.score + ' из ' + r.max));
+              res.appendChild(document.createTextNode(r.wrong.length ? '  ·  ошибки в заданиях ' + r.wrong.join(', ') : '  ·  без ошибок'));
+              res.appendChild(document.createTextNode('  ·  сдано ' + dateTime(r.submitted_at)));
+              t.appendChild(res);
+              var reset = el('button', 'btn btn--small btn--danger prow__reset', 'Сбросить ответы'); reset.type = 'button';
+              reset.title = 'Ученик сможет отправить ответы заново';
+              reset.addEventListener('click', function () {
+                armDelete(reset, function () {
+                  return api('DELETE', '/api/admin/mocks/' + it.pk + '/attempts/' + u.id).then(function () {
+                    toast('Ответы сброшены: ' + u.nickname + ' может сдать пробник № ' + it.number + ' заново'); showActivity(u);
+                  });
+                });
+              });
+              li.appendChild(t); li.appendChild(reset); ul.appendChild(li);
+              return;
+            } else if (kind === 'mock' && it.has_key) {
+              t.appendChild(el('span', 'prow__res', 'Ответы на первую часть ещё не отправлены'));
+            }
             li.appendChild(t);
             ul.appendChild(li);
           });

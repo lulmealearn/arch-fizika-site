@@ -1,6 +1,7 @@
 from datetime import timezone
 from typing import Any, Dict, List, Optional
 
+from .mockcheck import key_to_text
 from .models import Lesson, Mock, Report, Section, User, Visualization
 
 
@@ -64,9 +65,14 @@ def lesson_out(l: Lesson, user_ids: Optional[List[int]] = None, viz_ids: Optiona
 
 
 def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
-    out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}", "created_at": _iso(m.created_at)}
+    """Пробник. С user_ids — для админки (там же текст ключа); без — для ученика (только номера заданий)."""
+    key = m.answer_key or []
+    out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}", "created_at": _iso(m.created_at),
+           "tasks": [t["n"] for t in key]}
     if user_ids is not None:
         out["user_ids"] = sorted(user_ids)
+        out["key_text"] = key_to_text(key)
+        out["key_points"] = sum(t["points"] for t in key)
     return out
 
 

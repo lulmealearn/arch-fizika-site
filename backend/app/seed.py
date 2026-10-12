@@ -45,6 +45,7 @@ NEW_COLUMNS = [
     ("visualizations", "access", "VARCHAR(10) NOT NULL DEFAULT 'free'"),
     ("lessons", "notes_file", "VARCHAR(160) NULL"),
     ("lessons", "hw_file", "VARCHAR(160) NULL"),
+    ("mocks", "answer_key", "TEXT NULL"),  # JSON-строка (ключ автопроверки)
 ]
 
 
