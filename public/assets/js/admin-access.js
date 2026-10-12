@@ -242,7 +242,8 @@
       var f = inp.files[0]; if (!f) return;
       removed = false;
       drop.classList.add('has-file'); t.textContent = f.name + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ';
-      var m = f.name.match(/(\d+)/);
+      /* номер из имени файла (dz-12.pdf → 12); год вроде 2027 номером не считаем */
+      var m = (f.name.match(/\d+/g) || []).filter(function (x) { return x.length <= 3; }).map(function (x) { return [x, x]; })[0];
       var numEl = $('e-number');
       if (m && numEl && !numEl.dataset.touched && numEl.dataset.fresh === '1') numEl.value = m[1];
     });

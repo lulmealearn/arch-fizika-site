@@ -206,6 +206,6 @@ html.pop-lock { overflow: hidden; }
 .ktabs__btn:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 2px; }
 @media (max-width: 420px) { .ktabs { align-self: stretch; } .ktabs__btn { flex: 1 0 auto; padding: 0 12px; justify-content: center; } }
 .kpanel { display: flex; flex-direction: column; gap: 22px; }
-.kpanel__lead { margin: 0; max-width: 62ch; font-size: 17px; line-height: 1.5; color: var(--ink-2); }
+.kpanel__lead { margin: 0; font-size: 17px; line-height: 1.5; color: var(--ink-2); }
 .mats__list--one { grid-template-columns: minmax(0, 720px); }
 @media (prefers-reduced-motion: reduce) { .ktabs__btn { transition: none; } }
