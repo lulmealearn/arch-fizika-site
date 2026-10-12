@@ -263,7 +263,7 @@
       var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Пробник')); num.appendChild(el('b', null, String(m.number)));
       var text = el('div', 'adm-row__text');
       text.appendChild(el('h2', 'adm-row__title', m.title || 'Пробник № ' + m.number));
-      text.appendChild(el('span', 'adm-row__meta', (m.solutions_url ? 'вариант · решения' : 'вариант, решений пока нет') + '  ·  ' + whoLine(m.user_ids)));
+      text.appendChild(el('span', 'adm-row__meta', whoLine(m.user_ids)));
       var actions = el('div', 'row-actions');
       var open = el('a', 'btn btn--small', 'Открыть'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
@@ -287,21 +287,18 @@
       var ACCEPT = '.html,.htm,text/html,application/pdf,.pdf';
       var pdf = pdfField('e-mock', m && m.url, 'Перетащи HTML (или PDF) варианта или нажми, чтобы выбрать', ACCEPT);
       body.appendChild(field(m ? 'Вариант (HTML или PDF)' : 'Вариант (HTML или PDF) *', pdf.box));
-      var sol = pdfField('e-sol', m && m.solutions_url, 'Перетащи HTML (или PDF) решений — можно позже', ACCEPT);
-      body.appendChild(field('Решения (HTML или PDF)', sol.box));
       var boxU = el('div', 'picker');
       var getU = picker(boxU, userItems(), m ? m.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
       body.appendChild(field('Кому открыт', boxU));
       return function () {
         if (!m && !pdf.file()) throw new Error('Выбери файл варианта (HTML или PDF).');
         if (m && pdf.remove()) throw new Error('Вариант нельзя убрать — можно заменить другим PDF или удалить пробник.');
-        [pdf.file(), sol.file()].forEach(function (f) { if (f && !/\.(pdf|html?)$/i.test(f.name)) throw new Error('Нужен файл .html или .pdf.'); });
+        [pdf.file()].forEach(function (f) { if (f && !/\.(pdf|html?)$/i.test(f.name)) throw new Error('Нужен файл .html или .pdf.'); });
         var fd = new FormData();
         fd.append('number', $('e-number').value.trim());
         fd.append('title', $('e-title').value.trim());
         fd.append('user_ids', JSON.stringify(getU()));
         if (pdf.file()) fd.append('pdf', pdf.file());
-        if (sol.file()) fd.append('solutions', sol.file()); else if (sol.remove()) fd.append('remove_solutions', 'true');
         return (m ? api('PATCH', '/api/admin/mocks/' + m.pk, fd) : api('POST', '/api/admin/mocks', fd))
           .then(function (r) { toast((m ? 'Сохранено: пробник № ' : 'Добавлено: пробник № ') + r.number); });
       };

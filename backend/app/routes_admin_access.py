@@ -301,14 +301,12 @@ def mocks_list(db: Session = Depends(get_db)):
 @router.post("/mocks", status_code=201)
 async def mocks_create(
     number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
-    pdf: UploadFile = File(...), solutions: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
+    pdf: UploadFile = File(...), db: Session = Depends(get_db),
 ):
     n = _number(number, "пробника")
     _mock_number_free(db, n)
     users = _parse_ids(user_ids)
     m = Mock(number=n, title=_title(title), file_name=await files.save_mock_file("mock", n, pdf))
-    if solutions is not None and solutions.filename:
-        m.solutions_file = await files.save_mock_file("mocksol", n, solutions)
     db.add(m)
     db.flush()
     if users:
@@ -320,8 +318,7 @@ async def mocks_create(
 @router.patch("/mocks/{pk}")
 async def mocks_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), user_ids: Optional[str] = Form(None),
-    pdf: Optional[UploadFile] = File(None), solutions: Optional[UploadFile] = File(None),
-    remove_solutions: Optional[str] = Form(None), db: Session = Depends(get_db),
+    pdf: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
 ):
     m = db.get(Mock, pk)
     if not m:
@@ -337,14 +334,6 @@ async def mocks_update(
         if new != m.file_name:
             files.delete_hw(m.file_name)
         m.file_name = new
-    if solutions is not None and solutions.filename:
-        new = await files.save_mock_file("mocksol", m.number, solutions)
-        if m.solutions_file and new != m.solutions_file:
-            files.delete_hw(m.solutions_file)
-        m.solutions_file = new
-    elif (remove_solutions or "").lower() in ("1", "true", "yes") and m.solutions_file:
-        files.delete_hw(m.solutions_file)
-        m.solutions_file = None
     users = _parse_ids(user_ids)
     if users is not None:
         set_item_users(db, "mock", m.id, _existing_ids(db, User, users))

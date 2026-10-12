@@ -123,32 +123,19 @@ def open_notes(number: int, request: Request, db: Session = Depends(get_db)):
     return _lesson_pdf("notes", number, request, db)
 
 
-def _mock_pdf(number: int, solutions: bool, request: Request, db: Session):
-    m = db.scalar(select(Mock).where(Mock.number == number))
-    user = current_user(request, db)
-    path = f"/mock/{number}" + ("/solutions" if solutions else "")
-    if not m or not can_open(db, request, "mock", m.id, user):
-        return _to_account(path, user is not None)
-    name = m.solutions_file if solutions else m.file_name
-    if name and name.endswith(".html"):
-        # HTML-пробник открывается как визуализация: в «песочнице», с кнопкой «В личный кабинет»
-        if not files.hw_path(name).exists():
-            raise HTTPException(404, "Такого файла нет.")
-        return FileResponse(files.hw_path(name), media_type="text/html; charset=utf-8",
-                            headers={**VIZ_HEADERS, "Cache-Control": "private, no-cache"})
-    return _pdf(name, ("Resheniya" if solutions else "Probnik") + f"-{number}")
-
-
 @router.get("/mock/{number}")
 def open_mock(number: int, request: Request, db: Session = Depends(get_db)):
-    """Вариант пробника: /mock/3."""
-    return _mock_pdf(number, False, request, db)
-
-
-@router.get("/mock/{number}/solutions")
-def open_mock_solutions(number: int, request: Request, db: Session = Depends(get_db)):
-    """Решения пробника: /mock/3/solutions."""
-    return _mock_pdf(number, True, request, db)
+    """Пробник: /mock/3. HTML открывается как визуализация (песочница, кнопка «В личный кабинет»), PDF — как PDF."""
+    m = db.scalar(select(Mock).where(Mock.number == number))
+    user = current_user(request, db)
+    if not m or not can_open(db, request, "mock", m.id, user):
+        return _to_account(f"/mock/{number}", user is not None)
+    if m.file_name.endswith(".html"):
+        if not files.hw_path(m.file_name).exists():
+            raise HTTPException(404, "Такого файла нет.")
+        return FileResponse(files.hw_path(m.file_name), media_type="text/html; charset=utf-8",
+                            headers={**VIZ_HEADERS, "Cache-Control": "private, no-cache"})
+    return _pdf(m.file_name, f"Probnik-{number}")
 
 
 @router.get("/report/{pk}")

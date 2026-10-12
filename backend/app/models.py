@@ -113,14 +113,14 @@ class LessonProgress(Base):
 
 
 class Mock(Base):
-    """Пробник: номер, название, вариант и (необязательно) решения — HTML или PDF. Не привязан к занятиям."""
+    """Пробник: номер, название и вариант (HTML или PDF). Решений нет — решение владельца. Не привязан к занятиям."""
     __tablename__ = "mocks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
     title: Mapped[str] = mapped_column(String(200), default="")
     file_name: Mapped[str] = mapped_column(String(160))
-    solutions_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    solutions_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)  # не используется: решений у пробников нет
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

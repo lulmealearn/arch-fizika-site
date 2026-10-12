@@ -58,8 +58,7 @@ def lesson_out(l: Lesson, user_ids: Optional[List[int]] = None, viz_ids: Optiona
 
 
 def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
-    out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}",
-           "solutions_url": f"/mock/{m.number}/solutions" if m.solutions_file else None, "created_at": _iso(m.created_at)}
+    out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}", "created_at": _iso(m.created_at)}
     if user_ids is not None:
         out["user_ids"] = sorted(user_ids)
     return out

@@ -137,7 +137,7 @@ def cover_path(name: str) -> Path:
 
 
 # ── PDF занятий: конспекты и домашние задания (storage/hw/) ──
-PDF_WHAT = {"hw": "ДЗ", "notes": "Конспект", "mock": "Пробник", "mocksol": "Решения", "report": "Отчёт"}
+PDF_WHAT = {"hw": "ДЗ", "notes": "Конспект", "mock": "Пробник", "report": "Отчёт"}
 
 
 async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
@@ -153,7 +153,7 @@ async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
 
 
 async def save_mock_file(kind: str, number: int, upload: UploadFile) -> str:
-    """Пробник или решения: HTML (как визуализация, с кнопкой «В личный кабинет») или PDF."""
+    """Пробник: HTML (как визуализация, с кнопкой «В личный кабинет») или PDF."""
     data = await read_limited(upload, max(config.MAX_PDF_BYTES, config.MAX_HTML_BYTES), "Файл пробника")
     digest = hashlib.sha1(data).hexdigest()[:8]
     if data.lstrip()[:5] == b"%PDF-":

@@ -122,7 +122,6 @@
     video: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>',
     notes: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/></svg>',
     pdf: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 13h6M9 17h6M9 9h2"/></svg>',
-    check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 14l2 2 4-4"/></svg>',
     hw: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v17H5z"/><path d="M9 4V2.8h6V4M8.5 11l2 2 4-4M8.5 17h7"/></svg>'
   };
 
@@ -168,7 +167,7 @@
     tab.appendChild(el('b', null, '№ ' + m.number));
     var body = el('span', 'folder__body');
     body.appendChild(el('span', 'folder__title', mockTitle(m)));
-    body.appendChild(el('span', 'folder__what', m.solutions_url ? 'вариант · решения' : 'вариант · решения появятся позже'));
+    body.appendChild(el('span', 'folder__what', 'вариант в формате ЕГЭ'));
     body.appendChild(el('span', 'folder__state', m.done ? 'решён' : 'не решён'));
     b.appendChild(tab); b.appendChild(body);
     b.addEventListener('click', function () { openMock(m); });
@@ -276,7 +275,7 @@
     dlg.classList.toggle('is-done', l.done);
     $('lesson-done').checked = l.done;
     $('lesson-done-label').textContent = mock ? (l.done ? 'Решён' : 'Не решён') : (l.done ? 'Просмотрено' : 'Не просмотрено');
-    $('lesson-done-hint').textContent = mock ? 'Отметьте, когда решите вариант и сверитесь с решениями'
+    $('lesson-done-hint').textContent = mock ? 'Отметьте, когда решите вариант'
       : 'Отметьте, когда посмотрите запись и разберёте конспект';
   }
   function showDialog() {
@@ -289,8 +288,6 @@
     $('lesson-title').textContent = mockTitle(m);
     var list = $('lesson-items'); list.textContent = '';
     list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'Открыть →', false));
-    if (m.solutions_url) list.appendChild(item(m.solutions_url, ICONS.check, 'Решения', 'Решения пробника № ' + m.number, 'Открыть →', false));
-    else list.appendChild(el('li', 'lesson__empty', 'Решения появятся позже.'));
     paintDone(m);
     showDialog();
   }
