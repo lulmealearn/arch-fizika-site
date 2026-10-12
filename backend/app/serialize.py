@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from .models import Lesson, Section, User, Visualization
+from .models import Lesson, Mock, Report, Section, User, Visualization
 
 
 def section_out(s: Section) -> Dict[str, Any]:
@@ -57,10 +57,22 @@ def lesson_out(l: Lesson, user_ids: Optional[List[int]] = None, viz_ids: Optiona
     return out
 
 
+def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
+    out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}",
+           "solutions_url": f"/mock/{m.number}/solutions" if m.solutions_file else None, "created_at": _iso(m.created_at)}
+    if user_ids is not None:
+        out["user_ids"] = sorted(user_ids)
+    return out
+
+
+def report_out(r: Report) -> Dict[str, Any]:
+    return {"pk": r.id, "title": r.title, "url": f"/report/{r.id}", "created_at": _iso(r.created_at)}
+
+
 def user_out(u: User, grants: Optional[Dict[str, List[int]]] = None) -> Dict[str, Any]:
     g = grants or {}
     return {
         "id": u.id, "nickname": u.nickname,
         "created_at": _iso(u.created_at), "last_login_at": _iso(u.last_login_at),
-        "grants": {k: sorted(g.get(k, [])) for k in ("viz", "lesson")},
+        "grants": {k: sorted(g.get(k, [])) for k in ("viz", "lesson", "mock")},
     }

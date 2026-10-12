@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var data = { users: [], lessons: [], viz: [] };
+  var data = { users: [], lessons: [], viz: [], mocks: [] };
   var started = false;
 
   /* ── Общее ── */
@@ -115,7 +115,7 @@
   }
 
   /* ── Вкладки ── */
-  var TABS = ['viz', 'lessons', 'users'];
+  var TABS = ['viz', 'lessons', 'mocks', 'users'];
   function setTab(name, push) {
     if (name === 'hw') name = 'lessons';  /* старая вкладка «Домашки» */
     if (TABS.indexOf(name) < 0) name = 'viz';
@@ -130,14 +130,15 @@
   /* ── Загрузка ── */
   function loadAll() {
     return Promise.all([
-      api('GET', '/api/admin/users'), api('GET', '/api/admin/lessons'), api('GET', '/api/admin/visualizations'),
+      api('GET', '/api/admin/users'), api('GET', '/api/admin/lessons'), api('GET', '/api/admin/visualizations'), api('GET', '/api/admin/mocks'),
     ]).then(function (r) {
-      data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items;
-      renderUsers(); renderLessons(); counts();
+      data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items; data.mocks = r[3].items;
+      renderUsers(); renderLessons(); renderMocks(); counts();
     }).catch(function (e) { toast(e.message, true); });
   }
   function counts() {
     $('tn-lessons').textContent = data.lessons.length || '';
+    $('tn-mocks').textContent = data.mocks.length || '';
     $('tn-users').textContent = data.users.length || '';
   }
 
@@ -208,7 +209,8 @@
       removed = false;
       drop.classList.add('has-file'); t.textContent = f.name + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ';
       var m = f.name.match(/(\d+)/);
-      if (m && !$('e-number').dataset.touched && $('e-number').dataset.fresh === '1') $('e-number').value = m[1];
+      var numEl = $('e-number');
+      if (m && numEl && !numEl.dataset.touched && numEl.dataset.fresh === '1') numEl.value = m[1];
     });
     return { box: wrap, file: function () { return inp.files[0] || null; }, remove: function () { return removed; } };
   }
@@ -251,6 +253,60 @@
     });
   }
 
+  /* ── Пробники ── */
+  function renderMocks() {
+    var list = $('mocks-list'); list.textContent = '';
+    $('mocks-summary').textContent = data.mocks.length + ' ' + plural(data.mocks.length, 'пробник', 'пробника', 'пробников');
+    if (!data.mocks.length) { list.appendChild(el('li', 'empty-list', 'Пока пусто. Нажми «Добавить пробник» и загрузи PDF варианта.')); return; }
+    data.mocks.forEach(function (m) {
+      var li = el('li', 'adm-row adm-row--plain');
+      var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Пробник')); num.appendChild(el('b', null, String(m.number)));
+      var text = el('div', 'adm-row__text');
+      text.appendChild(el('h2', 'adm-row__title', m.title || 'Пробник № ' + m.number));
+      text.appendChild(el('span', 'adm-row__meta', (m.solutions_url ? 'вариант · решения' : 'вариант, решений пока нет') + '  ·  ' + whoLine(m.user_ids)));
+      var actions = el('div', 'row-actions');
+      var open = el('a', 'btn btn--small', 'PDF'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
+      var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
+      edit.addEventListener('click', function () { editMock(m); });
+      var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
+      del.addEventListener('click', function () {
+        armDelete(del, function () { return api('DELETE', '/api/admin/mocks/' + m.pk).then(function () { toast('Пробник № ' + m.number + ' удалён'); return loadAll(); }); });
+      });
+      actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
+      li.appendChild(num); li.appendChild(text); li.appendChild(actions);
+      list.appendChild(li);
+    });
+  }
+
+  function editMock(m) {
+    openEditor2(m ? 'Пробник № ' + m.number : 'Новый пробник', function (body) {
+      var num = numberInput('e-number', m ? m.number : nextNumber(data.mocks));
+      if (!m) num.dataset.fresh = '1';
+      body.appendChild(field('Номер *', num));
+      body.appendChild(field('Название', textInput('e-title', m ? m.title : '', 'Например: Вариант в формате ЕГЭ 2027')));
+      var pdf = pdfField('e-mock', m && m.url, 'Перетащи PDF варианта или нажми, чтобы выбрать');
+      body.appendChild(field(m ? 'Вариант (PDF)' : 'Вариант (PDF) *', pdf.box));
+      var sol = pdfField('e-sol', m && m.solutions_url, 'Перетащи PDF решений (можно позже)');
+      body.appendChild(field('Решения (PDF)', sol.box));
+      var boxU = el('div', 'picker');
+      var getU = picker(boxU, userItems(), m ? m.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
+      body.appendChild(field('Кому открыт', boxU));
+      return function () {
+        if (!m && !pdf.file()) throw new Error('Выбери PDF варианта.');
+        if (m && pdf.remove()) throw new Error('Вариант нельзя убрать — можно заменить другим PDF или удалить пробник.');
+        [pdf.file(), sol.file()].forEach(function (f) { if (f && !/\.pdf$/i.test(f.name)) throw new Error('Нужны файлы .pdf.'); });
+        var fd = new FormData();
+        fd.append('number', $('e-number').value.trim());
+        fd.append('title', $('e-title').value.trim());
+        fd.append('user_ids', JSON.stringify(getU()));
+        if (pdf.file()) fd.append('pdf', pdf.file());
+        if (sol.file()) fd.append('solutions', sol.file()); else if (sol.remove()) fd.append('remove_solutions', 'true');
+        return (m ? api('PATCH', '/api/admin/mocks/' + m.pk, fd) : api('POST', '/api/admin/mocks', fd))
+          .then(function (r) { toast((m ? 'Сохранено: пробник № ' : 'Добавлено: пробник № ') + r.number); });
+      };
+    });
+  }
+
   /* ── Ученики ── */
   function renderUsers() {
     var list = $('users-list'); list.textContent = '';
@@ -265,18 +321,21 @@
       text.appendChild(el('h2', 'adm-row__title', u.nickname));
       var g = u.grants;
       text.appendChild(el('span', 'adm-row__meta',
-        'занятия: ' + g.lesson.length + '  ·  отдельные визуализации: ' + g.viz.length +
+        'занятия: ' + g.lesson.length + '  ·  пробники: ' + g.mock.length + '  ·  отдельные визуализации: ' + g.viz.length +
+        '  ·  отчёты: ' + (u.reports || []).length +
         '  ·  с ' + date(u.created_at) + (u.last_login_at ? ', заходил ' + date(u.last_login_at) : '')));
       var actions = el('div', 'row-actions');
       var acc = el('button', 'btn btn--small btn--solid', 'Доступ'); acc.type = 'button';
       acc.addEventListener('click', function () { editUserAccess(u); });
+      var rep = el('button', 'btn btn--small', 'Отчёты'); rep.type = 'button';
+      rep.addEventListener('click', function () { editUserReports(u); });
       var pw = el('button', 'btn btn--small', 'Пароль'); pw.type = 'button';
       pw.addEventListener('click', function () { editUserPassword(u); });
       var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
       del.addEventListener('click', function () {
         armDelete(del, function () { return api('DELETE', '/api/admin/users/' + u.id).then(function () { toast('Ученик ' + u.nickname + ' удалён'); return loadAll(); }); });
       });
-      actions.appendChild(acc); actions.appendChild(pw); actions.appendChild(del);
+      actions.appendChild(acc); actions.appendChild(rep); actions.appendChild(pw); actions.appendChild(del);
       li.appendChild(av); li.appendChild(text); li.appendChild(actions);
       list.appendChild(li);
     });
@@ -287,15 +346,60 @@
     var priv = data.viz.filter(function (v) { return v.access === 'private'; });
     openEditor2('Доступ: ' + u.nickname, function (body) {
       body.appendChild(el('p', 'hint', 'Отметь занятия, которые открыть ученику: вместе с ними откроется всё, что лежит в их папках, включая закрытые визуализации. Ниже — закрытые визуализации, которые можно открыть отдельно, без занятия.'));
-      var boxL = el('div', 'picker'), boxV = el('div', 'picker');
+      var boxL = el('div', 'picker'), boxV = el('div', 'picker'), boxM = el('div', 'picker');
+      var getM = picker(boxM, data.mocks.map(function (m) { return { id: m.pk, label: 'Пробник № ' + m.number, sub: m.title }; }), u.grants.mock, 'Пробников пока нет.');
       var getL = picker(boxL, data.lessons.map(function (l) { return { id: l.pk, label: 'Занятие № ' + l.number, sub: [l.title, lessonContents(l)].filter(Boolean).join(' · ') }; }), u.grants.lesson, 'Занятий пока нет.');
       var getV = picker(boxV, priv.map(function (v) { return { id: v.pk, label: v.title, sub: v.parts }; }), u.grants.viz,
         'Закрытых визуализаций нет: все открыты всем. Закрыть можно на вкладке «Визуализации».');
       body.appendChild(field('Занятия', boxL));
+      body.appendChild(field('Пробники', boxM));
       body.appendChild(field('Отдельные визуализации (только закрытые)', boxV));
       return function () {
-        return api('PUT', '/api/admin/users/' + u.id + '/grants', { lesson: getL(), viz: getV() })
+        return api('PUT', '/api/admin/users/' + u.id + '/grants', { lesson: getL(), mock: getM(), viz: getV() })
           .then(function () { toast('Доступ сохранён: ' + u.nickname); });
+      };
+    });
+  }
+
+  /* Отчёты для родителей: личные PDF ученика, раз в месяц */
+  function monthTitle() {
+    var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (new Date().getDate() < 15 ? 1 : 0));
+    var t = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  function editUserReports(u) {
+    openEditor2('Отчёты: ' + u.nickname, function (body) {
+      body.appendChild(el('p', 'hint', 'Отчёт видит только этот ученик — в кабинете на вкладке «Отчёты». Новые показываются сверху.'));
+      var list = el('ul', 'rep-list');
+      (u.reports || []).forEach(function (r) {
+        var li = el('li', 'rep');
+        var a = el('a', 'rep__title', r.title); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+        li.appendChild(a);
+        li.appendChild(el('span', 'rep__date', date(r.created_at)));
+        var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
+        del.addEventListener('click', function () {
+          armDelete(del, function () {
+            return api('DELETE', '/api/admin/reports/' + r.pk).then(function () {
+              li.remove(); toast('Отчёт удалён: ' + r.title);
+              return api('GET', '/api/admin/users').then(function (d) { data.users = d.users; renderUsers(); });
+            });
+          });
+        });
+        li.appendChild(del);
+        list.appendChild(li);
+      });
+      if (!(u.reports || []).length) list.appendChild(el('li', 'picker__empty', 'Отчётов пока нет.'));
+      body.appendChild(field('Загружено', list));
+      body.appendChild(field('Период *', textInput('e-title', monthTitle(), 'Например: Октябрь 2026')));
+      var pdf = pdfField('e-report', null, 'Перетащи PDF отчёта или нажми, чтобы выбрать');
+      body.appendChild(field('Новый отчёт (PDF)', pdf.box));
+      return function () {
+        var f = pdf.file();
+        if (!f) { closeEditor2(); return Promise.resolve(); }
+        if (!/\.pdf$/i.test(f.name)) throw new Error('Нужен файл .pdf.');
+        if (!$('e-title').value.trim()) throw new Error('Укажи период, например «Октябрь 2026».');
+        var fd = new FormData(); fd.append('title', $('e-title').value.trim()); fd.append('pdf', f);
+        return api('POST', '/api/admin/users/' + u.id + '/reports', fd).then(function (r) { toast('Отчёт загружен: ' + r.title); });
       };
     });
   }
@@ -368,6 +472,7 @@
   });
 
   $('lesson-add').addEventListener('click', function () { editLesson(null); });
+  $('mock-add').addEventListener('click', function () { editMock(null); });
 
   /* ── Для admin.js ── */
   window.AdminAccess = {

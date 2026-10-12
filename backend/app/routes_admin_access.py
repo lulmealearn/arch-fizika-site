@@ -11,19 +11,20 @@ from sqlalchemy.orm import Session
 from . import files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
-from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, User, Visualization
+from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
-from .serialize import lesson_out, user_out
+from .serialize import lesson_out, mock_out, report_out, user_out
 
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
 
-KIND_MODEL = {"viz": Visualization, "lesson": Lesson}
+KIND_MODEL = {"viz": Visualization, "lesson": Lesson, "mock": Mock}
 
 
 class GrantsIn(BaseModel):
     viz: Optional[List[int]] = None
     lesson: Optional[List[int]] = None
+    mock: Optional[List[int]] = None
 
 
 class UsersIn(BaseModel):
@@ -96,7 +97,15 @@ def _parse_ids(raw: Optional[str]) -> Optional[List[int]]:
 def users_list(db: Session = Depends(get_db)):
     grants = user_grants(db)
     users = db.scalars(select(User).order_by(User.nickname_key)).all()
-    return {"users": [user_out(u, grants.get(u.id)) for u in users]}
+    reports: Dict[int, list] = {}
+    for r in db.scalars(select(Report).order_by(Report.created_at.desc(), Report.id.desc())):
+        reports.setdefault(r.user_id, []).append(report_out(r))
+    out = []
+    for u in users:
+        d = user_out(u, grants.get(u.id))
+        d["reports"] = reports.get(u.id, [])
+        out.append(d)
+    return {"users": out}
 
 
 @router.put("/users/{pk}/grants")
@@ -127,6 +136,10 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
     u = _user(db, pk)
     db.execute(delete(Grant).where(Grant.user_id == u.id))
     db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id))
+    db.execute(delete(MockProgress).where(MockProgress.user_id == u.id))
+    for r in db.scalars(select(Report).where(Report.user_id == u.id)).all():
+        files.delete_hw(r.file_name)
+        db.delete(r)
     db.delete(u)
     db.commit()
     return {"ok": True}
@@ -262,5 +275,119 @@ def lessons_delete(pk: int, db: Session = Depends(get_db)):
     db.execute(delete(LessonViz).where(LessonViz.lesson_id == l.id))
     db.execute(delete(LessonProgress).where(LessonProgress.lesson_id == l.id))
     db.delete(l)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Пробники ──
+def _mock_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
+    q = select(Mock.id).where(Mock.number == number)
+    if pk is not None:
+        q = q.where(Mock.id != pk)
+    if db.scalar(q):
+        raise HTTPException(409, f"Пробник № {number} уже есть. Измените его или выберите другой номер.")
+
+
+def _mock_json(db: Session, m: Mock) -> dict:
+    return mock_out(m, item_users(db, "mock").get(m.id, []))
+
+
+@router.get("/mocks")
+def mocks_list(db: Session = Depends(get_db)):
+    who = item_users(db, "mock")
+    return {"items": [mock_out(m, who.get(m.id, [])) for m in db.scalars(select(Mock).order_by(Mock.number.desc()))]}
+
+
+@router.post("/mocks", status_code=201)
+async def mocks_create(
+    number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
+    pdf: UploadFile = File(...), solutions: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
+):
+    n = _number(number, "пробника")
+    _mock_number_free(db, n)
+    users = _parse_ids(user_ids)
+    m = Mock(number=n, title=_title(title), file_name=await files.save_lesson_pdf("mock", n, pdf))
+    if solutions is not None and solutions.filename:
+        m.solutions_file = await files.save_lesson_pdf("mocksol", n, solutions)
+    db.add(m)
+    db.flush()
+    if users:
+        set_item_users(db, "mock", m.id, _existing_ids(db, User, users))
+    db.commit()
+    return _mock_json(db, m)
+
+
+@router.patch("/mocks/{pk}")
+async def mocks_update(
+    pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), user_ids: Optional[str] = Form(None),
+    pdf: Optional[UploadFile] = File(None), solutions: Optional[UploadFile] = File(None),
+    remove_solutions: Optional[str] = Form(None), db: Session = Depends(get_db),
+):
+    m = db.get(Mock, pk)
+    if not m:
+        raise HTTPException(404, "Пробник не найден.")
+    if number is not None:
+        n = _number(number, "пробника")
+        _mock_number_free(db, n, m.id)
+        m.number = n
+    if title is not None:
+        m.title = _title(title)
+    if pdf is not None and pdf.filename:
+        new = await files.save_lesson_pdf("mock", m.number, pdf)
+        if new != m.file_name:
+            files.delete_hw(m.file_name)
+        m.file_name = new
+    if solutions is not None and solutions.filename:
+        new = await files.save_lesson_pdf("mocksol", m.number, solutions)
+        if m.solutions_file and new != m.solutions_file:
+            files.delete_hw(m.solutions_file)
+        m.solutions_file = new
+    elif (remove_solutions or "").lower() in ("1", "true", "yes") and m.solutions_file:
+        files.delete_hw(m.solutions_file)
+        m.solutions_file = None
+    users = _parse_ids(user_ids)
+    if users is not None:
+        set_item_users(db, "mock", m.id, _existing_ids(db, User, users))
+    db.commit()
+    return _mock_json(db, m)
+
+
+@router.delete("/mocks/{pk}")
+def mocks_delete(pk: int, db: Session = Depends(get_db)):
+    m = db.get(Mock, pk)
+    if not m:
+        raise HTTPException(404, "Пробник не найден.")
+    files.delete_hw(m.file_name)
+    files.delete_hw(m.solutions_file)
+    drop_item(db, "mock", m.id)
+    db.execute(delete(MockProgress).where(MockProgress.mock_id == m.id))
+    db.delete(m)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Отчёты для родителей: личные PDF ученика ──
+@router.post("/users/{pk}/reports", status_code=201)
+async def reports_create(pk: int, title: str = Form(...), pdf: UploadFile = File(...), db: Session = Depends(get_db)):
+    u = _user(db, pk)
+    t = _title(title)
+    if not t:
+        raise HTTPException(400, "Укажите период, например «Октябрь 2026».")
+    name = await files.save_lesson_pdf("report", u.id, pdf)
+    if db.scalar(select(Report.id).where(Report.file_name == name)):
+        raise HTTPException(409, "Этот файл уже загружен этому ученику.")
+    r = Report(user_id=u.id, title=t, file_name=name)
+    db.add(r)
+    db.commit()
+    return report_out(r)
+
+
+@router.delete("/reports/{pk}")
+def reports_delete(pk: int, db: Session = Depends(get_db)):
+    r = db.get(Report, pk)
+    if not r:
+        raise HTTPException(404, "Отчёт не найден.")
+    files.delete_hw(r.file_name)
+    db.delete(r)
     db.commit()
     return {"ok": True}

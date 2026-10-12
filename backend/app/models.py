@@ -112,11 +112,46 @@ class LessonProgress(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
-GRANT_KINDS = ("viz", "lesson")
+class Mock(Base):
+    """Пробник: номер, название, PDF варианта и (необязательно) PDF решений. Не привязан к занятиям."""
+    __tablename__ = "mocks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(200), default="")
+    file_name: Mapped[str] = mapped_column(String(160))
+    solutions_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MockProgress(Base):
+    """Отметка ученика «решён» у пробника (как «просмотрено» у занятия)."""
+    __tablename__ = "mock_progress"
+    __table_args__ = (UniqueConstraint("user_id", "mock_id", name="uq_mock_progress"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    mock_id: Mapped[int] = mapped_column(ForeignKey("mocks.id", ondelete="CASCADE"), index=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class Report(Base):
+    """Отчёт для родителей: личный PDF ученика с аналитикой за период. Загружает админ раз в месяц."""
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    file_name: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+GRANT_KINDS = ("viz", "lesson", "mock")
 
 
 class Grant(Base):
-    """Ручной доступ: какому ученику открыто занятие (kind = lesson) или отдельная визуализация (kind = viz)."""
+    """Ручной доступ: какому ученику открыто занятие (lesson), пробник (mock) или отдельная визуализация (viz)."""
     __tablename__ = "grants"
     __table_args__ = (UniqueConstraint("user_id", "kind", "item_id", name="uq_grant"),)
 

@@ -222,3 +222,12 @@ textarea.input { resize: vertical; min-height: 84px; }
 .pdf-field { display: flex; flex-direction: column; gap: 8px; }
 .pdf-field__tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .pdf-field__tools .btn { min-height: 40px; padding: 0 14px; font-size: 11px; }
+
+/* Отчёты ученика */
+.rep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.rep { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px 8px 16px; border-bottom: 1px solid var(--line); }
+.rep:last-child { border-bottom: 0; }
+.rep__title { flex: 1 1 auto; min-width: 0; font-family: var(--display); font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+.rep__date { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rep .btn { min-height: 40px; padding: 0 12px; font-size: 11px; }
+.rep-list .picker__empty { border: 0; }

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import config, files
 from .db import get_db
 from .access import can_open, current_user, opened_viz_ids
-from .models import Lesson, Section, Visualization
+from .models import Lesson, Mock, Report, Section, Visualization
 from .security import is_admin
 from .serialize import section_out, viz_public
 
@@ -97,11 +97,15 @@ def _lesson_pdf(kind: str, number: int, request: Request, db: Session):
     if not l or not can_open(db, request, "lesson", l.id, user):
         # не говорим, существует ли занятие: без доступа всё выглядит одинаково
         return _to_account(f"/{prefix}/{number}", user is not None)
+    return _pdf(name, ("DZ" if kind == "hw" else "Konspekt") + f"-{number}")
+
+
+def _pdf(name, label: str):
+    """Отдать PDF из storage/hw/ для просмотра в браузере."""
     if not name or not files.hw_path(name).exists():
-        raise HTTPException(404, "В этом занятии нет такого файла.")
-    label = "DZ" if kind == "hw" else "Konspekt"
+        raise HTTPException(404, "Такого файла нет.")
     return FileResponse(files.hw_path(name), media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{label}-{number}.pdf"',
+        "Content-Disposition": f'inline; filename="{label}.pdf"',
         "Cache-Control": "private, no-cache",
         "X-Content-Type-Options": "nosniff",
     })
@@ -117,3 +121,34 @@ def open_homework(number: int, request: Request, db: Session = Depends(get_db)):
 def open_notes(number: int, request: Request, db: Session = Depends(get_db)):
     """Конспект занятия: /notes/42."""
     return _lesson_pdf("notes", number, request, db)
+
+
+def _mock_pdf(number: int, solutions: bool, request: Request, db: Session):
+    m = db.scalar(select(Mock).where(Mock.number == number))
+    user = current_user(request, db)
+    path = f"/mock/{number}" + ("/solutions" if solutions else "")
+    if not m or not can_open(db, request, "mock", m.id, user):
+        return _to_account(path, user is not None)
+    return _pdf(m.solutions_file if solutions else m.file_name, ("Resheniya" if solutions else "Probnik") + f"-{number}")
+
+
+@router.get("/mock/{number}")
+def open_mock(number: int, request: Request, db: Session = Depends(get_db)):
+    """Вариант пробника: /mock/3."""
+    return _mock_pdf(number, False, request, db)
+
+
+@router.get("/mock/{number}/solutions")
+def open_mock_solutions(number: int, request: Request, db: Session = Depends(get_db)):
+    """Решения пробника: /mock/3/solutions."""
+    return _mock_pdf(number, True, request, db)
+
+
+@router.get("/report/{pk}")
+def open_report(pk: int, request: Request, db: Session = Depends(get_db)):
+    """Отчёт для родителей — только его ученику и админу."""
+    r = db.get(Report, pk)
+    user = current_user(request, db)
+    if not r or not (is_admin(request) or (user and user.id == r.user_id)):
+        return _to_account(f"/report/{pk}", user is not None)
+    return _pdf(r.file_name, f"Otchet-{pk}")

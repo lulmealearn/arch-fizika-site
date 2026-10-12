@@ -100,7 +100,7 @@
   }
 
   /* ── Занятия: папки ── */
-  var lessons = [], filter = 'all', current = null;
+  var lessons = [], mocks = [], filter = 'all', current = null, currentKind = 'lesson';
 
   function plural(n, one, few, many) {
     var a = n % 10, b = n % 100;
@@ -121,6 +121,8 @@
   var ICONS = {
     video: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>',
     notes: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h5"/></svg>',
+    pdf: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 13h6M9 17h6M9 9h2"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 14l2 2 4-4"/></svg>',
     hw: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v17H5z"/><path d="M9 4V2.8h6V4M8.5 11l2 2 4-4M8.5 17h7"/></svg>'
   };
 
@@ -153,6 +155,53 @@
     li.appendChild(b);
     return li;
   }
+
+  /* Пробник — такая же карточка-папка: красная, пока не решён, зелёная — решён */
+  function mockTitle(m) { return m.title || 'Пробник № ' + m.number; }
+  function mockCard(m) {
+    var li = el('li');
+    var b = el('button', 'folder folder--mock folder--' + (m.done ? 'done' : 'todo'));
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Пробник № ' + m.number + ': ' + mockTitle(m) + '. ' + (m.done ? 'Решён' : 'Не решён'));
+    var tab = el('span', 'folder__tab');
+    tab.appendChild(el('span', null, 'Пробник'));
+    tab.appendChild(el('b', null, '№ ' + m.number));
+    var body = el('span', 'folder__body');
+    body.appendChild(el('span', 'folder__title', mockTitle(m)));
+    body.appendChild(el('span', 'folder__what', m.solutions_url ? 'вариант · решения' : 'вариант · решения появятся позже'));
+    body.appendChild(el('span', 'folder__state', m.done ? 'решён' : 'не решён'));
+    b.appendChild(tab); b.appendChild(body);
+    b.addEventListener('click', function () { openMock(m); });
+    li.appendChild(b);
+    return li;
+  }
+  function renderMocks() {
+    var list = $('mocks'); list.textContent = '';
+    if (!mocks.length) list.appendChild(el('li', 'folders__empty', 'Пробников пока нет.'));
+    mocks.forEach(function (m) { list.appendChild(mockCard(m)); });
+    $('kt-mocks').textContent = mocks.length || '';
+  }
+  function renderReports(reports) {
+    var list = $('reports'); list.textContent = '';
+    if (!reports.length) list.appendChild(el('li', 'folders__empty', 'Отчётов пока нет. Первый появится в конце месяца.'));
+    reports.forEach(function (r) {
+      var d = r.created_at ? new Date(r.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+      list.appendChild(item(r.url, ICONS.pdf, 'Отчёт' + (d ? ' · ' + d : ''), r.title, 'PDF →', true));
+    });
+    $('kt-reports').textContent = reports.length || '';
+  }
+
+  /* ── Вкладки кабинета ── */
+  var KTABS = { lessons: '', mocks: '#probniki', reports: '#otchety' };
+  function setKtab(name, push) {
+    if (!KTABS.hasOwnProperty(name)) name = 'lessons';
+    document.querySelectorAll('.ktabs__btn').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.ktab === name)); });
+    Object.keys(KTABS).forEach(function (k) { $('kpanel-' + k).hidden = k !== name; });
+    if (push) { try { history.replaceState(null, '', location.pathname + KTABS[name]); } catch (e) { /* без истории */ } }
+  }
+  document.querySelectorAll('.ktabs__btn').forEach(function (b) {
+    b.addEventListener('click', function () { setKtab(b.dataset.ktab, true); });
+  });
 
   function matches(l, q) {
     if (!q) return true;
@@ -223,12 +272,30 @@
     return li;
   }
   function paintDone(l) {
+    var mock = currentKind === 'mock';
     dlg.classList.toggle('is-done', l.done);
     $('lesson-done').checked = l.done;
-    $('lesson-done-label').textContent = l.done ? 'Просмотрено' : 'Не просмотрено';
+    $('lesson-done-label').textContent = mock ? (l.done ? 'Решён' : 'Не решён') : (l.done ? 'Просмотрено' : 'Не просмотрено');
+    $('lesson-done-hint').textContent = mock ? 'Отметьте, когда решите вариант и сверитесь с решениями'
+      : 'Отметьте, когда посмотрите запись и разберёте конспект';
+  }
+  function showDialog() {
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+    document.documentElement.classList.add('pop-lock');
+  }
+  function openMock(m) {
+    current = m; currentKind = 'mock';
+    $('lesson-tab').textContent = 'Пробник № ' + m.number;
+    $('lesson-title').textContent = mockTitle(m);
+    var list = $('lesson-items'); list.textContent = '';
+    list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'PDF →', true));
+    if (m.solutions_url) list.appendChild(item(m.solutions_url, ICONS.check, 'Решения', 'Решения пробника № ' + m.number, 'PDF →', true));
+    else list.appendChild(el('li', 'lesson__empty', 'Решения появятся позже.'));
+    paintDone(m);
+    showDialog();
   }
   function openLesson(l) {
-    current = l;
+    current = l; currentKind = 'lesson';
     $('lesson-tab').textContent = 'Занятие № ' + l.number;
     $('lesson-title').textContent = lessonTitle(l);
     var list = $('lesson-items'); list.textContent = '';
@@ -239,17 +306,17 @@
     if (!list.children.length) list.appendChild(el('li', 'lesson__empty', 'Материалы этого занятия скоро появятся.'));
     paintDone(l);
     try { history.replaceState(null, '', '#z' + l.number); } catch (e) { /* без истории */ }
-    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
-    document.documentElement.classList.add('pop-lock');
+    showDialog();
   }
   function closeLesson() {
     if (dlg.open) { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
   }
   dlg.addEventListener('close', function () {
     document.documentElement.classList.remove('pop-lock');
+    var wasMock = currentKind === 'mock';
     current = null;
-    try { history.replaceState(null, '', location.pathname); } catch (e) { /* без истории */ }
-    renderFolders();
+    try { history.replaceState(null, '', location.pathname + (wasMock ? KTABS.mocks : '')); } catch (e) { /* без истории */ }
+    renderFolders(); renderMocks();
   });
   dlg.querySelectorAll('[data-close-lesson]').forEach(function (b) { b.addEventListener('click', closeLesson); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) closeLesson(); });
@@ -259,7 +326,7 @@
     if (!l) return;
     l.done = want; paintDone(l);
     box.disabled = true;
-    api('PUT', '/api/me/progress/' + l.pk, { done: want }).catch(function (e) {
+    api('PUT', (currentKind === 'mock' ? '/api/me/mock-progress/' : '/api/me/progress/') + l.pk, { done: want }).catch(function (e) {
       l.done = !want; paintDone(l); note(e.message);
     }).then(function () { box.disabled = false; });
   });
@@ -267,13 +334,16 @@
   function loadDash() {
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
-      $('acc-title').textContent = 'Мои занятия';
+      $('acc-title').textContent = 'Мои материалы';
       /* вошли: подсказка «войдите, чтобы открыть» больше не нужна */
       if (params.get('locked') !== '1' && $('acc-note').dataset.kind === 'next') note('');
       var hash = location.hash;
       if (location.search) { try { history.replaceState(null, '', location.pathname + hash); } catch (e) { /* без истории */ } }
       lessons = d.lessons;
-      renderFolders();
+      mocks = d.mocks || [];
+      renderFolders(); renderMocks(); renderReports(d.reports || []);
+      $('kt-lessons').textContent = lessons.length || '';
+      setKtab(hash === KTABS.mocks ? 'mocks' : hash === KTABS.reports ? 'reports' : 'lessons', false);
       var extra = $('list-viz'); extra.textContent = '';
       d.viz.forEach(function (v) {
         extra.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false));
@@ -289,8 +359,11 @@
   }
 
   function openFromHash(hash) {
+    if (hash === KTABS.mocks) { setKtab('mocks', false); return; }
+    if (hash === KTABS.reports) { setKtab('reports', false); return; }
     var m = /^#z(\d+)$/.exec(hash || '');
     if (!m || dlg.open) return;
+    setKtab('lessons', false);
     lessons.forEach(function (l) { if (String(l.number) === m[1]) openLesson(l); });
   }
   window.addEventListener('hashchange', function () { openFromHash(location.hash); });

@@ -88,6 +88,13 @@
 
     <!-- Занятия ученика: папки -->
     <div class="acc__dash" id="view-dash" hidden>
+      <nav class="ktabs" role="tablist" aria-label="Разделы кабинета">
+        <button type="button" role="tab" class="ktabs__btn" data-ktab="lessons" aria-selected="true" aria-controls="kpanel-lessons">Занятия <span id="kt-lessons"></span></button>
+        <button type="button" role="tab" class="ktabs__btn" data-ktab="mocks" aria-selected="false" aria-controls="kpanel-mocks">Пробники <span id="kt-mocks"></span></button>
+        <button type="button" role="tab" class="ktabs__btn" data-ktab="reports" aria-selected="false" aria-controls="kpanel-reports">Отчёты <span id="kt-reports"></span></button>
+      </nav>
+
+      <div class="kpanel" id="kpanel-lessons" role="tabpanel">
       <form class="card finder" id="finder" role="search" novalidate>
         <label class="finder__label" for="f-find">Найти занятие</label>
         <div class="finder__row">
@@ -109,6 +116,17 @@
         <ul class="mats__list" id="list-viz"></ul>
       </section>
       <a class="mats__more" href="../viz/">Все визуализации <span aria-hidden="true">→</span></a>
+      </div>
+
+      <div class="kpanel" id="kpanel-mocks" role="tabpanel" hidden>
+        <p class="kpanel__lead">Пробные варианты в формате ЕГЭ. Решите вариант, потом сверьтесь с решениями, когда они появятся, и отметьте пробник решённым.</p>
+        <ul class="folders folders--mocks" id="mocks"></ul>
+      </div>
+
+      <div class="kpanel" id="kpanel-reports" role="tabpanel" hidden>
+        <p class="kpanel__lead">Раз в месяц здесь появляется отчёт за прошедший период. Его удобно показать родителям.</p>
+        <ul class="mats__list mats__list--one" id="reports"></ul>
+      </div>
     </div>
   </main>
 
@@ -164,7 +182,7 @@
     <label class="mark">
       <input type="checkbox" id="lesson-done">
       <span class="mark__track" aria-hidden="true"><span class="mark__thumb"></span></span>
-      <span class="mark__text"><b id="lesson-done-label">Не просмотрено</b><span>Отметьте, когда посмотрите запись и разберёте конспект</span></span>
+      <span class="mark__text"><b id="lesson-done-label">Не просмотрено</b><span id="lesson-done-hint">Отметьте, когда посмотрите запись и разберёте конспект</span></span>
     </label>
   </div>
 </dialog>

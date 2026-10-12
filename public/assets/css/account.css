@@ -190,3 +190,22 @@ html.pop-lock { overflow: hidden; }
 .mats__more { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) { .folder, .folder__body, .litem, .mark__track, .mark__thumb, .seg button, .fchip { transition: none; } }
+
+/* ── Вкладки кабинета: Занятия · Пробники · Отчёты ── */
+.ktabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.ktabs::-webkit-scrollbar { display: none; }
+.ktabs__btn {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ink-2); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; transition: background .2s, color .2s;
+}
+.ktabs__btn span { color: var(--muted); }
+.ktabs__btn:hover { color: var(--ink); background: var(--bg); }
+.ktabs__btn[aria-selected="true"] { background: var(--ink); color: var(--on-dark); }
+.ktabs__btn[aria-selected="true"] span { color: var(--violet-soft); }
+.ktabs__btn:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 2px; }
+@media (max-width: 420px) { .ktabs { align-self: stretch; } .ktabs__btn { flex: 1 0 auto; padding: 0 12px; justify-content: center; } }
+.kpanel { display: flex; flex-direction: column; gap: 22px; }
+.kpanel__lead { margin: 0; max-width: 62ch; font-size: 17px; line-height: 1.5; color: var(--ink-2); }
+.mats__list--one { grid-template-columns: minmax(0, 720px); }
+@media (prefers-reduced-motion: reduce) { .ktabs__btn { transition: none; } }

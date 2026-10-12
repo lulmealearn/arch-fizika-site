@@ -134,9 +134,12 @@ def cover_path(name: str) -> Path:
 
 
 # ── PDF занятий: конспекты и домашние задания (storage/hw/) ──
+PDF_WHAT = {"hw": "ДЗ", "notes": "Конспект", "mock": "Пробник", "mocksol": "Решения", "report": "Отчёт"}
+
+
 async def save_lesson_pdf(kind: str, number: int, upload: UploadFile) -> str:
-    """kind: hw или notes. Имя файла с хешем содержимого — замена файла не путается со старым в кэше."""
-    what = "ДЗ" if kind == "hw" else "Конспект"
+    """kind: hw, notes, mock, mocksol или report. Имя файла с хешем содержимого — замена не путается со старым в кэше."""
+    what = PDF_WHAT.get(kind, "Файл")
     data = await read_limited(upload, config.MAX_PDF_BYTES, f"{what} (PDF)")
     if not data.lstrip()[:5] == b"%PDF-":
         raise HTTPException(400, f"{what}: нужен PDF-файл.")

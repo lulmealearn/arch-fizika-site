@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session, joinedload
 from . import config
 from .access import current_user, granted_ids
 from .db import get_db
-from .models import Lesson, LessonProgress, LessonViz, User, Visualization
+from .models import Lesson, LessonProgress, LessonViz, Mock, MockProgress, Report, User, Visualization
 from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
                        register_limit, user_login_limit, verify_password)
-from .serialize import lesson_files, viz_public
+from .serialize import lesson_files, mock_out, report_out, viz_public
 
 router = APIRouter(prefix="/api")
 
@@ -141,10 +141,21 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
         out_lessons.append(item)
+    mock_ids = granted_ids(db, user.id, "mock")
+    mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
+    solved = set(db.scalars(select(MockProgress.mock_id).where(MockProgress.user_id == user.id, MockProgress.done.is_(True))))
+    out_mocks = []
+    for m in mocks:
+        item = mock_out(m)
+        item["done"] = m.id in solved
+        out_mocks.append(item)
+    reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
         "user": {"nickname": user.nickname},
         "lessons": out_lessons,
         "viz": [viz_public(v) for v in extra],
+        "mocks": out_mocks,
+        "reports": [report_out(r) for r in reports],
     }
 
 
@@ -160,6 +171,24 @@ def set_progress(lesson_pk: int, body: ProgressIn, request: Request, db: Session
     row = db.scalar(select(LessonProgress).where(LessonProgress.user_id == user.id, LessonProgress.lesson_id == lesson_pk))
     if row is None:
         row = LessonProgress(user_id=user.id, lesson_id=lesson_pk)
+        db.add(row)
+    row.done = body.done
+    db.commit()
+    return {"done": row.done}
+
+
+@router.put("/me/mock-progress/{mock_pk}")
+def set_mock_progress(mock_pk: int, body: ProgressIn, request: Request, db: Session = Depends(get_db)):
+    """Ученик отмечает пробник решённым (зелёный) или снимает отметку (красный)."""
+    check_same_origin(request)
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(401, "Войдите в личный кабинет.")
+    if mock_pk not in granted_ids(db, user.id, "mock"):
+        raise HTTPException(404, "Пробник не найден.")
+    row = db.scalar(select(MockProgress).where(MockProgress.user_id == user.id, MockProgress.mock_id == mock_pk))
+    if row is None:
+        row = MockProgress(user_id=user.id, mock_id=mock_pk)
         db.add(row)
     row.done = body.done
     db.commit()
