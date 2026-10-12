@@ -70,8 +70,9 @@
 
   function card(it, num, animate, delay) {
     var s = sectionsById[it.section] || { label: it.section, color: '#181820', tint: '#ece9e0', ink: '#181820' };
-    var a = el('a', 'row');
-    a.href = it.file;
+    var a = el('a', 'row' + (it.locked ? ' row--locked' : ''));
+    /* закрытая: ведём в личный кабинет, после входа он вернёт сюда (сервер всё равно проверит доступ) */
+    a.href = it.locked ? '../account/?next=' + encodeURIComponent('/viz/' + it.file) : it.file;
     if (animate && !reduceMotion) { a.classList.add('enter'); a.style.animationDelay = delay + 'ms'; }
 
     var folder = el('div', 'folder');
@@ -82,16 +83,25 @@
     if (it.cover) { var img = el('img'); img.src = '../' + it.cover; img.alt = ''; img.loading = 'lazy'; sheet.appendChild(img); }
     else iconCover(sheet, '../assets/icons/viz/', it);
     folder.appendChild(tab); folder.appendChild(body); folder.appendChild(sheet);
+    if (it.access === 'private') {
+      var lock = el('span', 'lock' + (it.locked ? '' : ' lock--open'));
+      lock.innerHTML = it.locked
+        ? '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.6"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>'
+        : '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.6"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/></svg>';
+      folder.appendChild(lock);
+    }
 
     var text = el('div', 'row__text');
     var meta = el('span', 'row__meta');
     var sw = el('span', 'row__sec', s.label); sw.style.background = s.tint; sw.style.color = s.ink;
     meta.appendChild(document.createTextNode(num + ' · '));
     meta.appendChild(sw);
+    if (it.access === 'private') meta.appendChild(el('span', 'row__access', it.locked ? 'для учеников' : 'открыто вам'));
     text.appendChild(meta);
     text.appendChild(el('h2', 'row__title', it.title));
 
-    var go = el('span', 'go', '→'); go.setAttribute('aria-hidden', 'true');
+    var go = el('span', 'go', it.locked ? '' : '→');
+    if (it.locked) go.innerHTML = '<svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="7" width="10" height="7" rx="1.6"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>'; go.setAttribute('aria-hidden', 'true');
     a.appendChild(folder); a.appendChild(text); a.appendChild(go);
     return a;
   }

@@ -6,6 +6,8 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .routes_admin import router as admin_router
+from .routes_admin_access import router as admin_access_router
+from .routes_auth import router as auth_router
 from .routes_public import router as public_router
 from .seed import init_db
 
@@ -37,5 +39,7 @@ async def security_headers(request: Request, call_next):
 
 app.include_router(public_router)
 app.include_router(admin_router)
+app.include_router(admin_access_router)
+app.include_router(auth_router)
 # Статика — последней, чтобы маршруты выше имели приоритет. Наружу отдаётся только папка public/.
 app.mount("/", StaticFiles(directory=config.PUBLIC_DIR, html=True), name="public")

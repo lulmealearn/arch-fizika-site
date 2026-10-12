@@ -92,6 +92,7 @@
     return api('GET', '/api/admin/visualizations').then(function (d) {
       state.sections = d.sections; state.items = d.items;
       renderList(); show('list');
+      if (window.AdminAccess) window.AdminAccess.start();
     }).catch(function (e) { toast(e.message, true); });
   }
 
@@ -100,8 +101,11 @@
     list.textContent = '';
     var pub = state.items.filter(function (i) { return i.is_published; }).length;
     var drafts = state.items.length - pub;
+    var priv = state.items.filter(function (i) { return i.access === 'private'; }).length;
     $('list-summary').textContent = pub + ' ' + plural(pub, 'опубликована', 'опубликованы', 'опубликовано') +
+      ' · ' + (state.items.length - priv) + ' всем, ' + priv + ' ученикам' +
       (drafts ? ' · ' + drafts + ' ' + plural(drafts, 'черновик', 'черновика', 'черновиков') : '');
+    $('tn-viz').textContent = state.items.length || '';
 
     if (!state.items.length) {
       var li = el('li', 'empty-list', 'Пока пусто. Нажми «Добавить», чтобы загрузить первую визуализацию.');
@@ -149,12 +153,19 @@
     var text = el('div', 'adm-row__text');
     text.appendChild(el('h2', 'adm-row__title', it.title));
     var meta = [s.label, it.parts].filter(Boolean).join(' · ');
-    text.appendChild(el('span', 'adm-row__meta', meta + '  ·  /viz/' + it.file));
+    text.appendChild(el('span', 'adm-row__meta', meta + '  ·  /viz/' + it.file +
+      (it.access === 'private' && window.AdminAccess ? '  ·  ' + window.AdminAccess.whoLine(it.user_ids) : '')));
 
     var status = el('button', 'status ' + (it.is_published ? 'status--on' : 'status--off'), it.is_published ? 'На сайте' : 'Черновик');
     status.type = 'button';
     status.title = it.is_published ? 'Скрыть от учеников' : 'Опубликовать';
     status.addEventListener('click', function () { togglePublish(it, status); });
+
+    var priv = it.access === 'private';
+    var accessBtn = el('button', 'status ' + (priv ? 'status--private' : 'status--free'), priv ? 'Ученикам' : 'Всем');
+    accessBtn.type = 'button';
+    accessBtn.title = priv ? 'Сейчас открыта только ученикам с доступом. Нажми, чтобы открыть всем' : 'Сейчас открыта всем. Нажми, чтобы закрыть для учеников';
+    accessBtn.addEventListener('click', function () { toggleAccess(it, accessBtn); });
 
     var actions = el('div', 'row-actions');
     var open = el('a', 'btn btn--small', 'Открыть'); open.href = '/viz/' + it.file; open.target = '_blank'; open.rel = 'noopener';
@@ -165,7 +176,7 @@
     actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
 
     li.appendChild(handle); li.appendChild(arrows); li.appendChild(folder); li.appendChild(text);
-    li.appendChild(status); li.appendChild(actions);
+    li.appendChild(accessBtn); li.appendChild(status); li.appendChild(actions);
     return li;
   }
 
@@ -174,6 +185,15 @@
     var fd = new FormData(); fd.append('is_published', it.is_published ? 'false' : 'true');
     api('PATCH', '/api/admin/visualizations/' + it.pk, fd).then(function (v) {
       toast(v.is_published ? 'Опубликовано: ученики видят' : 'Скрыто: теперь это черновик');
+      return loadList();
+    }).catch(function (e) { toast(e.message, true); btn.disabled = false; });
+  }
+
+  function toggleAccess(it, btn) {
+    btn.disabled = true;
+    var fd = new FormData(); fd.append('access', it.access === 'private' ? 'free' : 'private');
+    api('PATCH', '/api/admin/visualizations/' + it.pk, fd).then(function (v) {
+      toast(v.access === 'private' ? 'Закрыто: открывай ученикам через «Изменить» или вкладку «Ученики»' : 'Открыто всем');
       return loadList();
     }).catch(function (e) { toast(e.message, true); btn.disabled = false; });
   }
@@ -286,6 +306,13 @@
     $('f-tags').value = item ? (item.tags || []).join(', ') : '';
     $('f-slug').value = item ? item.slug : '';
     $('f-published').checked = item ? item.is_published : true;
+    var priv = !!(item && item.access === 'private');
+    $('f-access-free').checked = !priv; $('f-access-private').checked = priv;
+    state.getUsers = window.AdminAccess
+      ? window.AdminAccess.picker($('viz-users'), window.AdminAccess.userItems(), item ? item.user_ids : [],
+          'Учеников пока нет: они появятся после регистрации в личном кабинете.')
+      : function () { return []; };
+    syncAccessField();
     $('slug-hint').textContent = item ? 'Если поменять адрес, старые ссылки у учеников перестанут работать.' : 'Подставится из названия. Латиница, цифры, дефисы.';
     $('slug-hint').classList.remove('warn');
     if (state.coverUrl) { URL.revokeObjectURL(state.coverUrl); state.coverUrl = null; }
@@ -305,6 +332,10 @@
     document.body.classList.remove('no-scroll');
     if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
   }
+
+  function syncAccessField() { $('viz-users-field').hidden = !$('f-access-private').checked; }
+  $('f-access-free').addEventListener('change', syncAccessField);
+  $('f-access-private').addEventListener('change', syncAccessField);
 
   $('f-title').addEventListener('input', function () {
     if (!state.slugTouched) $('f-slug').value = slugify(this.value);
@@ -377,6 +408,9 @@
     fd.append('parts', $('f-parts').value.trim());
     fd.append('slug', $('f-slug').value.trim());
     fd.append('is_published', $('f-published').checked ? 'true' : 'false');
+    var isPrivate = $('f-access-private').checked;
+    fd.append('access', isPrivate ? 'private' : 'free');
+    var userIds = isPrivate ? state.getUsers() : null;
     var cover = $('f-cover').files[0];
     if (cover) fd.append('cover', cover);
     else if (state.removeCover) fd.append('remove_cover', 'true');
@@ -384,6 +418,9 @@
     var btn = $('save-btn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
     var req = item ? api('PATCH', '/api/admin/visualizations/' + item.pk, fd) : api('POST', '/api/admin/visualizations', fd);
     req.then(function (v) {
+      /* кому открыта — отдельным запросом, когда визуализация уже сохранена и у неё есть номер */
+      return userIds ? api('PUT', '/api/admin/access/viz/' + v.pk, { user_ids: userIds }).then(function () { return v; }) : v;
+    }).then(function (v) {
       closeEditor();
       toast((item ? 'Сохранено: ' : 'Добавлено: ') + v.title + (v.is_published ? '' : ' (черновик)'));
       return loadList();

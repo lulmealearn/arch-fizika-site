@@ -28,7 +28,8 @@ SEED_DIR = ROOT / "seed"
 STORAGE_DIR = Path(os.environ.get("STORAGE_DIR", ROOT / "storage")).resolve()
 VIZ_DIR = STORAGE_DIR / "viz"
 COVERS_DIR = STORAGE_DIR / "covers"
-for _d in (STORAGE_DIR, VIZ_DIR, COVERS_DIR):
+HW_DIR = STORAGE_DIR / "hw"
+for _d in (STORAGE_DIR, VIZ_DIR, COVERS_DIR, HW_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # SQLite по умолчанию; для MySQL: mysql+pymysql://user:pass@host:3306/dbname?charset=utf8mb4
@@ -48,3 +49,4 @@ SESSION_DAYS = int(os.environ.get("SESSION_DAYS", "14"))
 
 MAX_HTML_BYTES = int(float(os.environ.get("MAX_HTML_MB", "8")) * 1024 * 1024)
 MAX_COVER_BYTES = int(float(os.environ.get("MAX_COVER_MB", "3")) * 1024 * 1024)
+MAX_PDF_BYTES = int(float(os.environ.get("MAX_PDF_MB", "25")) * 1024 * 1024)

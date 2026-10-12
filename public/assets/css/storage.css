@@ -125,3 +125,17 @@
 .filters { transition: transform .5s var(--ease-out), border-color .2s; }
 html.topbar-hidden .filters { transform: translateY(calc(-1 * var(--topbar-h))); }
 @media (prefers-reduced-motion: reduce) { .filters { transition: none; } }
+
+/* Закрытые визуализации: в списке видны, но с замком; открываются только ученикам с доступом */
+.lock {
+  position: absolute; right: 8px; top: 26px; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: var(--ink); color: #fff;
+  box-shadow: 0 6px 14px -8px rgba(24, 24, 32, .6);
+}
+.lock--open { background: var(--violet); }
+.row--locked .sheet { filter: grayscale(.85); opacity: .7; }
+.row__access {
+  padding: 4px 10px; border-radius: 999px; font-size: 11px; letter-spacing: .1em;
+  border: 1px dashed var(--line-2); color: var(--muted);
+}
+.row:not(.row--locked) .row__access { border: 0; background: var(--violet-tint); color: var(--violet-ink); }

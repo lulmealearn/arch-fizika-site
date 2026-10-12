@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from . import config, files
+from .access import drop_item, item_users
 from .db import get_db
 from .models import Section, Visualization
 from .security import (COOKIE_NAME, check_login_rate, clear_login_failures, is_admin, make_session_token,
@@ -63,7 +64,8 @@ def _all(db: Session):
     items = db.scalars(
         select(Visualization).options(joinedload(Visualization.section)).order_by(Visualization.position, Visualization.id)
     ).all()
-    return {"sections": [section_out(s) for s in sections], "items": [viz_admin(v) for v in items]}
+    who = item_users(db, "viz")
+    return {"sections": [section_out(s) for s in sections], "items": [viz_admin(v, who.get(v.id, [])) for v in items]}
 
 
 @router.get("/visualizations", dependencies=guard)
@@ -95,6 +97,13 @@ def _flag(value: Optional[str]) -> bool:
     return (value or "").lower() in ("1", "true", "on", "yes")
 
 
+def _access(value: Optional[str]) -> str:
+    v = (value or "free").strip().lower()
+    if v not in ("free", "private"):
+        raise HTTPException(400, "Доступ: free или private.")
+    return v
+
+
 def _clean_text(value: Optional[str], limit: int, field: str, required: bool = False) -> str:
     v = (value or "").strip()
     if required and not v:
@@ -115,10 +124,12 @@ async def create(
     parts: str = Form(""),
     slug: str = Form(""),
     is_published: str = Form("true"),
+    access: str = Form("free"),
     cover: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     title = _clean_text(title, 200, "Название", required=True)
+    access = _access(access)
     description = _clean_text(description, 600, "Описание")
     parts = _clean_text(parts, 60, "Объём")
     sec = _section(db, section)
@@ -135,7 +146,7 @@ async def create(
     v = Visualization(
         slug=slug, title=title, description=description, section_id=sec.id, tags=_parse_tags(tags),
         parts=parts, file_name=file_name, cover_name=cover_name, position=last + 1,
-        is_published=_flag(is_published),
+        is_published=_flag(is_published), access=access,
     )
     db.add(v)
     db.commit()
@@ -155,6 +166,7 @@ async def update(
     parts: Optional[str] = Form(None),
     slug: Optional[str] = Form(None),
     is_published: Optional[str] = Form(None),
+    access: Optional[str] = Form(None),
     cover: Optional[UploadFile] = File(None),
     remove_cover: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -175,6 +187,8 @@ async def update(
         v.tags = _parse_tags(tags)
     if is_published is not None:
         v.is_published = _flag(is_published)
+    if access is not None:
+        v.access = _access(access)
 
     if slug is not None and slug.strip() and slug.strip() != v.slug:
         new_slug = files.validate_slug(slug)
@@ -221,6 +235,7 @@ def delete(pk: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Визуализация не найдена.")
     files.delete_viz(v.file_name)
     files.delete_cover(v.cover_name)
+    drop_item(db, "viz", v.id)
     db.delete(v)
     db.commit()
     return {"ok": True}

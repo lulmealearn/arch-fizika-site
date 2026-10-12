@@ -151,3 +151,69 @@ textarea.input { resize: vertical; min-height: 84px; }
 .toast.is-error { background: #a61f1f; }
 
 .sheet img.sheet__icon, .sheet .sheet__icon { object-fit: contain; padding: 2px 3px; }
+
+/* ── Вкладки: визуализации, домашки, уроки, ученики ── */
+.tabs { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter) 4px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs__btn {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.tabs__btn:hover { border-color: var(--ink); }
+.tabs__btn[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-dark); }
+.tabs__btn:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 2px; }
+.tabs__n { color: var(--muted); }
+.tabs__btn[aria-selected="true"] .tabs__n { color: var(--violet-soft); }
+.panel { display: flex; flex-direction: column; gap: 18px; }
+
+/* Доступ визуализации: «Всем» / «Ученикам» */
+.status--free { background: transparent; border: 1px solid var(--line-2); color: var(--ink-2); }
+.status--private { background: var(--ink); color: var(--on-dark); }
+.seg2 { display: inline-grid; grid-auto-flow: column; padding: 4px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line-2); justify-self: start; align-self: flex-start; }
+.seg2 label { cursor: pointer; }
+.seg2 input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg2 span {
+  display: flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 999px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  transition: background .2s, color .2s;
+}
+.seg2 input:checked + span { background: var(--ink); color: var(--on-dark); }
+.seg2 input:focus-visible + span { outline: 2.5px solid var(--violet); outline-offset: 2px; }
+
+/* ── Список с галочками ── */
+.picker { display: flex; flex-direction: column; gap: 10px; }
+.picker__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.picker__search { flex: 1 1 180px; min-height: 44px; }
+.picker__btn { min-height: 40px; padding: 0 14px; font-size: 11px; }
+.picker__count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.picker__list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
+.picker__empty { margin: 0; padding: 16px; border: 1.5px dashed var(--dash); border-radius: 14px; color: var(--muted); font-size: 15px; }
+.pick { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.pick:last-child { border-bottom: 0; }
+.pick:hover { background: var(--bg); }
+.pick input { flex: none; width: 20px; height: 20px; accent-color: var(--violet); cursor: pointer; }
+.pick__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pick__label { font-family: var(--display); font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+.pick__sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+
+/* ── Строки ДЗ, уроков, учеников ── */
+.adm-row--plain { min-height: 76px; }
+.numbadge, .avatar {
+  flex: none; width: 64px; height: 52px; border-radius: 12px; background: var(--violet-tint); color: var(--violet-ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.numbadge span { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.numbadge b { font-family: var(--display); font-weight: 700; font-size: 22px; margin-top: 3px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--ink); color: var(--on-dark); font-family: var(--display); font-weight: 700; font-size: 20px; }
+.users-search { max-width: 360px; }
+.input--num { max-width: 160px; font-family: var(--display); font-weight: 700; font-size: 22px; }
+.input.mono { font-family: var(--mono); font-size: 18px; letter-spacing: .08em; }
+.editor2__body { display: flex; flex-direction: column; gap: 18px; }
+.editor2__body .hint { font-size: 15px; }
+@media (max-width: 760px) {
+  .adm-row--plain .adm-row__text { flex: 1 1 calc(100% - 90px); }
+  .adm-row--plain .row-actions { margin-left: 0; flex-wrap: wrap; }
+}
+@media (max-width: 420px) { .adm-row--plain .numbadge, .adm-row--plain .avatar { display: flex; } }

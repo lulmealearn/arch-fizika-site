@@ -1,7 +1,7 @@
 """Запуск: создать таблицы, синхронизировать разделы с seed/ и залить стартовые визуализации в пустую базу."""
 import json
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
@@ -39,8 +39,18 @@ def _sync_sections(db, wanted):
     db.commit()
 
 
+def _add_missing_columns() -> None:
+    """create_all не меняет существующие таблицы: новые колонки добавляем сами (одинаково для SQLite и MySQL)."""
+    cols = {c["name"] for c in inspect(engine).get_columns("visualizations")}
+    if "access" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE visualizations ADD COLUMN access VARCHAR(10) NOT NULL DEFAULT 'free'"))
+        print("[db] Добавлена колонка visualizations.access (все визуализации пока открыты всем)")
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _add_missing_columns()
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

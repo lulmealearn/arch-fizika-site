@@ -133,6 +133,26 @@ def cover_path(name: str) -> Path:
     return config.COVERS_DIR / name
 
 
+# ── Домашние задания (PDF) ──
+async def save_hw_pdf(number: int, upload: UploadFile) -> str:
+    data = await read_limited(upload, config.MAX_PDF_BYTES, "PDF")
+    if not data.lstrip()[:5] == b"%PDF-":
+        raise HTTPException(400, "Нужен PDF-файл.")
+    digest = hashlib.sha1(data).hexdigest()[:8]
+    name = f"hw-{number}-{digest}.pdf"
+    _atomic_write(config.HW_DIR / name, data)
+    return name
+
+
+def hw_path(name: str) -> Path:
+    return config.HW_DIR / name
+
+
+def delete_hw(name: Optional[str]) -> None:
+    if name:
+        (config.HW_DIR / name).unlink(missing_ok=True)
+
+
 def safe_name(name: str) -> bool:
     """Имя файла без путей и спецсимволов: защита от ../ в адресе."""
     return bool(re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,159}", name)) and ".." not in name

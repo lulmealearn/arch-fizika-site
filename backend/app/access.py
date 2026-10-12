@@ -1,0 +1,76 @@
+"""Кто что может открыть: текущий ученик, его ручные доступы и проверка перед выдачей материала."""
+from typing import Dict, Iterable, List, Optional, Set
+
+from fastapi import Request
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from .models import GRANT_KINDS, Grant, User
+from .security import is_admin, read_user_token
+
+
+def current_user(request: Request, db: Session) -> Optional[User]:
+    """Ученик из cookie. Сброшенный пароль (новая версия сессии) или удалённый аккаунт — значит, не вошёл."""
+    data = read_user_token(request)
+    if not data:
+        return None
+    user = db.get(User, data["u"])
+    if not user or user.session_version != data.get("v"):
+        return None
+    return user
+
+
+def granted_ids(db: Session, user_id: int, kind: str) -> Set[int]:
+    return set(db.scalars(select(Grant.item_id).where(Grant.user_id == user_id, Grant.kind == kind)))
+
+
+def can_open(db: Session, request: Request, kind: str, item_id: int, user: Optional[User] = None) -> bool:
+    """Закрытый материал: админ видит всё, ученик — только то, что ему открыли."""
+    if is_admin(request):
+        return True
+    user = user or current_user(request, db)
+    if not user:
+        return False
+    return db.scalar(select(Grant.id).where(
+        Grant.user_id == user.id, Grant.kind == kind, Grant.item_id == item_id)) is not None
+
+
+def user_grants(db: Session) -> Dict[int, Dict[str, List[int]]]:
+    """Все доступы одним запросом: {user_id: {"viz": [...], "hw": [...], "lesson": [...]}}."""
+    out: Dict[int, Dict[str, List[int]]] = {}
+    for g in db.scalars(select(Grant)):
+        out.setdefault(g.user_id, {k: [] for k in GRANT_KINDS})[g.kind].append(g.item_id)
+    return out
+
+
+def item_users(db: Session, kind: str) -> Dict[int, List[int]]:
+    """Кому открыт каждый материал данного вида: {item_id: [user_id, ...]}."""
+    out: Dict[int, List[int]] = {}
+    for g in db.scalars(select(Grant).where(Grant.kind == kind)):
+        out.setdefault(g.item_id, []).append(g.user_id)
+    return out
+
+
+def set_user_grants(db: Session, user_id: int, kind: str, item_ids: Iterable[int]) -> None:
+    """Заменить набор материалов вида kind, открытых ученику."""
+    want = set(item_ids)
+    have = granted_ids(db, user_id, kind)
+    if have - want:
+        db.execute(delete(Grant).where(Grant.user_id == user_id, Grant.kind == kind, Grant.item_id.in_(have - want)))
+    for item_id in want - have:
+        db.add(Grant(user_id=user_id, kind=kind, item_id=item_id))
+
+
+def set_item_users(db: Session, kind: str, item_id: int, user_ids: Iterable[int]) -> None:
+    """Заменить список учеников, которым открыт один материал."""
+    want = set(user_ids)
+    have = set(db.scalars(select(Grant.user_id).where(Grant.kind == kind, Grant.item_id == item_id)))
+    if have - want:
+        db.execute(delete(Grant).where(Grant.kind == kind, Grant.item_id == item_id, Grant.user_id.in_(have - want)))
+    for uid in want - have:
+        db.add(Grant(user_id=uid, kind=kind, item_id=item_id))
+
+
+def drop_item(db: Session, kind: str, item_id: int) -> None:
+    """Материал удалён — убрать и все доступы к нему."""
+    db.execute(delete(Grant).where(Grant.kind == kind, Grant.item_id == item_id))
