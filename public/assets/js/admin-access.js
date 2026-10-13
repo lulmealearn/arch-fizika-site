@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var data = { users: [], lessons: [], viz: [], mocks: [] };
+  var data = { users: [], lessons: [], viz: [], mocks: [], sections: [] };
   var started = false;
 
   /* ── Общее ── */
@@ -166,7 +166,7 @@
     return Promise.all([
       api('GET', '/api/admin/users'), api('GET', '/api/admin/lessons'), api('GET', '/api/admin/visualizations'), api('GET', '/api/admin/mocks'),
     ]).then(function (r) {
-      data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items; data.mocks = r[3].items;
+      data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items; data.sections = r[2].sections || []; data.mocks = r[3].items;
       renderUsers(); renderLessons(); renderMocks(); counts();
     }).catch(function (e) { toast(e.message, true); });
   }
@@ -202,7 +202,8 @@
       var num = el('span', 'numbadge'); num.appendChild(el('span', null, 'Занятие')); num.appendChild(el('b', null, String(l.number)));
       var text = el('div', 'adm-row__text');
       text.appendChild(el('h2', 'adm-row__title', l.title || 'Занятие № ' + l.number));
-      text.appendChild(el('span', 'adm-row__meta', lessonContents(l) + '  ·  ' + whoLine(l.user_ids)));
+      var sec = data.sections.filter(function (x) { return x.id === l.section; })[0];
+      text.appendChild(el('span', 'adm-row__meta', (sec ? sec.label + '  ·  ' : 'без раздела  ·  ') + lessonContents(l) + '  ·  ' + whoLine(l.user_ids)));
       var actions = el('div', 'row-actions');
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
       edit.addEventListener('click', function () { editLesson(l); });
@@ -256,6 +257,13 @@
       if (!l) num.dataset.fresh = '1';  /* номер нового занятия подставляется из имени PDF, например dz-12.pdf */
       body.appendChild(field('Номер *', num));
       body.appendChild(field('Тема', textInput('e-title', l ? l.title : '', 'Например: Законы Ньютона')));
+      var sel = el('select', 'input'); sel.id = 'e-section';
+      [['auto', 'Как у первой визуализации в папке'], ['none', 'Без раздела']].concat(
+        data.sections.map(function (x) { return [x.id, x.label]; })).forEach(function (o) {
+        var opt = el('option', null, o[1]); opt.value = o[0]; sel.appendChild(opt);
+      });
+      sel.value = l ? (l.section || 'none') : 'auto';
+      body.appendChild(field('Раздел (фильтр в кабинете ученика)', sel));
       var url = textInput('e-url', l ? l.url : '', 'https://… (можно добавить позже)'); url.type = 'url'; url.inputMode = 'url'; url.spellcheck = false;
       body.appendChild(field('Ссылка на запись', url));
       var notes = pdfField('e-notes', l && l.notes_url, 'Перетащи PDF конспекта или нажми, чтобы выбрать');
@@ -278,6 +286,7 @@
         fd.append('number', $('e-number').value.trim());
         fd.append('title', $('e-title').value.trim());
         fd.append('url', u);
+        fd.append('section', $('e-section').value);
         fd.append('viz_ids', JSON.stringify(getV()));
         fd.append('user_ids', JSON.stringify(getU()));
         if (notes.file()) fd.append('notes', notes.file()); else if (notes.remove()) fd.append('remove_notes', 'true');

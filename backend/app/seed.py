@@ -5,7 +5,7 @@ from sqlalchemy import func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
-from .models import Grant, Homework, Lesson, Section, Visualization
+from .models import Grant, Homework, Lesson, LessonViz, Section, Visualization
 from .tracking import prune
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
@@ -34,6 +34,8 @@ def _sync_sections(db, wanted):
         if old in by_slug and new in by_slug:
             for v in db.scalars(select(Visualization).where(Visualization.section_id == by_slug[old].id)).all():
                 v.section = by_slug[new]
+            for l in db.scalars(select(Lesson).where(Lesson.section_id == by_slug[old].id)).all():
+                l.section_id = by_slug[new].id
             db.flush()
             db.expire(by_slug[old])
             db.delete(by_slug[old])
@@ -45,7 +47,8 @@ NEW_COLUMNS = [
     ("visualizations", "access", "VARCHAR(10) NOT NULL DEFAULT 'free'"),
     ("lessons", "notes_file", "VARCHAR(160) NULL"),
     ("lessons", "hw_file", "VARCHAR(160) NULL"),
-    ("mocks", "answer_key", "TEXT NULL"),  # JSON-строка (ключ автопроверки)
+    ("mocks", "answer_key", "TEXT NULL"),
+    ("lessons", "section_id", "INTEGER NULL"),  # JSON-строка (ключ автопроверки)
 ]
 
 
@@ -85,12 +88,23 @@ def _migrate_homeworks(db) -> None:
         print(f"[db] ДЗ перенесены в занятия: {len(hws)}")
 
 
+def _fill_lesson_sections(db) -> None:
+    """Занятиям без раздела ставим раздел первой визуализации в их папке (один раз, дальше — как задал админ)."""
+    for l in db.scalars(select(Lesson).where(Lesson.section_id.is_(None))).all():
+        first = db.scalar(select(Visualization.section_id).join(LessonViz, LessonViz.viz_id == Visualization.id)
+                          .where(LessonViz.lesson_id == l.id).order_by(LessonViz.position, LessonViz.id).limit(1))
+        if first:
+            l.section_id = first
+    db.commit()
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
     with SessionLocal() as db:
         _migrate_homeworks(db)
         prune(db)  # журнал активности старше года не храним
+        _fill_lesson_sections(db)
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

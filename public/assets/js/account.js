@@ -100,7 +100,7 @@
   }
 
   /* ── Занятия: папки ── */
-  var lessons = [], mocks = [], filter = 'all', current = null, currentKind = 'lesson';
+  var lessons = [], mocks = [], sections = [], secFilter = 'all', filter = 'all', current = null, currentKind = 'lesson';
 
   function plural(n, one, few, many) {
     var a = n % 10, b = n % 100;
@@ -146,6 +146,13 @@
     tab.appendChild(el('b', null, '№ ' + l.number));
     var body = el('span', 'folder__body');
     body.appendChild(el('span', 'folder__title', lessonTitle(l)));
+    var sec = sectionOf(l);
+    if (sec) {
+      var tag = el('span', 'folder__sec');
+      var dot = el('span', 'folder__secdot'); dot.style.background = sec.color;
+      tag.appendChild(dot); tag.appendChild(document.createTextNode(sec.label));
+      body.appendChild(tag);
+    }
     body.appendChild(el('span', 'folder__what', contents(l)));
     var st = el('span', 'folder__state', l.done ? 'просмотрено' : 'не просмотрено');
     body.appendChild(st);
@@ -206,16 +213,46 @@
   function matches(l, q) {
     if (!q) return true;
     if (/^\d+$/.test(q)) return String(l.number) === q || String(l.number).indexOf(q) === 0;
-    var hay = (lessonTitle(l) + ' ' + l.viz.map(function (v) { return v.title; }).join(' ')).toLowerCase();
+    var sec = sectionOf(l);
+    var hay = (lessonTitle(l) + ' ' + (sec ? sec.label : '') + ' ' + l.viz.map(function (v) { return v.title; }).join(' ')).toLowerCase();
     return q.toLowerCase().split(/\s+/).every(function (w) { return hay.indexOf(w) >= 0; });
+  }
+
+  /* ── Разделы физики: Все · Механика · МКТ и термодинамика · … (только те, где есть занятия) ── */
+  function sectionOf(l) {
+    for (var i = 0; i < sections.length; i++) if (sections[i].id === l.section) return sections[i];
+    return null;
+  }
+  function inSection(l) { return secFilter === 'all' || (secFilter === 'none' ? !l.section : l.section === secFilter); }
+  function renderSecChips() {
+    var box = $('sec-chips'); box.textContent = '';
+    var counts = {}, none = 0;
+    lessons.forEach(function (l) { if (l.section) counts[l.section] = (counts[l.section] || 0) + 1; else none++; });
+    var used = sections.filter(function (s) { return counts[s.id]; });
+    box.hidden = !used.length;
+    if (box.hidden) { secFilter = 'all'; return; }
+    if (secFilter !== 'all' && secFilter !== 'none' && !counts[secFilter]) secFilter = 'all';
+    function chip(id, label, n, color) {
+      var b = el('button', 'fchip fchip--sec'); b.type = 'button';
+      b.setAttribute('aria-pressed', String(secFilter === id));
+      if (color) { var d = el('span', 'fchip__dot'); d.style.background = color; b.appendChild(d); }
+      b.appendChild(document.createTextNode(label + ' '));
+      b.appendChild(el('span', null, String(n)));
+      b.addEventListener('click', function () { secFilter = id; renderSecChips(); renderFolders(); });
+      box.appendChild(b);
+    }
+    chip('all', 'Все', lessons.length);
+    used.forEach(function (s) { chip(s.id, s.label, counts[s.id], s.color); });
+    if (none) chip('none', 'Без раздела', none);
   }
 
   function renderFolders() {
     var q = $('f-find').value.trim();
     var list = $('folders'); list.textContent = '';
-    var todo = lessons.filter(function (l) { return !l.done; }).length;
-    $('c-all').textContent = lessons.length; $('c-todo').textContent = todo; $('c-done').textContent = lessons.length - todo;
-    var shown = lessons.filter(function (l) {
+    var pool = lessons.filter(inSection);
+    var todo = pool.filter(function (l) { return !l.done; }).length;
+    $('c-todo').textContent = todo; $('c-done').textContent = pool.length - todo;
+    var shown = pool.filter(function (l) {
       return matches(l, q) && (filter === 'all' || (filter === 'done') === l.done);
     });
     shown.forEach(function (l) { list.appendChild(folderCard(l)); });
@@ -233,10 +270,11 @@
   }
 
   $('f-find').addEventListener('input', renderFolders);
-  document.querySelectorAll('.fchip').forEach(function (b) {
+  /* «Не просмотрены» / «Просмотрены» — переключатели: повторное нажатие снимает фильтр */
+  document.querySelectorAll('.fchip[data-filter]').forEach(function (b) {
     b.addEventListener('click', function () {
-      filter = b.dataset.filter;
-      document.querySelectorAll('.fchip').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      filter = filter === b.dataset.filter ? 'all' : b.dataset.filter;
+      document.querySelectorAll('.fchip[data-filter]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.filter === filter)); });
       renderFolders();
     });
   });
@@ -420,6 +458,8 @@
       var hash = location.hash;
       if (location.search) { try { history.replaceState(null, '', location.pathname + hash); } catch (e) { /* без истории */ } }
       lessons = d.lessons;
+      sections = d.sections || [];
+      renderSecChips();
       mocks = d.mocks || [];
       renderFolders(); renderMocks(); renderReports(d.reports || []);
       $('kt-lessons').textContent = lessons.length || '';

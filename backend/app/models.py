@@ -86,7 +86,11 @@ class Lesson(Base):
     url: Mapped[str] = mapped_column(String(1000), default="")
     notes_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     hw_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    # раздел физики — для фильтра в кабинете; по умолчанию раздел первой визуализации в папке
+    section_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sections.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    section: Mapped[Optional[Section]] = relationship()
 
 
 class LessonViz(Base):

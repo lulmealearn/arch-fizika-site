@@ -244,3 +244,15 @@ html.pop-lock { overflow: hidden; }
 .rrow--half .rrow__pts { color: #8a5a00; }
 .rrow--bad { background: #fdf0ee; }
 .rrow--bad .rrow__pts { color: #a61f1f; }
+
+/* Разделы физики над фильтром «просмотрено» */
+.finder__chips--sec { padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .22); }
+.fchip__dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .7); }
+.fchip--sec[aria-pressed="true"] .fchip__dot { box-shadow: none; }
+@media (max-width: 640px) {
+  .finder__chips--sec { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * clamp(20px, 3vw, 32px)); padding-inline: clamp(20px, 3vw, 32px); }
+  .finder__chips--sec::-webkit-scrollbar { display: none; }
+  .finder__chips--sec .fchip { flex: none; }
+}
+.folder__sec { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.folder__secdot { width: 8px; height: 8px; border-radius: 2px; }

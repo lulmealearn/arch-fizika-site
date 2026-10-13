@@ -13,7 +13,7 @@ from . import files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
-from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
+from .models import GRANT_KINDS, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
 from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
@@ -285,6 +285,21 @@ def set_lesson_viz(db: Session, lesson_id: int, viz_ids: List[int]) -> None:
         db.add(LessonViz(lesson_id=lesson_id, viz_id=vid, position=pos))
 
 
+def _apply_section(db: Session, l: Lesson, value: str) -> None:
+    """value: slug раздела, «none» — без раздела, «auto» — раздел первой визуализации в папке."""
+    value = (value or "auto").strip()
+    if value == "none":
+        l.section_id = None
+    elif value == "auto":
+        l.section_id = db.scalar(select(Visualization.section_id).join(LessonViz, LessonViz.viz_id == Visualization.id)
+                                 .where(LessonViz.lesson_id == l.id).order_by(LessonViz.position, LessonViz.id).limit(1))
+    else:
+        s = db.scalar(select(Section).where(Section.slug == value))
+        if not s:
+            raise HTTPException(400, "Такого раздела нет.")
+        l.section_id = s.id
+
+
 def _lesson_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
     q = select(Lesson.id).where(Lesson.number == number)
     if pk is not None:
@@ -302,7 +317,7 @@ def lessons_list(db: Session = Depends(get_db)):
 
 @router.post("/lessons", status_code=201)
 async def lessons_create(
-    number: str = Form(...), title: str = Form(""), url: str = Form(""),
+    number: str = Form(...), title: str = Form(""), url: str = Form(""), section: Optional[str] = Form(None),
     user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
     notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
@@ -319,6 +334,8 @@ async def lessons_create(
     db.flush()
     if vizs:
         set_lesson_viz(db, l.id, vizs)
+    db.flush()
+    _apply_section(db, l, section or "auto")
     if users:
         set_item_users(db, "lesson", l.id, _existing_ids(db, User, users))
     db.commit()
@@ -341,6 +358,7 @@ async def _replace_pdf(kind: str, l: Lesson, upload: Optional[UploadFile], remov
 @router.patch("/lessons/{pk}")
 async def lessons_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), url: Optional[str] = Form(None),
+    section: Optional[str] = Form(None),
     user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
     notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
     remove_notes: Optional[str] = Form(None), remove_hw: Optional[str] = Form(None),
@@ -362,6 +380,9 @@ async def lessons_update(
     vizs, users = _parse_ids(viz_ids), _parse_ids(user_ids)
     if vizs is not None:
         set_lesson_viz(db, l.id, vizs)
+    db.flush()
+    if section is not None:
+        _apply_section(db, l, section)
     if users is not None:
         set_item_users(db, "lesson", l.id, _existing_ids(db, User, users))
     db.commit()

@@ -14,10 +14,10 @@ from .access import current_user, granted_ids
 from .tracking import touch
 from .db import get_db
 from .mockcheck import grade
-from .models import Grant, Lesson, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, Visualization
+from .models import Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, Visualization
 from .security import (USER_COOKIE, USER_SESSION_DAYS, check_same_origin, hash_password, is_admin, make_user_token,
                        register_limit, user_login_limit, verify_password)
-from .serialize import _iso, lesson_files, mock_out, report_out, viz_public
+from .serialize import _iso, lesson_files, section_out, mock_out, report_out, viz_public
 
 router = APIRouter(prefix="/api")
 
@@ -160,7 +160,8 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     out_lessons = []
     for l in lessons:
         # запись открывается через /watch/<номер>: так виден факт просмотра, а ссылка не лежит в кабинете в открытую
-        item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None, "done": l.id in done}
+        item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None, "done": l.id in done,
+                "section": l.section.slug if l.section else None}
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
         out_lessons.append(item)
@@ -178,6 +179,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     return {
         "user": {"nickname": user.nickname},
         "lessons": out_lessons,
+        "sections": [section_out(s) for s in db.scalars(select(Section).order_by(Section.position))],
         "viz": [viz_public(v) for v in extra],
         "viz_total": len(extra_all),
         "mocks": out_mocks,

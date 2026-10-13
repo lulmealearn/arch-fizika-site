@@ -101,8 +101,8 @@
           <input class="input finder__input" type="search" id="f-find" placeholder="Номер или тема: 12, Ньютон" autocomplete="off" enterkeyhint="search">
           <button class="btn finder__btn" type="submit">Открыть <span class="arr" aria-hidden="true">→</span></button>
         </div>
-        <div class="finder__chips" role="group" aria-label="Показать">
-          <button type="button" class="fchip" data-filter="all" aria-pressed="true">Все <span id="c-all"></span></button>
+        <div class="finder__chips finder__chips--sec" id="sec-chips" role="group" aria-label="Раздел" hidden></div>
+        <div class="finder__chips" role="group" aria-label="Показать только">
           <button type="button" class="fchip fchip--todo" data-filter="todo" aria-pressed="false">Не просмотрены <span id="c-todo"></span></button>
           <button type="button" class="fchip fchip--done" data-filter="done" aria-pressed="false">Просмотрены <span id="c-done"></span></button>
         </div>
