@@ -131,6 +131,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     user = current_user(request, db)
     if not user:
         raise HTTPException(401, "Войдите в личный кабинет.")
+    staff = user.role == "curator"  # куратору открыто всё, без сроков и сдачи
     lesson_ids = granted_ids(db, user.id, "lesson")
     lessons = db.scalars(select(Lesson).where(Lesson.id.in_(lesson_ids)).order_by(Lesson.number.desc())).all() if lesson_ids else []
 
@@ -139,7 +140,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     if lesson_ids:
         for lv in db.scalars(select(LessonViz).where(LessonViz.lesson_id.in_(lesson_ids)).order_by(LessonViz.position, LessonViz.id)):
             by_lesson.setdefault(lv.lesson_id, []).append(lv.viz_id)
-    extra_ids = granted_ids(db, user.id, "viz")
+    extra_ids = set() if staff else granted_ids(db, user.id, "viz")
     all_viz = {vid for ids in by_lesson.values() for vid in ids} | extra_ids
     viz = {v.id: v for v in db.scalars(
         select(Visualization).options(joinedload(Visualization.section))
@@ -148,7 +149,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     from .routes_check import latest_submissions, submission_out  # здесь, чтобы не было круговых импортов
     subs = latest_submissions(db, user.id)
     progress = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == user.id))}
-    if any([deadlines.settle(p) for p in progress.values()]):
+    if not staff and any([deadlines.settle(p) for p in progress.values()]):
         db.commit()  # истёкшие сроки вернулись в «Не начато»
 
     in_lessons = {vid for ids in by_lesson.values() for vid in ids}
@@ -161,22 +162,22 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         # запись открывается через /watch/<номер>: так виден факт просмотра, а ссылка не лежит в кабинете в открытую
         item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None,
                 "section": l.section.slug if l.section else None}
-        item["deadline"] = deadlines.status_out(progress.get(l.id), l)
+        item["deadline"] = {"state": "open"} if staff else deadlines.status_out(progress.get(l.id), l)
         item["done"] = item["deadline"]["state"] == "done"
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
         # что лежит в папке — показываем всегда, а сами материалы — только после «Начать» (иначе ДЗ читают до старта срока)
         item["inside"] = {"video": bool(l.url), "notes": bool(item.get("notes_url")), "hw": bool(item.get("hw_url")), "viz": len(item["viz"])}
         p = progress.get(l.id)
-        item["locked"] = not (p and p.first_started_at)
+        item["locked"] = not staff and not (p and p.first_started_at)
         if item["locked"]:
             item.update(url=None, notes_url=None, hw_url=None, viz=[])
-        item["submission"] = submission_out(subs.get(l.id))
+        item["submission"] = None if staff else submission_out(subs.get(l.id))
         out_lessons.append(item)
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
     mprog = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == user.id))}
-    if any([deadlines.settle(p) for p in mprog.values()]):
+    if not staff and any([deadlines.settle(p) for p in mprog.values()]):
         db.commit()
     tries = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == user.id))}
     msubs = latest_submissions(db, user.id, "mock_id")
@@ -185,15 +186,15 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     for m in mocks:
         item = mock_out(m)
         p = mprog.get(m.id)
-        item["deadline"] = deadlines.status_out(p, m)
+        item["deadline"] = {"state": "open"} if staff else deadlines.status_out(p, m)
         item["done"] = item["deadline"]["state"] == "done"
-        item["result"] = attempt_out(tries[m.id]) if m.id in tries else None
+        item["result"] = attempt_out(tries[m.id]) if m.id in tries and not staff else None
         # как у занятий: вариант открывается только после «Начать» — иначе его решают до старта срока
-        item["locked"] = not (p and p.first_started_at)
+        item["locked"] = not staff and not (p and p.first_started_at)
         if item["locked"]:
             item["url"] = None
-        item["submission"] = submission_out(msubs.get(m.id))
-        item["total"] = scale.total(sc, tries.get(m.id), msubs.get(m.id))  # итог из 45 и тестовый балл
+        item["submission"] = None if staff else submission_out(msubs.get(m.id))
+        item["total"] = None if staff else scale.total(sc, tries.get(m.id), msubs.get(m.id))  # итог из 45 и тестовый балл
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id, Report.status == "published").order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
@@ -231,6 +232,8 @@ def _my_item(request: Request, db: Session, kind: str, pk: int):
     user = current_user(request, db)
     if not user:
         raise HTTPException(401, "Войдите в личный кабинет.")
+    if user.role == "curator":
+        raise HTTPException(403, "У куратора нет сроков и сдачи: все материалы открыты сразу.")
     item = db.get(model, pk)
     if not item or pk not in granted_ids(db, user.id, grant_kind):
         raise HTTPException(404, not_found)

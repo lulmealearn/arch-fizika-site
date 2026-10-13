@@ -1,11 +1,11 @@
 """Запуск: создать таблицы, синхронизировать разделы с seed/ и залить стартовые визуализации в пустую базу."""
 import json
 
-from sqlalchemy import func, inspect, select, text
+from sqlalchemy import delete, func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
-from .models import Grant, Homework, Lesson, LessonProgress, LessonViz, MockProgress, Section, Visualization
+from .models import Grant, Homework, Lesson, LessonProgress, LessonViz, MockProgress, Section, User, Visualization
 from .tracking import prune
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
@@ -171,6 +171,15 @@ def _submissions_lesson_nullable() -> None:
     print("[db] Таблица submissions пересобрана: теперь в неё сдаются и пробники")
 
 
+def _drop_curator_deadlines(db) -> None:
+    """У кураторов сроков нет (им всё открыто сразу): старые сроки, взятые до назначения куратором, убираем."""
+    ids = list(db.scalars(select(User.id).where(User.role == "curator")))
+    if ids:
+        db.execute(delete(LessonProgress).where(LessonProgress.user_id.in_(ids)))
+        db.execute(delete(MockProgress).where(MockProgress.user_id.in_(ids)))
+        db.commit()
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
@@ -180,6 +189,7 @@ def init_db() -> None:
         prune(db)  # журнал активности старше года не храним
         _fill_lesson_sections(db)
         _migrate_viewed_to_submitted(db)
+        _drop_curator_deadlines(db)
         from .routes_check import purge_old_files
         purge_old_files(db)  # файлы давно проверенных работ
     seed_file = config.SEED_DIR / "visualizations.json"

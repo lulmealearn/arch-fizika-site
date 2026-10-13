@@ -80,9 +80,11 @@ def user_deadlines(db, user_id: int) -> List[Dict[str, Any]]:
     """Сроки ученика для кнопки «Дедлайны» и для админки: что в работе (сколько осталось) и что просрочено
     (срок истёк, ждёт нового «Начать»). Сначала в работе — ближайшие сверху."""
     from sqlalchemy import select
-    from .access import granted_ids
+    from .access import granted_ids, is_curator
     from .models import Lesson, LessonProgress, MockProgress
     out: List[Dict[str, Any]] = []
+    if is_curator(db, user_id):
+        return out  # у куратора сроков нет
     for model, prog, col, kind, label, href in ((Lesson, LessonProgress, "lesson_id", "lesson", "Занятие", "z"),
                                                 (Mock, MockProgress, "mock_id", "mock", "Пробник", "p")):
         ids = granted_ids(db, user_id, kind)

@@ -2,14 +2,16 @@
 
 Ученику открыто занятие (grants.kind = lesson) — он видит папку, но её содержимое (запись, конспект, ДЗ, визуализации)
 открывается только после того, как он нажал «Начать» (срок на ДЗ, deadlines.py) — иначе ДЗ можно было бы читать до старта срока.
-Отдельную закрытую визуализацию можно открыть и без занятия (grants.kind = viz)."""
+Отдельную закрытую визуализацию можно открыть и без занятия (grants.kind = viz).
+Куратору (users.role = curator) открыто всё сразу — все занятия с материалами, визуализации и пробники, без «Начать»
+и без сроков (решение владельца: ему нужно проверять работы, а не сдавать их)."""
 from typing import Dict, Iterable, List, Optional, Set
 
 from fastapi import Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import GRANT_KINDS, Grant, LessonProgress, LessonViz, MockProgress, User
+from .models import GRANT_KINDS, Grant, Lesson, LessonProgress, LessonViz, Mock, MockProgress, User, Visualization
 from .security import is_admin, read_user_token
 
 
@@ -24,7 +26,17 @@ def current_user(request: Request, db: Session) -> Optional[User]:
     return user
 
 
+ALL_OF = {"lesson": Lesson, "mock": Mock, "viz": Visualization}
+
+
+def is_curator(db: Session, user_id: int) -> bool:
+    return db.scalar(select(User.role).where(User.id == user_id)) == "curator"
+
+
 def granted_ids(db: Session, user_id: int, kind: str) -> Set[int]:
+    """Что открыто ученику (ручные доступы). Куратору — всё."""
+    if kind in ALL_OF and is_curator(db, user_id):
+        return set(db.scalars(select(ALL_OF[kind].id)))
     return set(db.scalars(select(Grant.item_id).where(Grant.user_id == user_id, Grant.kind == kind)))
 
 
@@ -33,6 +45,8 @@ def started_lesson_ids(db: Session, user_id: int) -> Set[int]:
     granted = granted_ids(db, user_id, "lesson")
     if not granted:
         return set()
+    if is_curator(db, user_id):
+        return granted  # куратору материалы открыты без «Начать»
     return set(db.scalars(select(LessonProgress.lesson_id).where(
         LessonProgress.user_id == user_id, LessonProgress.first_started_at.is_not(None), LessonProgress.lesson_id.in_(granted))))
 
@@ -67,6 +81,8 @@ def lesson_unlocked(db: Session, request: Request, lesson_id: int, user: Optiona
 def mock_unlocked(db: Session, request: Request, mock_id: int, user: Optional[User]) -> bool:
     """Вариант пробника: админ — всегда, ученик — после «Начать» (иначе вариант решают до старта срока)."""
     if is_admin(request):
+        return True
+    if user is not None and user.role == "curator":
         return True
     return user is not None and db.scalar(select(MockProgress.id).where(
         MockProgress.user_id == user.id, MockProgress.mock_id == mock_id, MockProgress.first_started_at.is_not(None))) is not None

@@ -253,8 +253,8 @@ html.pop-lock { overflow: hidden; }
 
 /* ── Срок на ДЗ: «Не начато» (красная) → «В работе» (фиолетовая, идёт срок) → «Сдано» (зелёная) ── */
 :root { --active: #6d28d9; --active-tint: #ede7fb; --active-ink: #5b21b6; }
-.folder--active { --c: var(--active); --tint: var(--active-tint); --ink-c: var(--active-ink); }
-.lesson.is-active { --c: var(--active); --tint: var(--active-tint); }
+.folder--active, .folder--open { --c: var(--active); --tint: var(--active-tint); --ink-c: var(--active-ink); }
+.lesson.is-active, .lesson.is-open { --c: var(--active); --tint: var(--active-tint); }
 .fchip--active::before { display: block; background: #c4b5fd; }
 .fchip--active[aria-pressed="true"]::before { background: var(--active); }
 .folder__foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

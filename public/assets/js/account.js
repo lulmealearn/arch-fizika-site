@@ -142,7 +142,8 @@
   function lessonTitle(l) { return l.title || 'Занятие № ' + l.number; }
 
   /* ── Срок на ДЗ: «Не начато» → «Начать» (идёт срок) → «Сдал». Истёк без сдачи — снова «Не начато», просрочка в счётчике ── */
-  var STATE_TEXT = { todo: 'не начато', active: 'в работе', done: 'сдано' };
+  /* open — у куратора: всё открыто сразу, без сроков и сдачи */
+  var STATE_TEXT = { todo: 'не начато', active: 'в работе', done: 'сдано', open: 'материалы открыты' };
   function dlState(l) { return (l.deadline && l.deadline.state) || 'todo'; }
   function daysWord(n) { return n + ' ' + plural(n, 'день', 'дня', 'дней'); }
   function timeLeft(iso) {
@@ -294,7 +295,7 @@
     var q = $('f-find').value.trim();
     var list = $('folders'); list.textContent = '';
     var pool = lessons.filter(inSection);
-    var cnt = { todo: 0, active: 0, done: 0 };
+    var cnt = { todo: 0, active: 0, done: 0, open: 0 };
     pool.forEach(function (l) { cnt[dlState(l)]++; });
     $('c-todo').textContent = cnt.todo; $('c-active').textContent = cnt.active; $('c-done').textContent = cnt.done;
     var shown = pool.filter(function (l) {
@@ -394,6 +395,12 @@
     var box = $('lesson-dl'); box.textContent = '';
     var mock = currentKind === 'mock', sheet = mock && l.tasks && l.tasks.length;
     var st = dlState(l), dl = l.deadline || {}, days = dl.days || (mock ? 7 : 3), over = dl.overdue || 0;
+    dlg.classList.toggle('is-open', st === 'open');
+    if (st === 'open') {  /* куратор: ни срока, ни сдачи */
+      dlg.classList.remove('is-done', 'is-active');
+      box.hidden = true;
+      return;
+    }
     dlg.classList.toggle('is-done', st === 'done');
     dlg.classList.toggle('is-active', st === 'active');
     box.className = 'dl dl--' + st;
@@ -778,7 +785,9 @@
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
       $('curator-link').hidden = !d.user.curator;
       syncDeadlines();
-      $('acc-title').textContent = 'Мои материалы';
+      $('acc-title').textContent = d.user.curator ? 'Все материалы' : 'Мои материалы';
+      /* куратору открыто всё сразу — фильтры по срокам не нужны */
+      $('state-chips').hidden = !!d.user.curator;
       /* вошли: подсказка «войдите, чтобы открыть» больше не нужна */
       if (params.get('locked') !== '1' && $('acc-note').dataset.kind === 'next') note('');
       var hash = location.hash;

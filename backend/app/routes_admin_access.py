@@ -316,6 +316,12 @@ class RoleIn(BaseModel):
     sheet_tab: Optional[str] = None  # вкладка в Google-таблице; пусто — искать по chat id
 
 
+def _drop_staff_deadlines(db: Session, user_id: int) -> None:
+    """У куратора сроков нет: его старые сроки по занятиям и пробникам убираем, чтобы не висели и не копили просрочки."""
+    db.execute(delete(LessonProgress).where(LessonProgress.user_id == user_id))
+    db.execute(delete(MockProgress).where(MockProgress.user_id == user_id))
+
+
 @router.put("/users/{pk}/role")
 def users_set_role(pk: int, body: RoleIn, db: Session = Depends(get_db)):
     """Куратор проверяет сданные ДЗ на странице /check/; chat id — куда бот присылает новые работы."""
@@ -324,6 +330,8 @@ def users_set_role(pk: int, body: RoleIn, db: Session = Depends(get_db)):
     if chat and not re.fullmatch(r"-?\d{3,20}", chat):
         raise HTTPException(400, "Chat id — это число, например 123456789. Узнать его можно у бота @userinfobot.")
     u.role = "curator" if body.curator else "student"
+    if u.role == "curator":
+        _drop_staff_deadlines(db, u.id)
     u.tg_chat_id = chat or None
     if body.sheet_tab is not None:
         u.sheet_tab = body.sheet_tab.strip()[:100] or None

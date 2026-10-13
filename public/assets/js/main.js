@@ -206,7 +206,9 @@
     var active = items.filter(function (x) { return x.state === 'active'; });
     var late = items.filter(function (x) { return x.state !== 'active'; });
     if (!items.length) {
-      body.appendChild(el('p', 'dlp__empty', 'Сейчас ничего не начато. Когда откроете занятие или пробник в кабинете и нажмёте «Начать», срок появится здесь.'));
+      body.appendChild(el('p', 'dlp__empty', data && data.user && data.user.curator
+        ? 'У куратора сроков нет: все занятия, визуализации и пробники открыты сразу.'
+        : 'Сейчас ничего не начато. Когда откроете занятие или пробник в кабинете и нажмёте «Начать», срок появится здесь.'));
     }
     function group(title, list, cls) {
       if (!list.length) return;

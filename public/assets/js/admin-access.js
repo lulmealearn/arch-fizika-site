@@ -98,7 +98,10 @@
 
   /* ── Пикер: список с галочками, поиск, «все / никто» ──
      items: [{id, label, sub}], selected: [id]. Возвращает функцию, отдающую выбранные id. */
-  function picker(box, items, selected, emptyText) {
+  /* Список с галочками. opts.onChange — после каждой отметки; у возвращённой функции есть .cover(ids):
+     спрятать строки (например, визуализации, которые уже открыты через отмеченные занятия) — их отметка не теряется. */
+  function picker(box, items, selected, emptyText, opts) {
+    opts = opts || {};
     box.textContent = '';
     var chosen = {};
     (selected || []).forEach(function (id) { chosen[id] = true; });
@@ -120,7 +123,7 @@
     var rows = items.map(function (it) {
       var lab = el('label', 'pick');
       var cb = el('input'); cb.type = 'checkbox'; cb.checked = !!chosen[it.id];
-      cb.addEventListener('change', function () { chosen[it.id] = cb.checked; upd(); });
+      cb.addEventListener('change', function () { chosen[it.id] = cb.checked; upd(); if (opts.onChange) opts.onChange(); });
       var txt = el('span', 'pick__text');
       txt.appendChild(el('span', 'pick__label', it.label));
       if (it.sub) txt.appendChild(el('span', 'pick__sub', it.sub));
@@ -130,19 +133,35 @@
     });
     box.appendChild(list);
 
+    var covered = {}, q = '';
+    var coverNote = el('p', 'picker__empty');
+    coverNote.hidden = true;
+    box.appendChild(coverNote);
+    function apply() {
+      rows.forEach(function (r) {
+        r.lab.hidden = !!covered[r.it.id] || (!!q && (r.it.label + ' ' + (r.it.sub || '')).toLowerCase().indexOf(q) < 0);
+      });
+      var n = rows.filter(function (r) { return covered[r.it.id]; }).length;
+      coverNote.hidden = !n || !opts.coverText;
+      if (opts.coverText) coverNote.textContent = opts.coverText(n);
+    }
     function visible() { return rows.filter(function (r) { return !r.lab.hidden; }); }
     function upd() {
-      var n = rows.filter(function (r) { return r.cb.checked; }).length;
-      count.textContent = 'выбрано ' + n + ' из ' + rows.length;
+      var shown = rows.filter(function (r) { return !covered[r.it.id]; });
+      var n = shown.filter(function (r) { return r.cb.checked; }).length;
+      count.textContent = 'выбрано ' + n + ' из ' + shown.length;
     }
-    all.addEventListener('click', function () { visible().forEach(function (r) { r.cb.checked = true; chosen[r.it.id] = true; }); upd(); });
-    none.addEventListener('click', function () { visible().forEach(function (r) { r.cb.checked = false; chosen[r.it.id] = false; }); upd(); });
-    if (search) search.addEventListener('input', function () {
-      var q = search.value.trim().toLowerCase();
-      rows.forEach(function (r) { r.lab.hidden = q && (r.it.label + ' ' + (r.it.sub || '')).toLowerCase().indexOf(q) < 0; });
-    });
+    all.addEventListener('click', function () { visible().forEach(function (r) { r.cb.checked = true; chosen[r.it.id] = true; }); upd(); if (opts.onChange) opts.onChange(); });
+    none.addEventListener('click', function () { visible().forEach(function (r) { r.cb.checked = false; chosen[r.it.id] = false; }); upd(); if (opts.onChange) opts.onChange(); });
+    if (search) search.addEventListener('input', function () { q = search.value.trim().toLowerCase(); apply(); });
     upd();
-    return function () { return rows.filter(function (r) { return r.cb.checked; }).map(function (r) { return r.it.id; }); };
+    var get = function () { return rows.filter(function (r) { return r.cb.checked; }).map(function (r) { return r.it.id; }); };
+    get.cover = function (ids) {
+      covered = {};
+      (ids || []).forEach(function (id) { covered[id] = true; });
+      apply(); upd();
+    };
+    return get;
   }
   function userItems() {
     return data.users.map(function (u) { return { id: u.id, label: u.nickname, sub: 'с ' + date(u.created_at) }; });
@@ -596,17 +615,40 @@
   }
 
   function editUserAccess(u) {
-    var priv = data.viz.filter(function (v) { return v.access === 'private'; });
+    if (u.role === 'curator') {
+      openEditor2('Доступ: ' + u.nickname, function (body) {
+        body.appendChild(el('p', 'hint', 'Куратору открыто всё сразу: все занятия с материалами, визуализации и пробники — без «Начать», без сроков и без сдачи. Отдельно открывать ничего не нужно.'));
+        return null;
+      });
+      return;
+    }
     openEditor2('Доступ: ' + u.nickname, function (body) {
-      body.appendChild(el('p', 'hint', 'Отметь занятия, которые открыть ученику: вместе с ними откроется всё, что лежит в их папках, включая закрытые визуализации. Ниже — закрытые визуализации, которые можно открыть отдельно, без занятия.'));
+      body.appendChild(el('p', 'hint', 'Отметь занятия, которые открыть ученику: вместе с ними откроется всё, что лежит в их папках, включая закрытые визуализации (после того как ученик нажмёт «Начать»). Ниже — визуализации, которые можно открыть отдельно, без занятия: то, что уже лежит в отмеченных занятиях, из этого списка пропадает.'));
       var boxL = el('div', 'picker'), boxV = el('div', 'picker'), boxM = el('div', 'picker');
+      var lessonViz = {};
+      data.lessons.forEach(function (l) { lessonViz[l.pk] = l.viz_ids || []; });
+      var getV = null;
+      function cover() {
+        if (!getV) return;
+        var ids = [];
+        getL().forEach(function (pk) { ids = ids.concat(lessonViz[pk] || []); });
+        getV.cover(ids);
+      }
       var getM = picker(boxM, data.mocks.map(function (m) { return { id: m.pk, label: 'Пробник № ' + m.number, sub: m.title }; }), u.grants.mock, 'Пробников пока нет.');
-      var getL = picker(boxL, data.lessons.map(function (l) { return { id: l.pk, label: 'Занятие № ' + l.number, sub: [l.title, lessonContents(l)].filter(Boolean).join(' · ') }; }), u.grants.lesson, 'Занятий пока нет.');
-      var getV = picker(boxV, priv.map(function (v) { return { id: v.pk, label: v.title, sub: v.parts }; }), u.grants.viz,
-        'Закрытых визуализаций нет: все открыты всем. Закрыть можно на вкладке «Визуализации».');
+      var getL = picker(boxL, data.lessons.map(function (l) { return { id: l.pk, label: 'Занятие № ' + l.number, sub: [l.title, lessonContents(l)].filter(Boolean).join(' · ') }; }), u.grants.lesson, 'Занятий пока нет.', { onChange: cover });
+      /* сначала закрытые (их и нужно открывать), потом открытые всем — отметка пригодится, если визуализацию позже закроют */
+      var vizItems = data.viz.slice().sort(function (a, b) {
+        return (a.access === 'private' ? 0 : 1) - (b.access === 'private' ? 0 : 1) || a.position - b.position;
+      }).map(function (v) {
+        return { id: v.pk, label: v.title, sub: (v.access === 'private' ? 'закрытая' : 'открыта всем') + (v.parts ? ' · ' + v.parts : '') };
+      });
+      getV = picker(boxV, vizItems, u.grants.viz, 'Визуализаций пока нет.', {
+        coverText: function (n) { return 'Ещё ' + n + ' ' + plural(n, 'визуализация открыта', 'визуализации открыты', 'визуализаций открыто') + ' через отмеченные занятия — в списке их нет.'; }
+      });
+      cover();
       body.appendChild(field('Занятия', boxL));
       body.appendChild(field('Пробники', boxM));
-      body.appendChild(field('Отдельные визуализации (только закрытые)', boxV));
+      body.appendChild(field('Отдельные визуализации', boxV));
       return function () {
         return api('PUT', '/api/admin/users/' + u.id + '/grants', { lesson: getL(), mock: getM(), viz: getV() })
           .then(function () { toast('Доступ сохранён: ' + u.nickname); });
