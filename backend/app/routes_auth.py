@@ -35,10 +35,6 @@ class Credentials(BaseModel):
 EXTRA_VIZ_SHOWN = 3
 
 
-class ProgressIn(BaseModel):
-    done: bool
-
-
 class AnswersIn(BaseModel):
     answers: Dict[str, str]
 
@@ -176,13 +172,21 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         out_lessons.append(item)
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
-    solved = set(db.scalars(select(MockProgress.mock_id).where(MockProgress.user_id == user.id, MockProgress.done.is_(True))))
+    mprog = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == user.id))}
+    if any([deadlines.settle(p) for p in mprog.values()]):
+        db.commit()
     tries = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == user.id))}
     out_mocks = []
     for m in mocks:
         item = mock_out(m)
-        item["done"] = m.id in solved
+        p = mprog.get(m.id)
+        item["deadline"] = deadlines.status_out(p, m)
+        item["done"] = item["deadline"]["state"] == "done"
         item["result"] = attempt_out(tries[m.id]) if m.id in tries else None
+        # как у занятий: вариант открывается только после «Начать» — иначе его решают до старта срока
+        item["locked"] = not (p and p.first_started_at)
+        if item["locked"]:
+            item["url"] = None
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
@@ -196,66 +200,63 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     }
 
 
-def _my_lesson(request: Request, db: Session, lesson_pk: int):
+KINDS = {"lessons": (Lesson, LessonProgress, "lesson_id", "lesson", "Занятие не найдено.", "Это занятие уже сдано."),
+         "mocks": (Mock, MockProgress, "mock_id", "mock", "Пробник не найден.", "Этот пробник уже сдан.")}
+
+
+def _my_item(request: Request, db: Session, kind: str, pk: int):
+    """Занятие или пробник ученика и строка его срока (истёкший срок сразу засчитывается)."""
+    if kind not in KINDS:
+        raise HTTPException(404, "Не найдено.")
+    model, prog, col, grant_kind, not_found, _ = KINDS[kind]
     check_same_origin(request)
     user = current_user(request, db)
     if not user:
         raise HTTPException(401, "Войдите в личный кабинет.")
-    lesson = db.get(Lesson, lesson_pk)
-    if not lesson or lesson_pk not in granted_ids(db, user.id, "lesson"):
-        raise HTTPException(404, "Занятие не найдено.")
-    row = db.scalar(select(LessonProgress).where(LessonProgress.user_id == user.id, LessonProgress.lesson_id == lesson_pk))
+    item = db.get(model, pk)
+    if not item or pk not in granted_ids(db, user.id, grant_kind):
+        raise HTTPException(404, not_found)
+    row = db.scalar(select(prog).where(prog.user_id == user.id, getattr(prog, col) == pk))
     if row is None:
-        row = LessonProgress(user_id=user.id, lesson_id=lesson_pk, done=False, overdue_count=0)
+        row = prog(user_id=user.id, done=False, overdue_count=0, **{col: pk})
         db.add(row)
     deadlines.settle(row)
-    return lesson, row
+    return user, item, row
 
 
-@router.post("/me/lessons/{lesson_pk}/start")
-def start_lesson(lesson_pk: int, request: Request, db: Session = Depends(get_db)):
-    """Ученик подтвердил, что начинает ДЗ: с этой минуты идёт срок. Повторное нажатие срок не продлевает."""
-    lesson, row = _my_lesson(request, db, lesson_pk)
+@router.post("/me/{kind}/{pk}/start")
+def start_item(kind: str, pk: int, request: Request, db: Session = Depends(get_db)):
+    """Ученик подтвердил, что начинает (ДЗ занятия или пробник): материалы открываются, с этой минуты идёт срок.
+    Повторное нажатие срок не продлевает."""
+    _, item, row = _my_item(request, db, kind, pk)
     st = deadlines.state(row)
     if st == "done":
-        raise HTTPException(409, "Это занятие уже сдано.")
+        raise HTTPException(409, KINDS[kind][5])
     if st == "todo":
-        deadlines.start(row, lesson)
+        deadlines.start(row, item)
     db.commit()
-    return {"deadline": deadlines.status_out(row, lesson)}
+    return {"deadline": deadlines.status_out(row, item)}
 
 
-@router.post("/me/lessons/{lesson_pk}/submit")
-def submit_lesson(lesson_pk: int, request: Request, db: Session = Depends(get_db)):
-    """Ученик отметил, что сдал ДЗ. Только пока идёт срок: если он истёк, сначала берут новый."""
-    lesson, row = _my_lesson(request, db, lesson_pk)
-    st = deadlines.state(row)
-    if st == "todo":
+def _need_active(db: Session, row) -> None:
+    if deadlines.state(row) == "todo":
         db.commit()  # могла засчитаться просрочка
         msg = "Срок истёк. Нажмите «Начать», чтобы взять новый срок." if row.overdue_count else "Сначала нажмите «Начать»."
         raise HTTPException(409, msg)
-    if st == "active":
+
+
+@router.post("/me/{kind}/{pk}/submit")
+def submit_item(kind: str, pk: int, request: Request, db: Session = Depends(get_db)):
+    """Ученик отметил, что сдал. Только пока идёт срок: если он истёк, сначала берут новый.
+    Пробник с автопроверкой сдаётся бланком ответов, а не этой кнопкой."""
+    _, item, row = _my_item(request, db, kind, pk)
+    if kind == "mocks" and item.answer_key and deadlines.state(row) != "done":
+        raise HTTPException(400, "Этот пробник сдаётся бланком ответов.")
+    _need_active(db, row)
+    if deadlines.state(row) == "active":
         deadlines.submit(row)
     db.commit()
-    return {"deadline": deadlines.status_out(row, lesson)}
-
-
-@router.put("/me/mock-progress/{mock_pk}")
-def set_mock_progress(mock_pk: int, body: ProgressIn, request: Request, db: Session = Depends(get_db)):
-    """Ученик отмечает пробник решённым (зелёный) или снимает отметку (красный)."""
-    check_same_origin(request)
-    user = current_user(request, db)
-    if not user:
-        raise HTTPException(401, "Войдите в личный кабинет.")
-    if mock_pk not in granted_ids(db, user.id, "mock"):
-        raise HTTPException(404, "Пробник не найден.")
-    row = db.scalar(select(MockProgress).where(MockProgress.user_id == user.id, MockProgress.mock_id == mock_pk))
-    if row is None:
-        row = MockProgress(user_id=user.id, mock_id=mock_pk)
-        db.add(row)
-    row.done = body.done
-    db.commit()
-    return {"done": row.done}
+    return {"deadline": deadlines.status_out(row, item)}
 
 
 @router.post("/me/ping")
@@ -272,32 +273,26 @@ def ping(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/me/mocks/{mock_pk}/answers")
 def submit_answers(mock_pk: int, body: AnswersIn, request: Request, db: Session = Depends(get_db)):
-    """Бланк ответов первой части: проверка по ключу на сервере. Попытка одна; пробник сразу отмечается решённым."""
-    check_same_origin(request)
-    user = current_user(request, db)
-    if not user:
-        raise HTTPException(401, "Войдите в личный кабинет.")
-    m = db.get(Mock, mock_pk)
-    if not m or mock_pk not in granted_ids(db, user.id, "mock"):
-        raise HTTPException(404, "Пробник не найден.")
+    """Бланк ответов первой части: проверка по ключу на сервере. Попытка одна, только пока идёт срок;
+    отправка бланка и есть сдача пробника."""
+    user, m, row = _my_item(request, db, "mocks", mock_pk)
     if not m.answer_key:
         raise HTTPException(400, "У этого пробника нет автопроверки.")
     if db.scalar(select(MockAttempt.id).where(MockAttempt.user_id == user.id, MockAttempt.mock_id == m.id)):
         raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
+    _need_active(db, row)
     allowed = {str(t["n"]) for t in m.answer_key}
     answers = {k: (v or "").strip()[:60] for k, v in body.answers.items() if k in allowed}
     score, total, details = grade(m.answer_key, answers)
     a = MockAttempt(user_id=user.id, mock_id=m.id, answers=answers, score=score, max_score=total, details=details)
     db.add(a)
-    row = db.scalar(select(MockProgress).where(MockProgress.user_id == user.id, MockProgress.mock_id == m.id))
-    if row is None:
-        db.add(MockProgress(user_id=user.id, mock_id=m.id, done=True))
-    else:
-        row.done = True
+    deadlines.submit(row)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
     touch(db, user, request)
-    return attempt_out(a)
+    out = attempt_out(a)
+    out["deadline"] = deadlines.status_out(row, m)
+    return out

@@ -161,6 +161,17 @@
     return STATE_TEXT[st];
   }
 
+  /* низ карточки: состояние срока (с таймером) и плашка просрочек — одинаково у занятий и пробников */
+  function stateFoot(x) {
+    var foot = el('span', 'folder__foot');
+    var st = el('span', 'folder__state', stateLine(x));
+    if (dlState(x) === 'active') st.dataset.due = x.deadline.due_at;
+    foot.appendChild(st);
+    var over = (x.deadline && x.deadline.overdue) || 0;
+    if (over) foot.appendChild(el('span', 'folder__late', 'просрочено' + (over > 1 ? ' × ' + over : '')));
+    return foot;
+  }
+
   function folderCard(l) {
     var li = el('li');
     var st0 = dlState(l);
@@ -180,26 +191,20 @@
       body.appendChild(tag);
     }
     body.appendChild(el('span', 'folder__what', contents(l)));
-    var foot = el('span', 'folder__foot');
-    var st = el('span', 'folder__state', stateLine(l));
-    if (st0 === 'active') st.dataset.due = l.deadline.due_at;
-    foot.appendChild(st);
-    var over = (l.deadline && l.deadline.overdue) || 0;
-    if (over) foot.appendChild(el('span', 'folder__late', 'просрочено' + (over > 1 ? ' × ' + over : '')));
-    body.appendChild(foot);
+    body.appendChild(stateFoot(l));
     b.appendChild(tab); b.appendChild(body);
     b.addEventListener('click', function () { openLesson(l); });
     li.appendChild(b);
     return li;
   }
 
-  /* Пробник — такая же карточка-папка: красная, пока не решён, зелёная — решён */
+  /* Пробник — такая же карточка-папка со сроком: красная — не начат, фиолетовая — в работе, зелёная — сдан */
   function mockTitle(m) { return m.title || 'Пробник № ' + m.number; }
   function mockCard(m) {
     var li = el('li');
-    var b = el('button', 'folder folder--mock folder--' + (m.done ? 'done' : 'todo'));
+    var b = el('button', 'folder folder--mock folder--' + dlState(m));
     b.type = 'button';
-    b.setAttribute('aria-label', 'Пробник № ' + m.number + ': ' + mockTitle(m) + '. ' + (m.done ? 'Решён' : 'Не решён'));
+    b.setAttribute('aria-label', 'Пробник № ' + m.number + ': ' + mockTitle(m) + '. ' + stateLine(m));
     var tab = el('span', 'folder__tab');
     tab.appendChild(el('span', null, 'Пробник'));
     tab.appendChild(el('b', null, '№ ' + m.number));
@@ -207,7 +212,7 @@
     body.appendChild(el('span', 'folder__title', mockTitle(m)));
     body.appendChild(el('span', 'folder__what', m.result ? 'первая часть: ' + m.result.score + ' из ' + m.result.max + ' ' + plural(m.result.max, 'балла', 'баллов', 'баллов')
       : m.tasks && m.tasks.length ? 'вариант · бланк ответов' : 'вариант в формате ЕГЭ'));
-    body.appendChild(el('span', 'folder__state', m.done ? 'решён' : 'не решён'));
+    body.appendChild(stateFoot(m));
     b.appendChild(tab); b.appendChild(body);
     b.addEventListener('click', function () { openMock(m); });
     li.appendChild(b);
@@ -342,15 +347,8 @@
     return li;
   }
   function paintDone(l) {
-    var mock = currentKind === 'mock';
-    $('lesson-mark').hidden = !mock;
-    $('lesson-dl').hidden = mock;
-    dlg.classList.remove('is-active');
-    if (!mock) return renderDeadline(l);
-    dlg.classList.toggle('is-done', l.done);
-    $('lesson-done').checked = l.done;
-    $('lesson-done-label').textContent = l.done ? 'Решён' : 'Не решён';
-    $('lesson-done-hint').textContent = 'Отметьте, когда решите вариант';
+    $('lesson-dl').hidden = false;
+    renderDeadline(l);
   }
   /* Панель срока в окне занятия */
   function confirmButton(text, armedText, cls, onGo) {
@@ -369,8 +367,10 @@
   }
   function dlAction(l, action) {
     return function (restore) {
-      api('POST', '/api/me/lessons/' + l.pk + '/' + action).then(function (r) {
+      var mock = currentKind === 'mock';
+      api('POST', '/api/me/' + (mock ? 'mocks/' : 'lessons/') + l.pk + '/' + action).then(function (r) {
         l.deadline = r.deadline; l.done = r.deadline.state === 'done';
+        if (mock) renderSheet(l);
         paintDone(l);
         if (l.locked) reloadLessons();  // после первого «Начать» сервер открыл материалы — подтягиваем ссылки
       }).catch(function (e) {
@@ -383,32 +383,36 @@
   }
   function renderDeadline(l) {
     var box = $('lesson-dl'); box.textContent = '';
-    var st = dlState(l), dl = l.deadline || {}, days = dl.days || 3, over = dl.overdue || 0;
+    var mock = currentKind === 'mock', sheet = mock && l.tasks && l.tasks.length;
+    var st = dlState(l), dl = l.deadline || {}, days = dl.days || (mock ? 7 : 3), over = dl.overdue || 0;
     dlg.classList.toggle('is-done', st === 'done');
     dlg.classList.toggle('is-active', st === 'active');
     box.className = 'dl dl--' + st;
     var head = el('div', 'dl__head');
-    head.appendChild(el('span', 'dl__label', 'Домашнее задание'));
+    head.appendChild(el('span', 'dl__label', mock ? 'Срок на пробник' : 'Домашнее задание'));
     head.appendChild(el('span', 'dl__state', STATE_TEXT[st]));
     box.appendChild(head);
     var err = el('p', 'form-error'); err.hidden = true;
     if (st === 'todo') {
       box.appendChild(el('p', 'dl__text', over
-        ? 'Срок истёк' + (over > 1 ? ' уже ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') : '') + ', а задание не отмечено сданным. Возьмите новый срок и сдайте задание — просрочка останется в истории.'
-        : 'Материалы занятия откроются, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на домашнее задание — начинайте, когда будете готовы.'));
+        ? 'Срок истёк' + (over > 1 ? ' уже ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') : '') + (mock ? ', а пробник не сдан. Возьмите новый срок и сдайте вариант' : ', а задание не отмечено сданным. Возьмите новый срок и сдайте задание') + ' — просрочка останется в истории.'
+        : mock ? 'Вариант откроется, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на решение — начинайте, когда будете готовы.'
+          : 'Материалы занятия откроются, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на домашнее задание — начинайте, когда будете готовы.'));
       box.appendChild(confirmButton(over ? 'Взять новый срок · ' + daysWord(days) : 'Начать · срок ' + daysWord(days),
         'Подтвердите: срок пойдёт сразу', 'btn--solid dl__btn', dlAction(l, 'start')));
     } else if (st === 'active') {
       var big = el('b', 'dl__left', timeLeft(dl.due_at)); big.dataset.due = dl.due_at;
       box.appendChild(el('span', 'dl__kicker', 'Осталось'));
       box.appendChild(big);
-      box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. Когда отправите решение, нажмите «Сдал».'));
+      box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. ' + (sheet
+        ? 'Решите вариант, впишите ответы в бланк ниже и отправьте — отправка бланка и есть сдача.'
+        : mock ? 'Когда решите вариант и отправите решение, нажмите «Сдал».' : 'Когда отправите решение, нажмите «Сдал».')));
       var total = new Date(dl.due_at) - new Date(dl.started_at), passed = Date.now() - new Date(dl.started_at);
       var bar = el('span', 'dl__bar'); var fill = el('i');
       fill.style.width = Math.max(2, Math.min(100, 100 * passed / total)) + '%';
       fill.dataset.from = dl.started_at; fill.dataset.to = dl.due_at;
       bar.appendChild(fill); box.appendChild(bar);
-      box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
+      if (!sheet) box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
     } else {
       box.appendChild(el('p', 'dl__text', 'Сдано ' + when(dl.submitted_at) + '.' +
         (over ? ' Срок был просрочен ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') + '.' : '')));
@@ -424,11 +428,26 @@
     current = m; currentKind = 'mock';
     $('lesson-tab').textContent = 'Пробник № ' + m.number;
     $('lesson-title').textContent = mockTitle(m);
+    fillMock(m);
+    try { history.replaceState(null, '', '#p' + m.number); } catch (e) { /* без истории */ }
+    showDialog();
+  }
+
+  /* Вариант открывается после «Начать» (сервер до этого его не отдаёт), бланк ответов — пока идёт срок */
+  function fillMock(m) {
     var list = $('lesson-items'); list.textContent = '';
-    list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'Открыть →', false));
+    if (m.locked) {
+      var li = el('li', 'lesson__locked');
+      li.appendChild(el('b', null, 'Вариант откроется после «Начать»'));
+      li.appendChild(el('span', null, m.tasks && m.tasks.length
+        ? 'В бланке ответов ' + m.tasks.length + ' ' + plural(m.tasks.length, 'задание', 'задания', 'заданий') + ' первой части, они проверяются автоматически.'
+        : 'Вариант в формате ЕГЭ.'));
+      list.appendChild(li);
+    } else {
+      list.appendChild(item(m.url, ICONS.pdf, 'Вариант', 'Пробник № ' + m.number, 'Открыть →', false));
+    }
     renderSheet(m);
     paintDone(m);
-    showDialog();
   }
 
   /* ── Бланк ответов первой части: проверяет сервер, попытка одна ── */
@@ -440,7 +459,8 @@
 
   function renderSheet(m) {
     var box = $('lesson-sheet'); box.textContent = '';
-    box.hidden = !(m.tasks && m.tasks.length);
+    /* результат — всегда, бланк — только пока идёт срок */
+    box.hidden = !(m.tasks && m.tasks.length) || !(m.result || dlState(m) === 'active');
     if (box.hidden) return;
     if (m.result) return renderResult(box, m.result);
 
@@ -482,9 +502,13 @@
       var answers = {};
       m.tasks.forEach(function (t) { answers[t] = (draft[t] || '').trim(); });
       api('POST', '/api/me/mocks/' + m.pk + '/answers', { answers: answers }).then(function (r) {
-        m.result = r; m.done = true; dropDraft(m);
+        m.result = r; dropDraft(m);
+        if (r.deadline) { m.deadline = r.deadline; m.done = r.deadline.state === 'done'; }
         renderSheet(m); paintDone(m);
-      }).catch(function (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed'); });
+      }).catch(function (e) {
+        err.textContent = e.message; err.hidden = false; btn.disabled = false; armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed');
+        if (e.status === 409) reloadLessons();  // срок истёк — показать «Взять новый срок» (черновик ответов сохранён)
+      });
     });
   }
 
@@ -550,17 +574,6 @@
   dlg.querySelectorAll('[data-close-lesson]').forEach(function (b) { b.addEventListener('click', closeLesson); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) closeLesson(); });
 
-  /* переключатель «решён» — только у пробников; у занятий вместо него срок на ДЗ */
-  $('lesson-done').addEventListener('change', function () {
-    var l = current, want = this.checked, box = this;
-    if (!l || currentKind !== 'mock') return;
-    l.done = want; paintDone(l);
-    box.disabled = true;
-    api('PUT', '/api/me/mock-progress/' + l.pk, { done: want }).catch(function (e) {
-      l.done = !want; paintDone(l); note(e.message);
-    }).then(function () { box.disabled = false; });
-  });
-
   function loadDash() {
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
@@ -598,8 +611,14 @@
   function openFromHash(hash) {
     if (hash === KTABS.mocks) { setKtab('mocks', false); return; }
     if (hash === KTABS.reports) { setKtab('reports', false); return; }
-    var m = /^#z(\d+)$/.exec(hash || '');
-    if (!m || dlg.open) return;
+    if (dlg.open) return;
+    var m = /^#z(\d+)$/.exec(hash || ''), pm = /^#p(\d+)$/.exec(hash || '');
+    if (pm) {
+      setKtab('mocks', false);
+      mocks.forEach(function (x) { if (String(x.number) === pm[1]) openMock(x); });
+      return;
+    }
+    if (!m) return;
     setKtab('lessons', false);
     lessons.forEach(function (l) { if (String(l.number) === m[1]) openLesson(l); });
   }
@@ -614,8 +633,12 @@
         var x = byPk[l.pk];
         if (x) Object.keys(x).forEach(function (k) { l[k] = x[k]; });  // тот же объект: окно и папки ссылаются на него
       });
+      var byM = {};
+      (d.mocks || []).forEach(function (x) { byM[x.pk] = x; });
+      mocks.forEach(function (m) { var x = byM[m.pk]; if (x) Object.keys(x).forEach(function (k) { m[k] = x[k]; }); });
       if (current && currentKind === 'lesson') fillLesson(current);
-      if (!dlg.open) renderFolders();
+      if (current && currentKind === 'mock') fillMock(current);
+      if (!dlg.open) { renderFolders(); renderMocks(); }
     }).catch(function () { /* не важно */ });
   }
   /* Таймеры: раз в 30 секунд обновляем «осталось …»; истёк срок — берём состояние с сервера */

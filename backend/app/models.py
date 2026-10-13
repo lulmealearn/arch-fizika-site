@@ -76,6 +76,7 @@ class Homework(Base):
 
 
 DEFAULT_DEADLINE_DAYS = 3  # срок на ДЗ по умолчанию, дней
+DEFAULT_MOCK_DEADLINE_DAYS = 7  # срок на пробник по умолчанию, дней
 
 
 class Lesson(Base):
@@ -141,19 +142,28 @@ class Mock(Base):
     solutions_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)  # не используется: решений у пробников нет
     # ключ первой части для автопроверки (см. mockcheck.py): [{n, answers, points, any_order}]
     answer_key: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    # срок на пробник в днях с «Начать»; пусто — по умолчанию (DEFAULT_MOCK_DEADLINE_DAYS)
+    deadline_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class MockProgress(Base):
-    """Отметка ученика «решён» у пробника."""
+    """Срок на пробник — как у занятий (deadlines.py): «Не начато» → «Начать» (вариант открывается, идёт срок) →
+    сдано (бланк ответов или «Сдал»). Истёк без сдачи — снова «Не начато», overdue_count +1. done повторяет «сдано»."""
     __tablename__ = "mock_progress"
     __table_args__ = (UniqueConstraint("user_id", "mock_id", name="uq_mock_progress"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     mock_id: Mapped[int] = mapped_column(ForeignKey("mocks.id", ondelete="CASCADE"), index=True)
-    done: Mapped[bool] = mapped_column(Boolean, default=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    first_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    overdue_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_overdue_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MockAttempt(Base):

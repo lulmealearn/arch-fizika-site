@@ -9,7 +9,7 @@ from fastapi import Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import GRANT_KINDS, Grant, LessonProgress, LessonViz, User
+from .models import GRANT_KINDS, Grant, LessonProgress, LessonViz, MockProgress, User
 from .security import is_admin, read_user_token
 
 
@@ -62,6 +62,14 @@ def lesson_unlocked(db: Session, request: Request, lesson_id: int, user: Optiona
     if is_admin(request):
         return True
     return user is not None and lesson_id in started_lesson_ids(db, user.id)
+
+
+def mock_unlocked(db: Session, request: Request, mock_id: int, user: Optional[User]) -> bool:
+    """Вариант пробника: админ — всегда, ученик — после «Начать» (иначе вариант решают до старта срока)."""
+    if is_admin(request):
+        return True
+    return user is not None and db.scalar(select(MockProgress.id).where(
+        MockProgress.user_id == user.id, MockProgress.mock_id == mock_id, MockProgress.first_started_at.is_not(None))) is not None
 
 
 def user_grants(db: Session) -> Dict[int, Dict[str, List[int]]]:

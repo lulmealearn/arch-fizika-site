@@ -5,7 +5,7 @@ from sqlalchemy import func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
-from .models import Grant, Homework, Lesson, LessonProgress, LessonViz, Section, Visualization
+from .models import Grant, Homework, Lesson, LessonProgress, LessonViz, MockProgress, Section, Visualization
 from .tracking import prune
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
@@ -56,6 +56,13 @@ NEW_COLUMNS = [
     ("lesson_progress", "submitted_at", "DATETIME NULL"),
     ("lesson_progress", "overdue_count", "INTEGER NOT NULL DEFAULT 0"),
     ("lesson_progress", "last_overdue_at", "DATETIME NULL"),
+    ("mocks", "deadline_days", "INTEGER NULL"),
+    ("mock_progress", "first_started_at", "DATETIME NULL"),
+    ("mock_progress", "started_at", "DATETIME NULL"),
+    ("mock_progress", "due_at", "DATETIME NULL"),
+    ("mock_progress", "submitted_at", "DATETIME NULL"),
+    ("mock_progress", "overdue_count", "INTEGER NOT NULL DEFAULT 0"),
+    ("mock_progress", "last_overdue_at", "DATETIME NULL"),
 ]
 
 
@@ -106,13 +113,14 @@ def _fill_lesson_sections(db) -> None:
 
 
 def _migrate_viewed_to_submitted(db) -> None:
-    """Раньше ученик отмечал занятие «просмотрено». Теперь вместо этого срок на ДЗ: старые отметки считаем сданными,
-    чтобы прошлые занятия не покраснели разом. Повторный запуск ничего не меняет (у сданных submitted_at уже есть)."""
-    for p in db.scalars(select(LessonProgress).where(LessonProgress.done.is_(True), LessonProgress.submitted_at.is_(None))).all():
-        p.submitted_at = p.updated_at
-    # материалы открываются после первого «Начать»: у сданных по старой отметке считаем, что начато тогда же
-    for p in db.scalars(select(LessonProgress).where(LessonProgress.submitted_at.is_not(None), LessonProgress.first_started_at.is_(None))).all():
-        p.first_started_at = p.submitted_at
+    """Раньше ученик сам отмечал занятие «просмотрено», а пробник «решён». Теперь вместо этого срок (deadlines.py):
+    старые отметки считаем сданными, чтобы прошлое не покраснело разом, и начатыми — чтобы материалы остались открыты.
+    Повторный запуск ничего не меняет."""
+    for model in (LessonProgress, MockProgress):
+        for p in db.scalars(select(model).where(model.done.is_(True), model.submitted_at.is_(None))).all():
+            p.submitted_at = p.updated_at
+        for p in db.scalars(select(model).where(model.submitted_at.is_not(None), model.first_started_at.is_(None))).all():
+            p.first_started_at = p.submitted_at
     db.commit()
 
 

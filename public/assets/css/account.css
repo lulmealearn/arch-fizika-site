@@ -176,16 +176,6 @@ html.pop-lock { overflow: hidden; }
 .litem__title { font-family: var(--display); font-weight: 700; font-size: 18px; line-height: 1.2; overflow-wrap: break-word; hyphens: auto; }
 .litem__go { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--violet-ink); }
 
-/* Переключатель «решён» у пробника: красный → зелёный */
-.mark { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--tint); cursor: pointer; }
-.mark input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.mark__track { flex: none; position: relative; width: 58px; height: 34px; border-radius: 999px; background: var(--todo); transition: background .2s; }
-.mark__thumb { position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(24, 24, 32, .3); transition: transform .22s var(--ease-out); }
-.mark input:checked + .mark__track { background: var(--done); }
-.mark input:checked + .mark__track .mark__thumb { transform: translateX(24px); }
-.mark input:focus-visible + .mark__track { outline: 2.5px solid var(--violet); outline-offset: 3px; }
-.mark__text { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink-2); line-height: 1.35; }
-.mark__text b { font-family: var(--display); font-size: 18px; color: var(--ink); }
 
 /* ── Дополнительные визуализации ── */
 .mats { display: flex; flex-direction: column; gap: 12px; }
@@ -193,7 +183,7 @@ html.pop-lock { overflow: hidden; }
 .mats__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 10px; }
 .mats__more { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; text-decoration: none; }
 
-@media (prefers-reduced-motion: reduce) { .folder, .folder__body, .litem, .mark__track, .mark__thumb, .seg button, .fchip { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .folder, .folder__body, .litem, .seg button, .fchip { transition: none; } }
 
 /* ── Вкладки кабинета: Занятия · Пробники · Отчёты ── */
 .ktabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }

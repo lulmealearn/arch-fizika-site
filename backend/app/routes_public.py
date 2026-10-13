@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import config, files
 from .db import get_db
-from .access import can_open, current_user, granted_ids, lesson_unlocked, opened_viz_ids
+from .access import can_open, current_user, granted_ids, lesson_unlocked, mock_unlocked, opened_viz_ids
 from .tracking import record_view
 from .models import Lesson, LessonViz, Mock, Report, Section, Visualization
 from .security import is_admin
@@ -153,6 +153,9 @@ def open_mock(number: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not m or not can_open(db, request, "mock", m.id, user):
         return _to_account(f"/mock/{number}", user is not None)
+    if not mock_unlocked(db, request, m.id, user):
+        # пробник открыт, но ученик ещё не нажал «Начать» — ведём к кнопке в кабинете
+        return RedirectResponse(f"/account/#p{number}", status_code=303, headers={"Cache-Control": "no-store"})
     _track(db, request, user, "mock", str(number), m.title)
     if m.file_name.endswith(".html"):
         if not files.hw_path(m.file_name).exists():

@@ -275,7 +275,8 @@ textarea.input { resize: vertical; min-height: 84px; }
 .input--key { font-family: var(--mono); font-size: 14px; line-height: 1.5; min-height: 160px; }
 .prow__res { font-size: 13px; color: var(--ink-2); }
 .prow__res b { font-family: var(--display); color: var(--ink); }
-.prow__reset { margin-left: auto; flex: none; min-height: 36px; padding: 0 12px; font-size: 10px; }
+.prow__btns { margin-left: auto; flex: none; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.prow__reset { flex: none; min-height: 36px; padding: 0 12px; font-size: 10px; }
 .prow { flex-wrap: wrap; }
 
 /* Номер визуализации в списке: вписать место и нажать Enter */

@@ -13,7 +13,7 @@ from . import deadlines, files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
-from .models import GRANT_KINDS, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
+from .models import DEFAULT_MOCK_DEADLINE_DAYS, GRANT_KINDS, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
 from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
@@ -119,11 +119,14 @@ def users_list(db: Session = Depends(get_db)):
     done_l = _done_map(db, LessonProgress, LessonProgress.lesson_id)
     overdue_l: Dict[int, int] = {}
     active_l: Dict[int, int] = {}
-    for p in db.scalars(select(LessonProgress)):
-        if p.overdue_count:
-            overdue_l[p.user_id] = overdue_l.get(p.user_id, 0) + p.overdue_count
-        if deadlines.state(p) == "active":
-            active_l[p.user_id] = active_l.get(p.user_id, 0) + 1
+    overdue_m: Dict[int, int] = {}
+    active_m: Dict[int, int] = {}
+    for model, over, act in ((LessonProgress, overdue_l, active_l), (MockProgress, overdue_m, active_m)):
+        for p in db.scalars(select(model)):
+            if p.overdue_count:
+                over[p.user_id] = over.get(p.user_id, 0) + p.overdue_count
+            if deadlines.state(p) == "active":
+                act[p.user_id] = act.get(p.user_id, 0) + 1
     done_m = _done_map(db, MockProgress, MockProgress.mock_id)
     out = []
     for u in users:
@@ -141,16 +144,21 @@ def users_list(db: Session = Depends(get_db)):
             "lessons_overdue": overdue_l.get(u.id, 0),
             "mocks_done": len(done_m.get(u.id, set()) & set(g.get("mock", []))),
             "mocks_total": len(g.get("mock", [])),
+            "mocks_active": active_m.get(u.id, 0),
+            "mocks_overdue": overdue_m.get(u.id, 0),
         }
         out.append(d)
     return {"users": out}
 
 
 def _settle_all(db: Session) -> None:
-    """Истёкшие сроки на ДЗ → «Не начато» с засчитанной просрочкой (до того как считать сводки)."""
+    """Истёкшие сроки (ДЗ и пробники) → «Не начато» с засчитанной просрочкой (до того как считать сводки)."""
     now = datetime.now(timezone.utc)
-    rows = db.scalars(select(LessonProgress).where(LessonProgress.submitted_at.is_(None), LessonProgress.due_at.is_not(None))).all()
-    if any([deadlines.settle(p, now) for p in rows]):
+    changed = False
+    for model in (LessonProgress, MockProgress):
+        rows = db.scalars(select(model).where(model.submitted_at.is_(None), model.due_at.is_not(None))).all()
+        changed = any([deadlines.settle(p, now) for p in rows]) or changed
+    if changed:
         db.commit()
 
 
@@ -208,7 +216,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     attempts = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == u.id))}
 
     def prog(p):
-        when = (p.submitted_at or p.updated_at) if isinstance(p, LessonProgress) else (p.updated_at if p else None)
+        when = (p.submitted_at or p.updated_at) if p is not None else None
         return {"done": bool(p and p.done), "marked_at": _iso(when) if p and p.done else None}
 
     month_ago = datetime.now(timezone.utc) - timedelta(days=30)
@@ -226,7 +234,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
         "lessons": [dict(pk=l.id, number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))),
                          deadline=deadlines.status_out(lp.get(l.id), l), **prog(lp.get(l.id))) for l in lessons],
         "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
-                       result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key), **prog(mp.get(m.id))) for m in mocks],
+                       result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key),
+                       deadline=deadlines.status_out(mp.get(m.id), m), **prog(mp.get(m.id))) for m in mocks],
     }
 
 
@@ -271,11 +280,18 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
 
 
 # ── Доступ к одному материалу: кому открыт ──
-@router.delete("/users/{pk}/lessons/{lesson_pk}/deadline")
-def users_reset_deadline(pk: int, lesson_pk: int, db: Session = Depends(get_db)):
-    """Сбросить срок по занятию: снова «Не начато», без засчитанных просрочек (если ученик нажал «Сдал» по ошибке и т. п.)."""
+@router.delete("/users/{pk}/{kind}/{item_pk}/deadline")
+def users_reset_deadline(pk: int, kind: str, item_pk: int, db: Session = Depends(get_db)):
+    """Сбросить срок по занятию или пробнику: снова «Не начато», материалы снова закрыты до «Начать», просрочек нет.
+    У пробника заодно стираются отправленные ответы."""
     u = _user(db, pk)
-    db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id, LessonProgress.lesson_id == lesson_pk))
+    if kind == "lessons":
+        db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id, LessonProgress.lesson_id == item_pk))
+    elif kind == "mocks":
+        db.execute(delete(MockProgress).where(MockProgress.user_id == u.id, MockProgress.mock_id == item_pk))
+        db.execute(delete(MockAttempt).where(MockAttempt.user_id == u.id, MockAttempt.mock_id == item_pk))
+    else:
+        raise HTTPException(404, "Не найдено.")
     db.commit()
     return {"ok": True}
 
@@ -330,18 +346,21 @@ def _apply_section(db: Session, l: Lesson, value: str) -> None:
         l.section_id = s.id
 
 
-def _deadline_days(value: Optional[str]) -> Optional[int]:
-    """Срок на ДЗ в днях; пусто или по умолчанию — None (тогда deadlines.DEFAULT_DAYS)."""
+MOCK_DEFAULT = DEFAULT_MOCK_DEADLINE_DAYS
+
+
+def _deadline_days(value: Optional[str], default: int = deadlines.DEFAULT_DAYS) -> Optional[int]:
+    """Срок в днях; пусто или по умолчанию (3 дня у занятия, неделя у пробника) — None."""
     v = (value or "").strip()
     if not v:
         return None
     try:
         n = int(v)
     except ValueError:
-        raise HTTPException(400, "Срок на ДЗ — целое число дней.")
+        raise HTTPException(400, "Срок — целое число дней.")
     if not 1 <= n <= deadlines.MAX_DAYS:
-        raise HTTPException(400, f"Срок на ДЗ — от 1 до {deadlines.MAX_DAYS} дней.")
-    return None if n == deadlines.DEFAULT_DAYS else n
+        raise HTTPException(400, f"Срок — от 1 до {deadlines.MAX_DAYS} дней.")
+    return None if n == default else n
 
 
 def _lesson_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
@@ -482,7 +501,8 @@ def mocks_list(db: Session = Depends(get_db)):
 @router.post("/mocks", status_code=201)
 async def mocks_create(
     number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
-    answer_key: Optional[str] = Form(None), pdf: UploadFile = File(...), db: Session = Depends(get_db),
+    answer_key: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
+    pdf: UploadFile = File(...), db: Session = Depends(get_db),
 ):
     n = _number(number, "пробника")
     _mock_number_free(db, n)
@@ -490,7 +510,7 @@ async def mocks_create(
     if answer_key and answer_key.strip():
         parse_key(answer_key)  # проверить до сохранения файла
     name, key_from_html = await files.save_mock_file("mock", n, pdf)
-    m = Mock(number=n, title=_title(title), file_name=name)
+    m = Mock(number=n, title=_title(title), file_name=name, deadline_days=_deadline_days(deadline_days, MOCK_DEFAULT))
     db.add(m)
     db.flush()
     # ключ: вписанный в админке важнее, иначе — из HTML пробника
@@ -504,12 +524,14 @@ async def mocks_create(
 @router.patch("/mocks/{pk}")
 async def mocks_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), user_ids: Optional[str] = Form(None),
-    answer_key: Optional[str] = Form(None), clear_key: Optional[str] = Form(None),
+    answer_key: Optional[str] = Form(None), clear_key: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
     pdf: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
 ):
     m = db.get(Mock, pk)
     if not m:
         raise HTTPException(404, "Пробник не найден.")
+    if deadline_days is not None:
+        m.deadline_days = _deadline_days(deadline_days, MOCK_DEFAULT)  # идущие сроки не меняются
     if number is not None:
         n = _number(number, "пробника")
         _mock_number_free(db, n, m.id)
@@ -539,11 +561,16 @@ async def mocks_update(
 
 @router.delete("/mocks/{pk}/attempts/{user_id}")
 def mocks_reset_attempt(pk: int, user_id: int, db: Session = Depends(get_db)):
-    """Разрешить ученику сдать ответы заново (например, отправил по ошибке)."""
+    """Разрешить ученику сдать ответы заново (например, отправил по ошибке): пробник снова «Не начато», вариант остаётся
+    открытым, новый срок ученик берёт кнопкой «Начать»."""
     a = db.scalar(select(MockAttempt).where(MockAttempt.mock_id == pk, MockAttempt.user_id == user_id))
     if not a:
         raise HTTPException(404, "Ответов этого ученика нет.")
     db.delete(a)
+    p = db.scalar(select(MockProgress).where(MockProgress.mock_id == pk, MockProgress.user_id == user_id))
+    if p is not None:
+        p.submitted_at = p.started_at = p.due_at = None
+        p.done = False
     db.commit()
     return {"ok": True}
 
