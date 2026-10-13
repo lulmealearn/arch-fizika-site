@@ -276,3 +276,15 @@ textarea.input { resize: vertical; min-height: 84px; }
 .prow__res b { font-family: var(--display); color: var(--ink); }
 .prow__reset { margin-left: auto; flex: none; min-height: 36px; padding: 0 12px; font-size: 10px; }
 .prow { flex-wrap: wrap; }
+
+/* Номер визуализации в списке: вписать место и нажать Enter */
+.pos {
+  flex: none; width: 46px; height: 40px; border-radius: 10px; border: 1.5px solid var(--line-2); background: var(--paper);
+  text-align: center; font-family: var(--mono); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.pos:hover { border-color: var(--ink); }
+.pos:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 3px var(--violet-tint); }
+.input--pos { max-width: 120px; font-family: var(--mono); font-size: 18px; }
+
+/* В админке шапка не липкая: у неё нет подложки, и при прокрутке надписи наезжали на вкладки */
+.topbar { position: relative; }

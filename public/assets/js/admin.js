@@ -139,6 +139,23 @@
     down.addEventListener('click', function () { move(idx, 1); });
     arrows.appendChild(up); arrows.appendChild(down);
 
+    /* номер: вписать нужное место и нажать Enter — визуализация сразу встанет туда */
+    var pos = el('input', 'pos'); pos.type = 'text'; pos.inputMode = 'numeric'; pos.maxLength = 4;
+    pos.value = String(idx + 1); pos.setAttribute('aria-label', 'Место в списке: ' + it.title);
+    pos.title = 'Впиши номер и нажми Enter';
+    pos.addEventListener('focus', function () { pos.select(); });
+    pos.addEventListener('input', function () { var v = pos.value.replace(/\D/g, ''); if (v !== pos.value) pos.value = v; });
+    function commitPos() {
+      var to = parseInt(pos.value, 10);
+      if (!to || to - 1 === idx) { pos.value = String(idx + 1); return; }
+      moveTo(it.pk, to);
+    }
+    pos.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); commitPos(); }
+      if (e.key === 'Escape') { pos.value = String(idx + 1); pos.blur(); }
+    });
+    pos.addEventListener('change', commitPos);
+
     var folder = el('div', 'mini-folder'); folder.setAttribute('aria-hidden', 'true');
     var tab = el('span', 'tab', pad(idx + 1)); tab.style.background = s.color;
     var body = el('span', 'body'); body.style.background = s.tint;
@@ -175,7 +192,7 @@
     del.addEventListener('click', function () { armDelete(del, it); });
     actions.appendChild(open); actions.appendChild(edit); actions.appendChild(del);
 
-    li.appendChild(handle); li.appendChild(arrows); li.appendChild(folder); li.appendChild(text);
+    li.appendChild(handle); li.appendChild(arrows); li.appendChild(pos); li.appendChild(folder); li.appendChild(text);
     li.appendChild(accessBtn); li.appendChild(status); li.appendChild(actions);
     return li;
   }
@@ -239,10 +256,18 @@
     var t = ids[idx]; ids[idx] = ids[j]; ids[j] = t;
     saveOrder(ids);
   }
+  /* Поставить визуализацию на место N (1 — первая); номер больше длины списка — в конец */
+  function moveTo(pk, n) {
+    var ids = state.items.map(function (i) { return i.pk; }).filter(function (x) { return x !== pk; });
+    var at = Math.max(0, Math.min(ids.length, n - 1));
+    ids.splice(at, 0, pk);
+    return saveOrder(ids);
+  }
+
   function saveOrder(ids) {
-    api('PUT', '/api/admin/order', { ids: ids }).then(function (d) {
+    return api('PUT', '/api/admin/order', { ids: ids }).then(function (d) {
       state.items = d.items; renderList(); toast('Порядок сохранён');
-    }).catch(function (e) { toast(e.message, true); loadList(); });
+    }).catch(function (e) { toast(e.message, true); return loadList(); });
   }
 
   /* ── Редактор ── */
@@ -306,6 +331,10 @@
     $('f-tags').value = item ? (item.tags || []).join(', ') : '';
     $('f-slug').value = item ? item.slug : '';
     $('f-published').checked = item ? item.is_published : true;
+    var curIdx = item ? state.items.map(function (i) { return i.pk; }).indexOf(item.pk) : -1;
+    $('f-position').value = curIdx >= 0 ? String(curIdx + 1) : '';
+    $('pos-hint').textContent = item ? 'Сейчас: ' + (curIdx + 1) + ' из ' + state.items.length + '. Впиши другой номер, чтобы переставить.'
+      : 'Номер на сайте (1 — первая). Пусто — в конец списка, сейчас там ' + state.items.length + '.';
     var priv = !!(item && item.access === 'private');
     $('f-access-free').checked = !priv; $('f-access-private').checked = priv;
     state.getUsers = window.AdminAccess
@@ -336,6 +365,8 @@
   function syncAccessField() { $('viz-users-field').hidden = !$('f-access-private').checked; }
   $('f-access-free').addEventListener('change', syncAccessField);
   $('f-access-private').addEventListener('change', syncAccessField);
+
+  $('f-position').addEventListener('input', function () { var v = this.value.replace(/\D/g, ''); if (v !== this.value) this.value = v; });
 
   $('f-title').addEventListener('input', function () {
     if (!state.slugTouched) $('f-slug').value = slugify(this.value);
@@ -415,6 +446,7 @@
     if (cover) fd.append('cover', cover);
     else if (state.removeCover) fd.append('remove_cover', 'true');
 
+    var wantPos = parseInt($('f-position').value, 10) || 0;
     var btn = $('save-btn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
     var req = item ? api('PATCH', '/api/admin/visualizations/' + item.pk, fd) : api('POST', '/api/admin/visualizations', fd);
     req.then(function (v) {
@@ -423,7 +455,11 @@
     }).then(function (v) {
       closeEditor();
       toast((item ? 'Сохранено: ' : 'Добавлено: ') + v.title + (v.is_published ? '' : ' (черновик)'));
-      return loadList();
+      return loadList().then(function () {
+        /* нужное место в списке: новую — сразу туда, у старой — если номер поменяли */
+        var now = state.items.map(function (i) { return i.pk; }).indexOf(v.pk) + 1;
+        if (wantPos && now && wantPos !== now) return moveTo(v.pk, wantPos);
+      });
     }).catch(function (err) {
       showError('editor-error', err.message);
       $('editor-form').scrollTop = 0;
