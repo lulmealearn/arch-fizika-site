@@ -45,9 +45,11 @@ def _call(method: str, fields: Dict[str, str], files: Optional[List[Tuple[str, s
             data = json.loads(r.read().decode("utf-8"))
     except error.HTTPError as e:
         if e.code in (401, 404):
-            raise TelegramError("Telegram не узнал токен бота. Откройте файл .env в папке сайта: в строке TELEGRAM_BOT_TOKEN= "
-                                "должен быть только токен от @BotFather вида 123456789:AAE… — без пробелов, кавычек и слова bot. "
-                                "Исправьте (или заново python run.py set-bot) и перезапустите сайт.")
+            t = config.TELEGRAM_BOT_TOKEN
+            seen = f"{t[:6]}…{t[-3:]}, {len(t)} симв." if len(t) > 12 else f"{len(t)} симв."
+            raise TelegramError(f"Telegram не узнал токен бота (сайт прочитал из .env: {seen}; настоящий токен — около 46 символов, "
+                                "вида 123456789:AAE…). Скопируйте токен заново у @BotFather → /mybots → бот → API Token, "
+                                "вставьте в .env в строку TELEGRAM_BOT_TOKEN= (Блокнотом) и перезапустите сайт.")
         try:
             data = json.loads(e.read().decode("utf-8"))
         except ValueError:
