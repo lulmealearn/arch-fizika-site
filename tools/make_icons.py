@@ -209,6 +209,120 @@ I['provodniki-i-dielektriki-v-elektricheskom-pole'] = svg(
     ''.join(f'<path d="M66 {y}H72" stroke-width="2.8"/>' for y in (32, 50, 68)) +
     ''.join(f'<path d="M88 {y}H94M91 {y - 3}V{y + 3}" stroke-width="2.6"/>' for y in (32, 50, 68)))
 
+# ── Относительность движения: тележка-платформа и шарик на ней, у каждого своя скорость ──
+plat = '<rect x="36" y="52" width="88" height="18" rx="4"/>'
+I['otnositelnost-dvizheniya'] = svg(
+    '<path d="M14 90H146" stroke-width="2.6"/>' +
+    shade(plat) + f'<rect x="36" y="52" width="88" height="18" rx="4" fill="{L}"/>' +
+    f'<circle cx="54" cy="79" r="8" fill="{L}"/><circle cx="106" cy="79" r="8" fill="{L}"/>' + dot(54, 79, 2.4) + dot(106, 79, 2.4) +
+    shade('<circle cx="72" cy="40" r="10"/>', 3, 2) + f'<circle cx="72" cy="40" r="10"/>' +
+    arrow(86, 40, 112, 40, 8, 2.8) + arrow(40, 24, 120, 24, 9))
+
+# ── Закон сохранения импульса: два шара летят навстречу ──
+I['zakon-sohraneniya-impulsa'] = svg(
+    '<path d="M14 84H146" stroke-width="2.2" opacity=".55"/>' +
+    shade('<circle cx="48" cy="56" r="20"/>') + f'<circle cx="48" cy="56" r="20" fill="{L}"/>' +
+    shade('<circle cx="112" cy="62" r="14"/>', 3, 3) + f'<circle cx="112" cy="62" r="14"/>' +
+    arrow(30, 24, 66, 24, 9) + arrow(130, 34, 100, 34, 8, 2.8) +
+    '<path d="M76 46l6 6M84 40v8M88 50l6-4" stroke-width="2.4"/>')
+
+# ── Работа, энергия, мощность: брусок, сила и перемещение ──
+blk = '<rect x="46" y="44" width="40" height="32" rx="4"/>'
+I['rabota-energiya-moschnost'] = svg(
+    '<path d="M14 76H146" stroke-width="2.6"/>' + '<g stroke-width="2" opacity=".6"><path d="M24 76l-6 8M40 76l-6 8M56 76l-6 8M72 76l-6 8M88 76l-6 8M104 76l-6 8M120 76l-6 8M136 76l-6 8"/></g>' +
+    shade(blk) + f'<rect x="46" y="44" width="40" height="32" rx="4" fill="{L}"/>' +
+    arrow(86, 60, 134, 40, 9) +
+    '<path d="M46 26H112" stroke-width="2.4" stroke-dasharray="4 5"/>' + arrow(100, 26, 116, 26, 7, 2.4))
+
+# ── МКТ идеального газа: сосуд с молекулами и их скоростями ──
+box = '<rect x="38" y="16" width="84" height="70" rx="6"/>'
+mol = [(58, 38, 18, -10), (92, 32, -14, 12), (74, 62, 16, 8), (104, 68, -10, -14), (54, 70, 12, -12)]
+I['mkt-idealnogo-gaza'] = svg(
+    shade(box) + f'<rect x="38" y="16" width="84" height="70" rx="6" fill="{L}"/>' +
+    ''.join(arrow(x, y, x + dx, y + dy, 6, 2.2) for x, y, dx, dy in mol) +
+    ''.join(dot(x, y, 5, V) for x, y, _, _ in mol))
+
+# ── Тепловые машины: нагреватель → рабочее тело → холодильник, работа в сторону ──
+I['teplovye-mashiny-shema-znaki-q-rabota-cikla-cikl-karno'] = svg(
+    shade('<rect x="40" y="6" width="80" height="18" rx="5"/>', 3, 2) + f'<rect x="40" y="6" width="80" height="18" rx="5" fill="{M}"/>' +
+    f'<rect x="40" y="78" width="80" height="18" rx="5" fill="{L}"/>' +
+    shade('<circle cx="80" cy="51" r="14"/>', 3, 3) + f'<circle cx="80" cy="51" r="14" fill="{L}"/>' +
+    arrow(80, 25, 80, 36, 7, 2.8) + arrow(80, 66, 80, 77, 7, 2.8) + arrow(95, 51, 132, 51, 8, 2.8) +
+    '<path d="M50 15h6M104 15h6" stroke-width="2.6"/><path d="M50 87h6M104 87h6" stroke-width="2.6"/>')
+
+# ── Тепловой баланс: калориметр — стакан с водой, кубик льда и термометр ──
+cup = '<path d="M42 30L48 88H104L110 30"/>'
+I['teplovoj-balans-tverdoe-telo-zhidkost-gaz'] = svg(
+    shade('<path d="M42 30L48 88H104L110 30Z"/>') +
+    f'<path d="M45 52L48 88H104L107 52Z" fill="{L}" stroke="none"/>' + cup + '<path d="M45 52H107" stroke-width="2.2"/>' +
+    f'<rect x="58" y="42" width="18" height="18" rx="3" fill="#fff" transform="rotate(-12 67 51)"/>' +
+    f'<rect x="88" y="10" width="10" height="56" rx="5" fill="#fff"/>' + f'<circle cx="93" cy="70" r="8" fill="{M}"/>' +
+    '<path d="M93 30V66" stroke-width="3.4"/>')
+
+# ── Испарение и кипение: колба с пузырьками, пар над ней, огонь снизу ──
+flask = '<path d="M68 14V36L44 76A8 8 0 0 0 51 88H109A8 8 0 0 0 116 76L92 36V14"/>'
+I['isparenie-nasyschennyj-par-kipenie'] = svg(
+    shade('<path d="M68 14V36L44 76A8 8 0 0 0 51 88H109A8 8 0 0 0 116 76L92 36V14Z"/>', 4, 2, L) +
+    f'<path d="M55 58H105L116 76A8 8 0 0 1 109 88H51A8 8 0 0 1 44 76Z" fill="{M}" stroke="none"/>' + flask +
+    '<path d="M64 14H96" stroke-width="3"/>' +
+    ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#fff" stroke-width="2"/>' for x, y, r in [(66, 76, 4), (84, 70, 5), (98, 79, 3.5), (76, 64, 3)]) +
+    '<path d="M124 30c-6-5 6-9 0-14M136 34c-6-5 6-9 0-14" stroke-width="2.4"/>')
+
+# ── Конденсатор как электростатическая система: пластины, заряды и поле между ними ──
+I['kondensator-kak-elektrostaticheskaya-sistema'] = svg(
+    shade('<rect x="40" y="14" width="12" height="72" rx="3"/><rect x="108" y="14" width="12" height="72" rx="3"/>', 3, 2) +
+    f'<rect x="40" y="14" width="12" height="72" rx="3" fill="{L}"/><rect x="108" y="14" width="12" height="72" rx="3" fill="{L}"/>' +
+    ''.join(arrow(56, y, 102, y, 7, 2.4) for y in (28, 50, 72)) +
+    '<path d="M22 44v12M16 50h12" stroke-width="3"/><path d="M132 50h12" stroke-width="3"/>')
+
+# ── Теорема Гаусса: замкнутая сфера вокруг заряда, поток наружу ──
+I['teorema-gaussa'] = svg(
+    shade('<circle cx="80" cy="50" r="30"/>', 4, 3, L) + '<circle cx="80" cy="50" r="30"/>' +
+    '<ellipse cx="80" cy="50" rx="30" ry="9" stroke-width="2" stroke-dasharray="4 5"/>' +
+    ''.join(arrow(80 + 12 * math.cos(a), 50 + 12 * math.sin(a), 80 + 46 * math.cos(a), 50 + 46 * math.sin(a), 7, 2.4)
+            for a in [math.radians(d) for d in (-30, 30, 150, 210, 90, 270)]) +
+    f'<circle cx="80" cy="50" r="9" fill="#fff"/>' + '<path d="M75 50H85M80 45V55" stroke-width="2.8"/>')
+
+# ── Законы постоянного тока: замкнутая цепь — источник, резистор, ток ──
+I['zakony-postoyannogo-toka'] = svg(
+    '<path d="M30 44V20H130V80H30V56" stroke-width="3"/>' +
+    f'<rect x="62" y="12" width="36" height="16" rx="3" fill="{L}"/>' +
+    '<path d="M20 44H40" stroke-width="3.4"/><path d="M25 56H35" stroke-width="5"/>' +
+    shade('<circle cx="130" cy="50" r="12"/>', 3, 2) + f'<circle cx="130" cy="50" r="12" fill="#fff"/>' + '<path d="M125 55L130 44L135 55M127 51H133" stroke-width="2.4"/>' +
+    arrow(66, 80, 96, 80, 8, 2.8))
+
+# ── Метод узловых потенциалов: узлы, ветви с резисторами, заземление ──
+nodes = [(34, 30), (126, 30), (80, 78)]
+def zig(x1, y1, x2, y2):
+    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+    dx, dy = x2 - x1, y2 - y1
+    ln = math.hypot(dx, dy); ux, uy = dx / ln, dy / ln; px, py = -uy, ux
+    pts = [(x1, y1), (mx - 14 * ux, my - 14 * uy)]
+    for k in range(-2, 3):
+        t = k * 6
+        pts.append((mx + t * ux + (5 if k % 2 else -5) * px, my + t * uy + (5 if k % 2 else -5) * py))
+    pts += [(mx + 14 * ux, my + 14 * uy), (x2, y2)]
+    return f'<path d="{poly(pts)}" stroke-width="2.6"/>'
+I['metod-uzlovyh-potencialov'] = svg(
+    zig(*nodes[0], *nodes[1]) + zig(*nodes[0], *nodes[2]) + zig(*nodes[1], *nodes[2]) +
+    '<path d="M80 78V90M70 90H90M74 95H86" stroke-width="2.6"/>' +
+    ''.join(shade(f'<circle cx="{x}" cy="{y}" r="8"/>', 2, 2) + f'<circle cx="{x}" cy="{y}" r="8" fill="{L}"/>' for x, y in nodes))
+
+# ── Закон Джоуля — Ленца: резистор греется ──
+res = '<rect x="50" y="52" width="60" height="22" rx="4"/>'
+I['zakon-dzhoulya-lenca-i-kpd-cepi'] = svg(
+    '<path d="M14 63H50M110 63H146" stroke-width="3"/>' +
+    shade(res) + f'<rect x="50" y="52" width="60" height="22" rx="4" fill="{M}"/>' +
+    '<g stroke-width="2.6"><path d="M62 42c-6-6 6-10 0-16s6-10 0-16"/><path d="M80 42c-6-6 6-10 0-16s6-10 0-16"/><path d="M98 42c-6-6 6-10 0-16s6-10 0-16"/></g>' +
+    arrow(22, 82, 42, 82, 7, 2.6))
+
+# ── Нелинейные элементы: вольт-амперная характеристика и диод ──
+I['nelinejnye-elementy-v-cepyah-postoyannogo-toka'] = svg(
+    axes(30, 86, 140, 10) +
+    f'<path d="{poly([(30 + x, 86 - 0.45 * math.exp(x / 18.0)) for x in range(0, 96, 2)])}"/>' +
+    shade('<path d="M48 26L48 50L68 38Z"/>', 3, 2) + f'<path d="M48 26L48 50L68 38Z" fill="{L}"/>' +
+    '<path d="M68 26V50M38 38H48M68 38H78" stroke-width="2.8"/>')
+
 # ── Запасные иконки разделов ──
 sine = [(40 + i, 52 - 20 * math.sin(i / 80 * 2 * math.pi)) for i in range(0, 81)]
 chart = '<rect x="28" y="14" width="104" height="74" rx="10"/>'
