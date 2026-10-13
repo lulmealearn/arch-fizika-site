@@ -174,6 +174,9 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
             item.update(url=None, notes_url=None, hw_url=None, viz=[])
         item["submission"] = None if staff else submission_out(subs.get(l.id))
         out_lessons.append(item)
+    if not staff:
+        from .mockfinish import finalize_expired
+        finalize_expired(db, user.id)  # время пробника вышло — бланк уходит сам
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
     mprog = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == user.id))}
@@ -194,6 +197,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         if item["locked"]:
             item["url"] = None
         item["submission"] = None if staff else submission_out(msubs.get(m.id))
+        item["draft"] = (p.draft or {}) if (p and not staff and deadlines.state(p) == "active") else {}
         item["total"] = None if staff else scale.total(sc, tries.get(m.id), msubs.get(m.id))  # итог из 45 и тестовый балл
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id, Report.status == "published").order_by(Report.created_at.desc(), Report.id.desc())).all()

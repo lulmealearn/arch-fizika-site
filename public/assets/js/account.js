@@ -146,6 +146,7 @@
   var STATE_TEXT = { todo: 'не начато', active: 'в работе', done: 'сдано', open: 'материалы открыты' };
   function dlState(l) { return (l.deadline && l.deadline.state) || 'todo'; }
   function daysWord(n) { return n + ' ' + plural(n, 'день', 'дня', 'дней'); }
+  function minsWord(n) { var h = Math.floor(n / 60), m = n % 60; return (h ? h + ' ч' : '') + (h && m ? ' ' : '') + (m ? m + ' мин' : ''); }
   function timeLeft(iso) {
     var ms = new Date(iso).getTime() - Date.now();
     if (ms <= 0) return 'срок истёк';
@@ -232,6 +233,7 @@
     if (!mocks.length) list.appendChild(el('li', 'folders__empty', 'Пробников пока нет.'));
     mocks.forEach(function (m) { list.appendChild(mockCard(m)); });
     $('kt-mocks').textContent = mocks.length || '';
+    armAutoSend();
   }
   function renderReports(reports) {
     var list = $('reports'); list.textContent = '';
@@ -380,6 +382,7 @@
       api('POST', '/api/me/' + (mock ? 'mocks/' : 'lessons/') + l.pk + '/' + action).then(function (r) {
         l.deadline = r.deadline; l.done = r.deadline.state === 'done';
         syncDeadlines();
+        if (mock) armAutoSend();
         if (mock) renderSheet(l);
         paintDone(l);
         if (l.locked) reloadLessons();  // после первого «Начать» сервер открыл материалы — подтягиваем ссылки
@@ -394,7 +397,8 @@
   function renderDeadline(l) {
     var box = $('lesson-dl'); box.textContent = '';
     var mock = currentKind === 'mock', sheet = mock && l.tasks && l.tasks.length;
-    var st = dlState(l), dl = l.deadline || {}, days = dl.days || (mock ? 7 : 3), over = dl.overdue || 0;
+    var st = dlState(l), dl = l.deadline || {}, days = dl.days || 3, over = dl.overdue || 0;
+    var dur = mock ? minsWord(dl.minutes || 235) : daysWord(days);
     dlg.classList.toggle('is-open', st === 'open');
     if (st === 'open') {  /* куратор: ни срока, ни сдачи */
       dlg.classList.remove('is-done', 'is-active');
@@ -405,24 +409,25 @@
     dlg.classList.toggle('is-active', st === 'active');
     box.className = 'dl dl--' + st;
     var head = el('div', 'dl__head');
-    head.appendChild(el('span', 'dl__label', mock ? 'Срок на пробник' : 'Домашнее задание'));
+    head.appendChild(el('span', 'dl__label', mock ? 'Время на пробник' : 'Домашнее задание'));
     head.appendChild(el('span', 'dl__state', STATE_TEXT[st]));
     box.appendChild(head);
     var err = el('p', 'form-error'); err.hidden = true;
     if (st === 'todo') {
       box.appendChild(el('p', 'dl__text', over
         ? 'Срок истёк' + (over > 1 ? ' уже ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') : '') + (mock ? ', а пробник не сдан. Возьмите новый срок и сдайте вариант' : ', а задание не отмечено сданным. Возьмите новый срок и сдайте задание') + ' — просрочка останется в истории.'
-        : mock ? 'Вариант откроется, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на решение — начинайте, когда будете готовы.'
+        : mock ? 'Вариант откроется, когда вы нажмёте «Начать», и сразу пойдёт время — ' + dur + ', как на экзамене. Ответы первой части вписывайте в бланк под вариантом. Когда время выйдет, бланк и прикреплённые фото решений отправятся сами; отправить раньше можно кнопкой «Отправить пробник». Без фото решений вторая часть — 0 баллов. Начинайте, когда сможете решать без перерыва.'
           : 'Материалы занятия откроются, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на домашнее задание — начинайте, когда будете готовы.'));
-      box.appendChild(confirmButton(over ? 'Взять новый срок · ' + daysWord(days) : 'Начать · срок ' + daysWord(days),
+      box.appendChild(confirmButton(over ? 'Взять новый срок · ' + dur : mock ? 'Начать · ' + dur : 'Начать · срок ' + dur,
         'Подтвердите: срок пойдёт сразу', 'btn--solid dl__btn', dlAction(l, 'start')));
     } else if (st === 'active') {
       var big = el('b', 'dl__left', timeLeft(dl.due_at)); big.dataset.due = dl.due_at;
       box.appendChild(el('span', 'dl__kicker', 'Осталось'));
       box.appendChild(big);
-      box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. ' + (sheet
-        ? 'Впишите ответы первой части в бланк ниже, прикрепите фото решений обеих частей и отправьте пробник — это и есть сдача.'
-        : mock ? 'Прикрепите фото решений и отправьте пробник — это и есть сдача.' : 'Сфотографируйте решение или прикрепите PDF и отправьте на проверку — это и есть сдача.')));
+      box.appendChild(el('p', 'dl__text', mock
+        ? 'Время выйдет ' + when(dl.due_at) + ' — тогда ' + (sheet ? 'бланк и прикреплённые фото' : 'прикреплённые фото') + ' отправятся сами. ' +
+          (sheet ? 'Ответы бланка сохраняются по ходу. ' : '') + 'Прикрепите фото решений обеих частей до конца времени: без них вторая часть — 0 баллов.'
+        : 'Сдать до ' + when(dl.due_at) + '. Сфотографируйте решение или прикрепите PDF и отправьте на проверку — это и есть сдача.'));
       var total = new Date(dl.due_at) - new Date(dl.started_at), passed = Date.now() - new Date(dl.started_at);
       var bar = el('span', 'dl__bar'); var fill = el('i');
       fill.style.width = Math.max(2, Math.min(100, 100 * passed / total)) + '%';
@@ -496,6 +501,20 @@
     });
   }
 
+  /* Форма сдачи: у пробника фото склеиваются в один PDF, готовые PDF — как есть, плюс ответы бланка */
+  function buildForm(l, list, mock, answers) {
+    var fd = new FormData();
+    var photos = list.filter(function (f) { return !f.pdf; }), pdfs = list.filter(function (f) { return f.pdf; });
+    var ready = mock && photos.length
+      ? makePdf(photos).then(function (pdf) {
+          fd.append('files', pdf, 'probnik-' + l.number + '.pdf');
+          pdfs.forEach(function (f) { fd.append('files', f.blob, f.name); });
+        })
+      : Promise.resolve(list.forEach(function (f) { fd.append('files', f.blob, f.name); }));
+    if (mock && answers) fd.append('answers', JSON.stringify(answers));
+    return ready.then(function () { return fd; });
+  }
+
   /* opts: mock — пробник (фото склеиваются в один PDF, вместе с файлами уходит бланк), answers() — ответы бланка,
      redraw() — перерисовать окно после выбора файлов */
   function uploader(l, err, opts) {
@@ -546,20 +565,14 @@
       : 'Можно несколько фото: каждая страница решения — отдельным снимком.';
     var status = el('p', 'up__status', list.length ? 'Выбрано: ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов') + '. Проверьте, что всё читается.' + (mock ? ' Фото уйдут одним PDF в этом порядке.' : '') : idle);
     wrap.appendChild(status);
-    if (list.length) {
+    /* пробник можно отправить и без фото (тогда вторая часть — 0), ДЗ — только с файлами */
+    if (list.length || mock) {
       var sendLabel = mock ? 'Отправить пробник' : 'Отправить на проверку';
-      wrap.appendChild(confirmButton(sendLabel, 'Отправить? Изменить будет нельзя', 'btn--solid dl__btn', function (restore) {
-        var fd = new FormData();
-        var photos = list.filter(function (f) { return !f.pdf; }), pdfs = list.filter(function (f) { return f.pdf; });
-        var ready = mock && photos.length
-          ? (status.textContent = 'Собираю PDF…', makePdf(photos).then(function (pdf) {
-              fd.append('files', pdf, 'probnik-' + l.number + '.pdf');
-              pdfs.forEach(function (f) { fd.append('files', f.blob, f.name); });
-            }))
-          : Promise.resolve(list.forEach(function (f) { fd.append('files', f.blob, f.name); }));
-        if (mock && opts.answers) fd.append('answers', JSON.stringify(opts.answers()));
-        ready.then(send, function () { restore(); status.textContent = ''; err.textContent = 'Не получилось собрать PDF из фото. Попробуйте ещё раз или прикрепите готовый PDF.'; err.hidden = false; });
-        function send() {
+      var armedLabel = mock && !list.length ? 'Без фото вторая часть — 0. Отправить?' : 'Отправить? Изменить будет нельзя';
+      wrap.appendChild(confirmButton(sendLabel, armedLabel, 'btn--solid dl__btn', function (restore) {
+        if (mock && list.some(function (f) { return !f.pdf; })) status.textContent = 'Собираю PDF…';
+        buildForm(l, list, mock, opts.answers ? opts.answers() : null).then(send, function () { restore(); status.textContent = ''; err.textContent = 'Не получилось собрать PDF из фото. Попробуйте ещё раз или прикрепите готовый PDF.'; err.hidden = false; });
+        function send(fd) {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/me/' + (mock ? 'mocks/' : 'lessons/') + l.pk + '/submission');
         xhr.withCredentials = true;
@@ -667,10 +680,77 @@
   var drafts = {};  /* в памяти — на случай, если хранилище браузера недоступно */
   function loadDraft(m) {
     if (drafts[m.pk]) return drafts[m.pk];
-    try { drafts[m.pk] = JSON.parse(localStorage.getItem(draftKey(m)) || '{}'); } catch (e) { drafts[m.pk] = {}; }
-    return drafts[m.pk];
+    var local = {};
+    try { local = JSON.parse(localStorage.getItem(draftKey(m)) || '{}'); } catch (e) { local = {}; }
+    /* с сервера — то, что вписано на другом устройстве; ответы с этого устройства важнее */
+    var d = {};
+    Object.keys(m.draft || {}).forEach(function (k) { d[k] = m.draft[k]; });
+    Object.keys(local).forEach(function (k) { if ((local[k] || '').trim()) d[k] = local[k]; });
+    drafts[m.pk] = d;
+    return d;
   }
-  function saveDraft(m, d) { drafts[m.pk] = d; try { localStorage.setItem(draftKey(m), JSON.stringify(d)); } catch (e) { /* без хранилища тоже работает */ } }
+  /* Ответы бланка — в браузер сразу и на сервер раз в пару секунд: когда время выйдет, уйдут именно они,
+     даже если страница закрыта */
+  var draftTimers = {};
+  function pushDraft(m) {
+    clearTimeout(draftTimers[m.pk]); delete draftTimers[m.pk];
+    if (dlState(m) !== 'active' || !drafts[m.pk]) return Promise.resolve();
+    return api('PUT', '/api/me/mocks/' + m.pk + '/draft', { answers: drafts[m.pk] }).catch(function () { /* повторим при следующем вводе */ });
+  }
+  function saveDraft(m, d) {
+    drafts[m.pk] = d;
+    try { localStorage.setItem(draftKey(m), JSON.stringify(d)); } catch (e) { /* без хранилища тоже работает */ }
+    clearTimeout(draftTimers[m.pk]);
+    draftTimers[m.pk] = setTimeout(function () { pushDraft(m); }, 1500);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'hidden') return;
+    mocks.forEach(function (m) { if (draftTimers[m.pk]) pushDraft(m); });
+  });
+
+  /* Время вышло, а страница открыта — отправляем бланк и прикреплённые фото сами (сервер ждёт ещё 2 минуты;
+     если страница закрыта, бланк с сохранёнными ответами отправит сервер, вторая часть тогда — 0) */
+  var autoTimers = {};
+  function armAutoSend() {
+    mocks.forEach(function (m) {
+      var due = m.deadline && m.deadline.due_at ? new Date(m.deadline.due_at).getTime() : 0;
+      if (dlState(m) !== 'active' || !due) { clearTimeout(autoTimers[m.pk]); delete autoTimers[m.pk]; return; }
+      if (autoTimers[m.pk]) return;
+      var wait = due - Date.now();
+      if (wait > 2147483000) return;
+      autoTimers[m.pk] = setTimeout(function () { autoSend(m); }, Math.max(0, wait));
+    });
+  }
+  function autoSend(m) {
+    delete autoTimers[m.pk];
+    if (dlState(m) !== 'active') return;
+    var key = 'm' + m.pk, list = pending[key] || [];
+    var answers = m.tasks && m.tasks.length ? (function () {
+      var d = loadDraft(m), a = {};
+      m.tasks.forEach(function (t) { a[t] = (d[t] || '').trim(); });
+      return a;
+    })() : null;
+    buildForm(m, list, true, answers).catch(function () { return buildForm(m, list.filter(function (f) { return f.pdf; }), true, answers); })
+      .then(function (fd) {
+        return fetch('/api/me/mocks/' + m.pk + '/submission', { method: 'POST', body: fd, credentials: 'same-origin' });
+      })
+      .then(function (r) {
+        if (r.ok) {
+          list.forEach(function (f) { if (f.thumb) URL.revokeObjectURL(f.thumb); });
+          delete pending[key];
+          dropDraft(m);
+        }
+        return reloadLessons();
+      })
+      .then(function () {
+        syncDeadlines();
+        if (current === m) {
+          var n = el('p', 'dl__text dl__text--auto', 'Время вышло — пробник отправлен автоматически.');
+          $('lesson-dl').insertBefore(n, $('lesson-dl').firstChild);
+        }
+      })
+      .catch(function () { reloadLessons(); });
+  }
   function dropDraft(m) { delete drafts[m.pk]; try { localStorage.removeItem(draftKey(m)); } catch (e) { /* не важно */ } }
 
   function renderSheet(m) {
@@ -849,7 +929,7 @@
       mocks.forEach(function (m) { var x = byM[m.pk]; if (x) Object.keys(x).forEach(function (k) { m[k] = x[k]; }); });
       if (current && currentKind === 'lesson') fillLesson(current);
       if (current && currentKind === 'mock') fillMock(current);
-      if (!dlg.open) { renderFolders(); renderMocks(); }
+      if (!dlg.open) { renderFolders(); renderMocks(); } else armAutoSend();
     }).catch(function () { /* не важно */ });
   }
   /* Таймеры: раз в 30 секунд обновляем «осталось …»; истёк срок — берём состояние с сервера */

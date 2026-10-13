@@ -84,6 +84,8 @@ NEW_COLUMNS = [
     ("reports", "collected_at", "DATETIME NULL"),
     ("reports", "published_at", "DATETIME NULL"),
     ("reports", "notify_error", "VARCHAR(300) NOT NULL DEFAULT ''"),
+    ("mocks", "duration_min", "INTEGER NULL"),
+    ("mock_progress", "draft", "JSON NULL"),
 ]
 
 

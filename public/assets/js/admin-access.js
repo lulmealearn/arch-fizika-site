@@ -27,6 +27,8 @@
     if (text != null) e.textContent = text;
     return e;
   }
+  /* 235 → «3 ч 55 мин» */
+  function mins(n) { var h = Math.floor(n / 60), m = n % 60; return (h ? h + ' ч' : '') + (h && m ? ' ' : '') + (m ? m + ' мин' : ''); }
   function plural(n, one, few, many) {
     var a = n % 10, b = n % 100;
     if (a === 1 && b !== 11) return one;
@@ -334,7 +336,7 @@
       text.appendChild(el('h2', 'adm-row__title', m.title || 'Пробник № ' + m.number));
       text.appendChild(el('span', 'adm-row__meta',
         (m.tasks && m.tasks.length ? 'автопроверка: ' + m.tasks.length + ' ' + plural(m.tasks.length, 'задание', 'задания', 'заданий') + ', ' + m.key_points + ' б.' : 'без автопроверки') +
-        (m.deadline_days && m.deadline_days !== 7 ? '  ·  срок ' + m.deadline_days + ' ' + plural(m.deadline_days, 'день', 'дня', 'дней') : '') +
+        (m.duration_min && m.duration_min !== 235 ? '  ·  время ' + mins(m.duration_min) : '') +
         '  ·  ' + whoLine(m.user_ids)));
       var actions = el('div', 'row-actions');
       var open = el('a', 'btn btn--small', 'Открыть'); open.href = m.url; open.target = '_blank'; open.rel = 'noopener';
@@ -364,8 +366,8 @@
       key.placeholder = '1: 2,5\n2: -3 | -3,0\n5: 24 (2, любой порядок)\n7: 31 (2)';
       body.appendChild(field('Ключ первой части (автопроверка)', key));
       body.appendChild(el('p', 'hint', 'По строке на задание: «номер: ответ». Несколько допустимых ответов — через «|». В скобках: 2 — задание на 2 балла (одна ошибка — 1 балл), «любой порядок» — цифры можно писать в любом порядке. Если ключ вписан в HTML пробника (<script id="answer-key">), он подставится сам при загрузке. Пусто — без автопроверки. Если ученики уже сдали ответы, после изменения ключа их баллы пересчитаются.'));
-      var md = numberInput('e-deadline', m ? m.deadline_days : 7); md.maxLength = 2;
-      body.appendChild(field('Срок, дней (считается с момента, когда ученик нажал «Начать»)', md));
+      var md = numberInput('e-deadline', m ? m.duration_min : 235); md.maxLength = 3;
+      body.appendChild(field('Время на пробник, минут (235 = 3 ч 55 мин, как на ЕГЭ; идёт с «Начать», потом бланк уходит сам)', md));
       var boxU = el('div', 'picker');
       var getU = picker(boxU, userItems(), m ? m.user_ids : [], 'Учеников пока нет: они появятся после регистрации в личном кабинете.');
       body.appendChild(field('Кому открыт', boxU));
@@ -378,8 +380,8 @@
         fd.append('title', $('e-title').value.trim());
         fd.append('user_ids', JSON.stringify(getU()));
         var mdv = $('e-deadline').value.trim();
-        if (mdv && !(+mdv >= 1 && +mdv <= 60)) throw new Error('Срок — от 1 до 60 дней.');
-        fd.append('deadline_days', mdv);
+        if (mdv && !(+mdv >= 10 && +mdv <= 600)) throw new Error('Время — от 10 до 600 минут.');
+        fd.append('duration_min', mdv);
         if (pdf.file()) fd.append('pdf', pdf.file());
         var keyText = $('e-key').value.trim();
         if (keyText) fd.append('answer_key', keyText);
@@ -504,7 +506,7 @@
           t.appendChild(el('b', null, x.label + (x.title ? ' · ' + x.title : '')));
           if (active) {
             t.appendChild(el('span', 'dlrow__left', 'осталось ' + timeLeft(x.due_at)));
-            t.appendChild(el('span', null, 'начал ' + dateTime(x.started_at) + '  ·  сдать до ' + dateTime(x.due_at) + '  ·  срок ' + x.days + ' ' + plural(x.days, 'день', 'дня', 'дней')));
+            t.appendChild(el('span', null, 'начал ' + dateTime(x.started_at) + '  ·  сдать до ' + dateTime(x.due_at) + '  ·  ' + (x.minutes ? 'время ' + mins(x.minutes) : 'срок ' + x.days + ' ' + plural(x.days, 'день', 'дня', 'дней'))));
             var bar = el('span', 'dlrow__bar'), fill = el('i');
             fill.style.width = Math.max(3, Math.min(100, 100 * (Date.now() - new Date(x.started_at)) / (new Date(x.due_at) - new Date(x.started_at)))) + '%';
             bar.appendChild(fill); t.appendChild(bar);
@@ -536,7 +538,7 @@
             if (dl.overdue || dl.first_started_at) {
               var info = el('span', 'prow__res');
               if (dl.overdue) info.appendChild(el('b', 'urow__warn', 'Просрочено ' + dl.overdue + ' ' + plural(dl.overdue, 'раз', 'раза', 'раз')));
-              if (dl.first_started_at) info.appendChild(document.createTextNode((dl.overdue ? '  ·  ' : '') + 'впервые начал ' + dateTime(dl.first_started_at) + '  ·  срок ' + dl.days + ' ' + plural(dl.days, 'день', 'дня', 'дней')));
+              if (dl.first_started_at) info.appendChild(document.createTextNode((dl.overdue ? '  ·  ' : '') + 'впервые начал ' + dateTime(dl.first_started_at) + '  ·  ' + (dl.minutes ? 'время ' + mins(dl.minutes) : 'срок ' + dl.days + ' ' + plural(dl.days, 'день', 'дня', 'дней'))));
               t.appendChild(info);
             }
             if (it.submission) {

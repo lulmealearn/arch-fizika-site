@@ -2,7 +2,7 @@ from datetime import timezone
 from typing import Any, Dict, List, Optional
 
 from .mockcheck import key_to_text
-from .models import DEFAULT_DEADLINE_DAYS, DEFAULT_MOCK_DEADLINE_DAYS, Lesson, Mock, Report, Section, User, Visualization
+from .models import DEFAULT_DEADLINE_DAYS, DEFAULT_MOCK_DEADLINE_DAYS, DEFAULT_MOCK_MINUTES, Lesson, Mock, Report, Section, User, Visualization
 
 
 def section_out(s: Section) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
         out["user_ids"] = sorted(user_ids)
         out["key_text"] = key_to_text(key)
         out["key_points"] = sum(t["points"] for t in key)
-        out["deadline_days"] = m.deadline_days or DEFAULT_MOCK_DEADLINE_DAYS
+        out["duration_min"] = m.duration_min or DEFAULT_MOCK_MINUTES
     return out
 
 

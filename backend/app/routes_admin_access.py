@@ -14,7 +14,7 @@ from . import config, deadlines, files, scale, telegram
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
-from .models import DEFAULT_MOCK_DEADLINE_DAYS, GRANT_KINDS, Submission, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
+from .models import DEFAULT_MOCK_DEADLINE_DAYS, DEFAULT_MOCK_MINUTES, GRANT_KINDS, Submission, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
 from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
@@ -173,6 +173,8 @@ def _settle_all(db: Session) -> None:
         changed = any([deadlines.settle(p, now) for p in rows]) or changed
     if changed:
         db.commit()
+    from .mockfinish import finalize_expired
+    finalize_expired(db)  # время пробника вышло — бланк уходит сам
 
 
 def _done_map(db: Session, model, item_col) -> Dict[int, set]:
@@ -445,6 +447,20 @@ def _apply_section(db: Session, l: Lesson, value: str) -> None:
 MOCK_DEFAULT = DEFAULT_MOCK_DEADLINE_DAYS
 
 
+def _duration(value: Optional[str]) -> Optional[int]:
+    """Время на пробник в минутах; пусто или 235 (как на ЕГЭ) — None."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    try:
+        n = int(v)
+    except ValueError:
+        raise HTTPException(400, "Время на пробник — целое число минут, например 235.")
+    if not 10 <= n <= 600:
+        raise HTTPException(400, "Время на пробник — от 10 до 600 минут.")
+    return None if n == DEFAULT_MOCK_MINUTES else n
+
+
 def _deadline_days(value: Optional[str], default: int = deadlines.DEFAULT_DAYS) -> Optional[int]:
     """Срок в днях; пусто или по умолчанию (3 дня у занятия, неделя у пробника) — None."""
     v = (value or "").strip()
@@ -598,7 +614,7 @@ def mocks_list(db: Session = Depends(get_db)):
 @router.post("/mocks", status_code=201)
 async def mocks_create(
     number: str = Form(...), title: str = Form(""), user_ids: Optional[str] = Form(None),
-    answer_key: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
+    answer_key: Optional[str] = Form(None), duration_min: Optional[str] = Form(None),
     pdf: UploadFile = File(...), db: Session = Depends(get_db),
 ):
     n = _number(number, "пробника")
@@ -607,7 +623,7 @@ async def mocks_create(
     if answer_key and answer_key.strip():
         parse_key(answer_key)  # проверить до сохранения файла
     name, key_from_html = await files.save_mock_file("mock", n, pdf)
-    m = Mock(number=n, title=_title(title), file_name=name, deadline_days=_deadline_days(deadline_days, MOCK_DEFAULT))
+    m = Mock(number=n, title=_title(title), file_name=name, duration_min=_duration(duration_min))
     db.add(m)
     db.flush()
     # ключ: вписанный в админке важнее, иначе — из HTML пробника
@@ -621,14 +637,14 @@ async def mocks_create(
 @router.patch("/mocks/{pk}")
 async def mocks_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), user_ids: Optional[str] = Form(None),
-    answer_key: Optional[str] = Form(None), clear_key: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
+    answer_key: Optional[str] = Form(None), clear_key: Optional[str] = Form(None), duration_min: Optional[str] = Form(None),
     pdf: Optional[UploadFile] = File(None), db: Session = Depends(get_db),
 ):
     m = db.get(Mock, pk)
     if not m:
         raise HTTPException(404, "Пробник не найден.")
-    if deadline_days is not None:
-        m.deadline_days = _deadline_days(deadline_days, MOCK_DEFAULT)  # идущие сроки не меняются
+    if duration_min is not None:
+        m.duration_min = _duration(duration_min)  # у тех, кто уже начал, время не меняется
     if number is not None:
         n = _number(number, "пробника")
         _mock_number_free(db, n, m.id)

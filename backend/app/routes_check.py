@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import config, deadlines, files, scale, sheets, telegram
+from . import config, deadlines, files, mockfinish, scale, sheets, telegram
 from .access import current_user
 from .db import SessionLocal, get_db
 from .mockcheck import grade
@@ -139,36 +139,49 @@ def _store(db: Session, s: Submission, parts: List[Tuple[bytes, str, str]], row)
 
 @router.post("/api/me/mocks/{pk}/submission")
 async def submit_mock(pk: int, request: Request, background: BackgroundTasks,
-                      files_in: List[UploadFile] = File(..., alias="files"), answers: str = Form(""),
+                      files_in: List[UploadFile] = File(None, alias="files"), answers: str = Form(""),
                       db: Session = Depends(get_db)):
-    """Сдача пробника одной кнопкой: бланк первой части (если есть ключ — проверяется сразу) и решения файлами
-    (обычно один PDF, собранный из фото в браузере). Только пока идёт срок."""
+    """Сдача пробника (решение владельца): бланк первой части — досрочно этой кнопкой или сам, когда вышло время
+    (кабинет отправляет его в последнюю секунду, а если страница закрыта — mockfinish.finalize_expired).
+    Вместе с бланком — фото или PDF решений; без них вторая часть 0 баллов."""
     user, m, row = _my_item(request, db, "mocks", pk)
     if deadlines.state(row) == "done":
         raise HTTPException(409, "Этот пробник уже сдан.")
+    if mockfinish.time_over(row):
+        mockfinish.finalize_expired(db, user.id)
+        raise HTTPException(409, "Время вышло — пробник отправлен автоматически с теми ответами, что были в бланке.")
     _need_active(db, row)
-    parts = await _collect(files_in)
-    attempt = None
-    if m.answer_key:
-        if db.scalar(select(MockAttempt.id).where(MockAttempt.user_id == user.id, MockAttempt.mock_id == m.id)):
-            raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
-        try:
-            raw = json.loads(answers or "{}")
-        except ValueError:
-            raise HTTPException(400, "Ответы переданы в неверном виде.")
-        allowed = {str(t["n"]) for t in m.answer_key}
-        given = {str(k): (str(v) if v is not None else "").strip()[:60] for k, v in (raw or {}).items() if str(k) in allowed}
-        score, total, details = grade(m.answer_key, given)
-        attempt = MockAttempt(user_id=user.id, mock_id=m.id, answers=given, score=score, max_score=total, details=details)
-        db.add(attempt)
-    s = Submission(user_id=user.id, mock_id=m.id, files=[], overdue=row.overdue_count or 0)
-    _store(db, s, parts, row)
+    uploads = [f for f in (files_in or []) if f is not None and f.filename]
+    parts = await _collect(uploads) if uploads else []
+    try:
+        raw = json.loads(answers) if answers else None
+    except ValueError:
+        raise HTTPException(400, "Ответы переданы в неверном виде.")
+    s, attempt = mockfinish.submit(db, user.id, m, row, raw, parts)
     touch(db, user, request)
-    background.add_task(notify_curators, s.id)
-    background.add_task(sheets.push_submission, s.id)  # первая часть — сразу в таблицу
+    background.add_task(mockfinish.after_submit, s.id)  # кураторам (или сразу результат ученику) и в таблицу
     background.add_task(_purge_in_background)
+    if attempt is None and m.answer_key:
+        attempt = db.scalar(select(MockAttempt).where(MockAttempt.user_id == user.id, MockAttempt.mock_id == m.id))
     return {"deadline": deadlines.status_out(row, m), "submission": submission_out(s),
             "result": attempt_out(attempt) if attempt else None}
+
+
+class DraftIn(BaseModel):
+    answers: dict = {}
+
+
+@router.put("/api/me/mocks/{pk}/draft")
+def save_mock_draft(pk: int, body: DraftIn, request: Request, db: Session = Depends(get_db)):
+    """Ответы бланка по ходу решения: по окончании времени уйдут именно они, даже если страница закрыта."""
+    user, m, row = _my_item(request, db, "mocks", pk)
+    if deadlines.state(row) != "active" or mockfinish.time_over(row):
+        if mockfinish.time_over(row):
+            mockfinish.finalize_expired(db, user.id)
+        raise HTTPException(409, "Бланк уже не принимает ответы.")
+    row.draft = mockfinish.clean_answers(m, body.answers)
+    db.commit()
+    return {"ok": True}
 
 
 def _purge_in_background() -> None:
@@ -255,6 +268,7 @@ def check_me(response: Response, name: str = Depends(require_staff)):
 def check_list(response: Response, status: str = "new", name: str = Depends(require_staff), db: Session = Depends(get_db)):
     """Очередь: «ждут проверки» — старые сверху (кто раньше сдал), «проверены» — свежие сверху."""
     response.headers["Cache-Control"] = "no-store"
+    mockfinish.finalize_expired(db)  # пробники, у которых вышло время, — в очередь
     q = select(Submission)
     if status in ("new", "checked"):
         q = q.where(Submission.status == status)

@@ -6,11 +6,15 @@
   Если срок истёк, а «Сдал» не нажато, занятие само возвращается в «Не начато»: просрочка остаётся в счётчике
   (overdue_count), а новый срок ученик берёт той же кнопкой «Начать».
 Время истечения проверяется при каждом чтении (settle) — фоновых задач нет.
+
+Пробник устроен иначе (решение владельца): после «Начать» идёт время экзамена — 3 ч 55 мин (mocks.duration_min).
+Бланк первой части сдаётся досрочно кнопкой или сам, когда время вышло (mockfinish.finalize_expired) — в «Не начато»
+пробник не возвращается. Решения второй части без фото — 0 баллов.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from .models import DEFAULT_DEADLINE_DAYS, DEFAULT_MOCK_DEADLINE_DAYS, Mock
+from .models import DEFAULT_DEADLINE_DAYS, DEFAULT_MOCK_DEADLINE_DAYS, DEFAULT_MOCK_MINUTES, Mock
 from .serialize import _iso
 from .tracking import _aware
 
@@ -27,9 +31,20 @@ def days_for(item) -> int:
     return item.deadline_days or default_days(item)
 
 
+def minutes_for(item) -> Optional[int]:
+    """Время на пробник в минутах (как на ЕГЭ — 235); у занятия — None (там срок в днях)."""
+    return (item.duration_min or DEFAULT_MOCK_MINUTES) if isinstance(item, Mock) else None
+
+
+def length(item) -> timedelta:
+    m = minutes_for(item)
+    return timedelta(minutes=m) if m else timedelta(days=days_for(item))
+
+
 def settle(p, now: Optional[datetime] = None) -> bool:
-    """Срок истёк без сдачи → вернуть в «Не начато» и засчитать просрочку. True, если что-то поменялось."""
-    if p is None or p.submitted_at is not None or p.due_at is None:
+    """Срок ДЗ истёк без сдачи → вернуть в «Не начато» и засчитать просрочку. True, если что-то поменялось.
+    Пробник сюда не попадает: по окончании времени он сдаётся сам (mockfinish.finalize_expired)."""
+    if p is None or p.submitted_at is not None or p.due_at is None or hasattr(p, "mock_id"):
         return False
     now = now or datetime.now(timezone.utc)
     if _aware(p.due_at) > now:
@@ -55,7 +70,7 @@ def state(p) -> str:
 def status_out(p, lesson) -> Dict[str, Any]:
     """Состояние для кабинета и админки (после settle)."""
     st = state(p)
-    out = {"state": st, "days": days_for(lesson), "overdue": (p.overdue_count or 0) if p else 0,
+    out = {"state": st, "days": days_for(lesson), "minutes": minutes_for(lesson), "overdue": (p.overdue_count or 0) if p else 0,
            "started_at": None, "due_at": None, "submitted_at": None, "first_started_at": None, "last_overdue_at": None}
     if p is not None:
         out.update(started_at=_iso(p.started_at), due_at=_iso(p.due_at), submitted_at=_iso(p.submitted_at),
@@ -66,7 +81,7 @@ def status_out(p, lesson) -> Dict[str, Any]:
 def start(p, lesson, now: Optional[datetime] = None) -> None:
     now = now or datetime.now(timezone.utc)
     p.started_at = now
-    p.due_at = now + timedelta(days=days_for(lesson))
+    p.due_at = now + length(lesson)
     if p.first_started_at is None:
         p.first_started_at = now
 
@@ -82,9 +97,11 @@ def user_deadlines(db, user_id: int) -> List[Dict[str, Any]]:
     from sqlalchemy import select
     from .access import granted_ids, is_curator
     from .models import Lesson, LessonProgress, MockProgress
+    from .mockfinish import finalize_expired
     out: List[Dict[str, Any]] = []
     if is_curator(db, user_id):
         return out  # у куратора сроков нет
+    finalize_expired(db, user_id)  # время пробника вышло — бланк уходит сам
     for model, prog, col, kind, label, href in ((Lesson, LessonProgress, "lesson_id", "lesson", "Занятие", "z"),
                                                 (Mock, MockProgress, "mock_id", "mock", "Пробник", "p")):
         ids = granted_ids(db, user_id, kind)
@@ -101,7 +118,7 @@ def user_deadlines(db, user_id: int) -> List[Dict[str, Any]]:
                 continue
             d = status_out(p, it)
             out.append({"kind": kind, "label": f"{label} № {it.number}", "title": it.title or "", "url": f"/account/#{href}{it.number}",
-                        "state": st, "started_at": d["started_at"], "due_at": d["due_at"], "days": d["days"],
+                        "state": st, "started_at": d["started_at"], "due_at": d["due_at"], "days": d["days"], "minutes": d["minutes"],
                         "overdue": d["overdue"], "last_overdue_at": d["last_overdue_at"]})
     out.sort(key=lambda x: (x["state"] != "active", x["due_at"] or "", x["label"]))
     return out
