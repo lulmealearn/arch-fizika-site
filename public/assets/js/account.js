@@ -162,6 +162,7 @@
     if (st === 'active') return 'осталось ' + timeLeft(dl.due_at);
     if (st === 'done' && l.submission) {
       var sb = l.submission;
+      if (l.tasks) return sb.status === 'checked' ? 'проверено' : 'на проверке';  /* пробник */
       return sb.status === 'checked' && sb.max ? 'проверено · ' + Math.round(100 * sb.score / sb.max) + '%' : 'на проверке';
     }
     return STATE_TEXT[st];
@@ -412,19 +413,19 @@
       box.appendChild(el('span', 'dl__kicker', 'Осталось'));
       box.appendChild(big);
       box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. ' + (sheet
-        ? 'Решите вариант, впишите ответы в бланк ниже и отправьте — отправка бланка и есть сдача.'
-        : mock ? 'Когда решите вариант и отправите решение, нажмите «Сдал».' : 'Сфотографируйте решение или прикрепите PDF и отправьте на проверку — это и есть сдача.')));
+        ? 'Впишите ответы первой части в бланк ниже, прикрепите фото решений обеих частей и отправьте пробник — это и есть сдача.'
+        : mock ? 'Прикрепите фото решений и отправьте пробник — это и есть сдача.' : 'Сфотографируйте решение или прикрепите PDF и отправьте на проверку — это и есть сдача.')));
       var total = new Date(dl.due_at) - new Date(dl.started_at), passed = Date.now() - new Date(dl.started_at);
       var bar = el('span', 'dl__bar'); var fill = el('i');
       fill.style.width = Math.max(2, Math.min(100, 100 * passed / total)) + '%';
       fill.dataset.from = dl.started_at; fill.dataset.to = dl.due_at;
       bar.appendChild(fill); box.appendChild(bar);
       if (!mock) box.appendChild(uploader(l, err));
-      else if (!sheet) box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
+      else if (!sheet) box.appendChild(uploader(l, err, { mock: true, redraw: function () { fillMock(l); } }));  /* без бланка — только решения */
     } else {
       box.appendChild(el('p', 'dl__text', 'Сдано ' + when(dl.submitted_at) + '.' +
         (over ? ' Срок был просрочен ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') + '.' : '')));
-      if (!mock && l.submission) box.appendChild(submissionView(l.submission));
+      if (l.submission) box.appendChild(submissionView(l.submission, mock));
     }
     box.appendChild(err);
   }
@@ -446,7 +447,7 @@
         URL.revokeObjectURL(url);
         c.toBlob(function (b) {
           if (!b) return reject(new Error('Не получилось обработать «' + file.name + '».'));
-          resolve({ blob: b, name: (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', pdf: false });
+          resolve({ blob: b, name: (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', pdf: false, w: c.width, h: c.height });
         }, 'image/jpeg', 0.82);
       };
       img.onerror = function () {
@@ -456,8 +457,44 @@
       img.src = url;
     });
   }
-  function uploader(l, err) {
-    var list = pending[l.pk] || (pending[l.pk] = []);
+  /* Фото → один PDF прямо в браузере (страница A4 по ширине, высота по фото): куратору приходит один файл.
+     Минимальный PDF 1.4 с JPEG-картинками (DCTDecode), без библиотек. */
+  function makePdf(imgs) {
+    return Promise.all(imgs.map(function (im) {
+      return im.blob.arrayBuffer ? im.blob.arrayBuffer() : new Response(im.blob).arrayBuffer();
+    })).then(function (bufs) {
+      var enc = new TextEncoder(), parts = [], offs = [], len = 0, W = 595;
+      function add(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); len += b.length; }
+      function obj(n, body) { offs[n] = len; add(n + ' 0 obj\n'); body(); add('\nendobj\n'); }
+      add('%PDF-1.4\n');
+      var n = imgs.length, kids = [];
+      for (var i = 0; i < n; i++) kids.push((3 + 3 * i) + ' 0 R');
+      obj(1, function () { add('<< /Type /Catalog /Pages 2 0 R >>'); });
+      obj(2, function () { add('<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + n + ' >>'); });
+      imgs.forEach(function (im, i) {
+        var H = Math.round(W * im.h / im.w * 100) / 100, pg = 3 + 3 * i, data = new Uint8Array(bufs[i]);
+        var cs = 'q ' + W + ' 0 0 ' + H + ' 0 0 cm /Im' + i + ' Do Q';
+        obj(pg, function () { add('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /XObject << /Im' + i + ' ' + (pg + 2) + ' 0 R >> >> /Contents ' + (pg + 1) + ' 0 R >>'); });
+        obj(pg + 1, function () { add('<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream'); });
+        obj(pg + 2, function () {
+          add('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + data.length + ' >>\nstream\n');
+          add(data); add('\nendstream');
+        });
+      });
+      var xref = len, total = 3 + 3 * n, rows = '';
+      for (var k = 1; k < total; k++) rows += ('000000000' + offs[k]).slice(-10) + ' 00000 n \n';
+      add('xref\n0 ' + total + '\n0000000000 65535 f \n' + rows + 'trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+      return new Blob(parts, { type: 'application/pdf' });
+    });
+  }
+
+  /* opts: mock — пробник (фото склеиваются в один PDF, вместе с файлами уходит бланк), answers() — ответы бланка,
+     redraw() — перерисовать окно после выбора файлов */
+  function uploader(l, err, opts) {
+    opts = opts || {};
+    var mock = !!opts.mock, key = (mock ? 'm' : 'l') + l.pk;
+    var redraw = opts.redraw || function () { paintDone(l); };
+    var list = pending[key] || (pending[key] = []);
     var wrap = el('div', 'up');
     var picks = el('div', 'up__picks');
     function picker(label, cls, accept, capture) {
@@ -474,7 +511,7 @@
         status.textContent = 'Готовлю файлы…';
         Promise.all(chosen.map(shrink)).then(function (out) {
           out.forEach(function (f) { f.thumb = f.pdf ? null : URL.createObjectURL(f.blob); list.push(f); });
-          paintDone(l);
+          redraw();
         }).catch(function (e) { status.textContent = ''; err.textContent = e.message; err.hidden = false; });
       });
       return lab;
@@ -490,30 +527,44 @@
         else li.appendChild(el('span', 'up__pdf', 'PDF'));
         li.appendChild(el('span', 'up__name', f.name));
         var x = el('button', 'up__del', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать ' + f.name);
-        x.addEventListener('click', function () { if (f.thumb) URL.revokeObjectURL(f.thumb); list.splice(i, 1); paintDone(l); });
+        x.addEventListener('click', function () { if (f.thumb) URL.revokeObjectURL(f.thumb); list.splice(i, 1); redraw(); });
         li.appendChild(x);
         ul.appendChild(li);
       });
       wrap.appendChild(ul);
     }
-    var status = el('p', 'up__status', list.length ? 'Выбрано: ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов') + '. Проверьте, что всё читается.' : 'Можно несколько фото: каждая страница решения — отдельным снимком.');
+    var idle = mock
+      ? 'Сфотографируйте по порядку каждую страницу решения — и первой, и второй части. При отправке фото соберутся в один PDF. Если у вас уже есть готовый PDF, прикрепите его.'
+      : 'Можно несколько фото: каждая страница решения — отдельным снимком.';
+    var status = el('p', 'up__status', list.length ? 'Выбрано: ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов') + '. Проверьте, что всё читается.' + (mock ? ' Фото уйдут одним PDF в этом порядке.' : '') : idle);
     wrap.appendChild(status);
     if (list.length) {
-      wrap.appendChild(confirmButton('Отправить на проверку', 'Отправить? Изменить будет нельзя', 'btn--solid dl__btn', function (restore) {
+      var sendLabel = mock ? 'Отправить пробник' : 'Отправить на проверку';
+      wrap.appendChild(confirmButton(sendLabel, 'Отправить? Изменить будет нельзя', 'btn--solid dl__btn', function (restore) {
         var fd = new FormData();
-        list.forEach(function (f) { fd.append('files', f.blob, f.name); });
+        var photos = list.filter(function (f) { return !f.pdf; }), pdfs = list.filter(function (f) { return f.pdf; });
+        var ready = mock && photos.length
+          ? (status.textContent = 'Собираю PDF…', makePdf(photos).then(function (pdf) {
+              fd.append('files', pdf, 'probnik-' + l.number + '.pdf');
+              pdfs.forEach(function (f) { fd.append('files', f.blob, f.name); });
+            }))
+          : Promise.resolve(list.forEach(function (f) { fd.append('files', f.blob, f.name); }));
+        if (mock && opts.answers) fd.append('answers', JSON.stringify(opts.answers()));
+        ready.then(send, function () { restore(); status.textContent = ''; err.textContent = 'Не получилось собрать PDF из фото. Попробуйте ещё раз или прикрепите готовый PDF.'; err.hidden = false; });
+        function send() {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/me/lessons/' + l.pk + '/submission');
+        xhr.open('POST', '/api/me/' + (mock ? 'mocks/' : 'lessons/') + l.pk + '/submission');
         xhr.withCredentials = true;
         xhr.upload.onprogress = function (e) { if (e.lengthComputable) status.textContent = 'Отправляю… ' + Math.round(100 * e.loaded / e.total) + '%'; };
         xhr.onload = function () {
           var d = {}; try { d = JSON.parse(xhr.responseText); } catch (e) { /* пусто */ }
           if (xhr.status >= 200 && xhr.status < 300) {
             list.forEach(function (f) { if (f.thumb) URL.revokeObjectURL(f.thumb); });
-            delete pending[l.pk];
+            delete pending[key];
             l.deadline = d.deadline; l.done = true; l.submission = d.submission;
+            if (mock) { if (d.result) l.result = d.result; dropDraft(l); }
             syncDeadlines();
-            paintDone(l);
+            redraw();
           } else {
             restore(); status.textContent = '';
             err.textContent = typeof d.detail === 'string' ? d.detail : 'Сервер ответил ошибкой ' + xhr.status + '.'; err.hidden = false;
@@ -522,12 +573,13 @@
         };
         xhr.onerror = function () { restore(); status.textContent = ''; err.textContent = 'Нет связи с сервером. Файлы не потерялись — попробуйте ещё раз.'; err.hidden = false; };
         xhr.send(fd);
+        }
       }));
     }
     return wrap;
   }
   /* Что сдано и результат проверки */
-  function submissionView(sb) {
+  function submissionView(sb, mock) {
     var box = el('div', 'sres sres--' + sb.status);
     var files = el('div', 'sres__files');
     sb.files.forEach(function (f, i) {
@@ -537,15 +589,16 @@
       files.appendChild(a);
     });
     box.appendChild(files);
+    if (sb.purged) box.insertBefore(el('p', 'sres__wait', 'Файлы этой работы уже удалены с сайта, результат сохранён.'), files);
     if (sb.status === 'checked') {
       var pct = sb.max ? Math.round(100 * sb.score / sb.max) : 0;
       var head = el('div', 'sres__head');
-      head.appendChild(el('span', 'dl__label', 'Результат проверки'));
+      head.appendChild(el('span', 'dl__label', mock ? 'Вторая часть · проверка куратора' : 'Результат проверки'));
       head.appendChild(el('b', 'sres__score', sb.score + ' из ' + sb.max + ' · ' + pct + '%'));
       box.appendChild(head);
       if (sb.comment) box.appendChild(el('p', 'sres__comment', sb.comment));
     } else {
-      box.appendChild(el('p', 'sres__wait', 'Работа на проверке. Результат появится здесь.'));
+      box.appendChild(el('p', 'sres__wait', mock ? 'Решения на проверке у куратора: баллы за вторую часть появятся здесь.' : 'Работа на проверке. Результат появится здесь.'));
     }
     return box;
   }
@@ -583,9 +636,14 @@
   /* ── Бланк ответов первой части: проверяет сервер, попытка одна ── */
   var NOTE_PART1 = 'Это баллы только за первую часть. Вторая часть в этот результат не входит.';
   function draftKey(m) { return 'mock-draft-' + m.pk; }
-  function loadDraft(m) { try { return JSON.parse(localStorage.getItem(draftKey(m)) || '{}'); } catch (e) { return {}; } }
-  function saveDraft(m, d) { try { localStorage.setItem(draftKey(m), JSON.stringify(d)); } catch (e) { /* без хранилища тоже работает */ } }
-  function dropDraft(m) { try { localStorage.removeItem(draftKey(m)); } catch (e) { /* не важно */ } }
+  var drafts = {};  /* в памяти — на случай, если хранилище браузера недоступно */
+  function loadDraft(m) {
+    if (drafts[m.pk]) return drafts[m.pk];
+    try { drafts[m.pk] = JSON.parse(localStorage.getItem(draftKey(m)) || '{}'); } catch (e) { drafts[m.pk] = {}; }
+    return drafts[m.pk];
+  }
+  function saveDraft(m, d) { drafts[m.pk] = d; try { localStorage.setItem(draftKey(m), JSON.stringify(d)); } catch (e) { /* без хранилища тоже работает */ } }
+  function dropDraft(m) { delete drafts[m.pk]; try { localStorage.removeItem(draftKey(m)); } catch (e) { /* не важно */ } }
 
   function renderSheet(m) {
     var box = $('lesson-sheet'); box.textContent = '';
@@ -595,7 +653,7 @@
     if (m.result) return renderResult(box, m.result);
 
     box.appendChild(el('h3', 'bsheet__h', 'Бланк ответов · первая часть'));
-    box.appendChild(el('p', 'bsheet__hint', 'Решите вариант и впишите ответы. Дробные числа — через запятую, ответы из нескольких цифр — без пробелов. Отправить можно один раз; до отправки ответы сохраняются на этом устройстве.'));
+    box.appendChild(el('p', 'bsheet__hint', 'Дробные числа — через запятую, ответы из нескольких цифр — без пробелов. Ответы сохраняются на этом устройстве до отправки; отправить пробник можно один раз.'));
     var draft = loadDraft(m);
     var grid = el('div', 'bsheet__grid');
     m.tasks.forEach(function (n) {
@@ -611,35 +669,22 @@
     box.appendChild(grid);
     var foot = el('div', 'bsheet__foot');
     var filled = el('span', 'bsheet__count');
-    var btn = el('button', 'btn btn--solid', 'Отправить ответы'); btn.type = 'button';
-    var err = el('p', 'form-error'); err.hidden = true;
-    foot.appendChild(filled); foot.appendChild(btn);
-    box.appendChild(foot); box.appendChild(err);
+    foot.appendChild(filled);
+    box.appendChild(foot);
     function count() {
       var n = m.tasks.filter(function (t) { return (draft[t] || '').trim(); }).length;
       filled.textContent = 'заполнено ' + n + ' из ' + m.tasks.length;
     }
     count();
-    var armed = false;
-    btn.addEventListener('click', function () {
-      if (!armed) {
-        armed = true; btn.textContent = 'Точно отправить? Изменить будет нельзя';
-        btn.classList.add('is-armed');
-        setTimeout(function () { if (btn.isConnected && armed) { armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed'); } }, 4000);
-        return;
-      }
-      btn.disabled = true; err.hidden = true;
-      var answers = {};
-      m.tasks.forEach(function (t) { answers[t] = (draft[t] || '').trim(); });
-      api('POST', '/api/me/mocks/' + m.pk + '/answers', { answers: answers }).then(function (r) {
-        m.result = r; dropDraft(m);
-        if (r.deadline) { m.deadline = r.deadline; m.done = r.deadline.state === 'done'; syncDeadlines(); }
-        renderSheet(m); paintDone(m);
-      }).catch(function (e) {
-        err.textContent = e.message; err.hidden = false; btn.disabled = false; armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed');
-        if (e.status === 409) reloadLessons();  // срок истёк — показать «Взять новый срок» (черновик ответов сохранён)
-      });
-    });
+    /* решения файлами и одна кнопка «Отправить пробник» — бланк уходит вместе с ними */
+    box.appendChild(el('h3', 'bsheet__h bsheet__h--files', 'Решения · фото или PDF'));
+    var err = el('p', 'form-error'); err.hidden = true;
+    box.appendChild(uploader(m, err, {
+      mock: true,
+      redraw: function () { fillMock(m); },
+      answers: function () { var a = {}; m.tasks.forEach(function (t) { a[t] = (draft[t] || '').trim(); }); return a; }
+    }));
+    box.appendChild(err);
   }
 
   function renderResult(box, r) {

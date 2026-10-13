@@ -516,11 +516,11 @@
               if (dl.first_started_at) info.appendChild(document.createTextNode((dl.overdue ? '  ·  ' : '') + 'впервые начал ' + dateTime(dl.first_started_at) + '  ·  срок ' + dl.days + ' ' + plural(dl.days, 'день', 'дня', 'дней')));
               t.appendChild(info);
             }
-            if (!mock && it.submission) {
+            if (it.submission) {
               var sb = it.submission, sres = el('span', 'prow__res');
               var link = el('a', null, sb.files.length + ' ' + plural(sb.files.length, 'файл', 'файла', 'файлов'));
               link.href = '/check/#s' + sb.id; link.target = '_blank'; link.rel = 'noopener';
-              if (sb.status === 'checked') sres.appendChild(el('b', null, 'Проверено: ' + sb.score + ' из ' + sb.max + ' (' + Math.round(100 * sb.score / sb.max) + '%)  ·  '));
+              if (sb.status === 'checked') sres.appendChild(el('b', null, (mock ? '2 часть: ' : 'Проверено: ') + sb.score + ' из ' + sb.max + ' (' + Math.round(100 * sb.score / sb.max) + '%)  ·  '));
               else sres.appendChild(el('b', null, 'Ждёт проверки  ·  '));
               sres.appendChild(link);
               t.appendChild(sres);

@@ -153,9 +153,10 @@ def open_mock(number: int, request: Request, db: Session = Depends(get_db)):
     """Пробник: /mock/3. HTML открывается как визуализация (песочница, кнопка «В личный кабинет»), PDF — как PDF."""
     m = db.scalar(select(Mock).where(Mock.number == number))
     user = current_user(request, db)
-    if not m or not can_open(db, request, "mock", m.id, user):
+    curator = m is not None and user is not None and user.role == "curator"  # куратору — вариант для проверки
+    if not curator and (not m or not can_open(db, request, "mock", m.id, user)):
         return _to_account(f"/mock/{number}", user is not None)
-    if not mock_unlocked(db, request, m.id, user):
+    if not curator and not mock_unlocked(db, request, m.id, user):
         # пробник открыт, но ученик ещё не нажал «Начать» — ведём к кнопке в кабинете
         return RedirectResponse(f"/account/#p{number}", status_code=303, headers={"Cache-Control": "no-store"})
     _track(db, request, user, "mock", str(number), m.title)

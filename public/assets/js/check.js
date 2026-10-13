@@ -62,14 +62,21 @@
     if (target === s.id) li.classList.add('is-target');
     var head = el('div', 'ck-card__head');
     var who = el('h2', 'ck-card__who', s.student + ' ');
-    who.appendChild(el('span', null, '· ' + (s.lesson ? 'занятие № ' + s.lesson.number + (s.lesson.title ? ' · ' + s.lesson.title : '') : 'занятие удалено')));
+    var what = s.kind === 'mock'
+      ? (s.mock ? 'пробник № ' + s.mock.number + (s.mock.title ? ' · ' + s.mock.title : '') : 'пробник удалён')
+      : (s.lesson ? 'занятие № ' + s.lesson.number + (s.lesson.title ? ' · ' + s.lesson.title : '') : 'занятие удалено');
+    who.appendChild(el('span', null, '· ' + what));
     head.appendChild(who);
     var meta = el('div', 'ck-card__meta');
     meta.appendChild(el('span', null, 'сдано ' + when(s.created_at)));
     if (s.overdue) meta.appendChild(el('span', 'ck-late', 'срок до сдачи истекал ' + s.overdue + ' ' + plural(s.overdue, 'раз', 'раза', 'раз')));
     if (s.lesson && s.lesson.hw_url) { var a = el('a', null, 'условие ДЗ (PDF)'); a.href = s.lesson.hw_url; a.target = '_blank'; a.rel = 'noopener'; meta.appendChild(a); }
+    if (s.mock) { var mv = el('a', null, 'вариант'); mv.href = s.mock.url; mv.target = '_blank'; mv.rel = 'noopener'; meta.appendChild(mv); }
     head.appendChild(meta);
     li.appendChild(head);
+    if (s.part1) li.appendChild(el('p', 'ck-part1', 'Первая часть (автопроверка): ' + s.part1.score + ' из ' + s.part1.max +
+      (s.part1.wrong.length ? ' · ошибки в заданиях ' + s.part1.wrong.join(', ') : ' · без ошибок')));
+    if (s.purged) li.appendChild(el('p', 'ck-purged', 'Файлы удалены с сайта по сроку хранения; копия — в Telegram.'));
     if (s.notify_error) li.appendChild(el('p', 'ck-warn', 'Бот не смог прислать работу: ' + s.notify_error));
 
     var grid = el('div', 'ck-files');
@@ -93,7 +100,7 @@
   }
   function resultBlock(s) {
     var box = el('div', 'ck-result');
-    box.appendChild(el('b', null, s.score + ' из ' + s.max + ' · ' + Math.round(100 * s.score / s.max) + '%'));
+    box.appendChild(el('b', null, (s.kind === 'mock' ? '2 часть: ' : '') + s.score + ' из ' + s.max + ' · ' + Math.round(100 * s.score / s.max) + '%'));
     box.appendChild(el('span', null, 'проверил ' + (s.checked_by || '—') + ', ' + when(s.checked_at)));
     var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
     edit.addEventListener('click', function () { s.editing = true; render(); });
@@ -110,7 +117,8 @@
       lab.appendChild(inp);
       return [lab, inp];
     }
-    var a = num('Верно', s.score, 'sc-' + s.id), b = num('Всего задач', s.max, 'mx-' + s.id);
+    var mock = s.kind === 'mock';
+    var a = num(mock ? 'Баллы за 2 часть' : 'Верно', s.score, 'sc-' + s.id), b = num(mock ? 'Максимум' : 'Всего задач', s.max, 'mx-' + s.id);
     f.appendChild(a[0]); f.appendChild(el('span', 'ck-of', 'из')); f.appendChild(b[0]);
     var cl = el('label', 'ck-comment', 'Комментарий для ученика');
     var ta = el('textarea'); ta.maxLength = 3000; ta.value = s.comment || ''; ta.placeholder = 'Например: №4 — cos 60° = 1/2, а не √3/2';
@@ -126,8 +134,8 @@
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       var sc = a[1].value.trim(), mx = b[1].value.trim();
-      if (!sc || !mx) { err.textContent = 'Впишите, сколько верно и из скольких.'; err.hidden = false; return; }
-      if (+sc > +mx) { err.textContent = '«Верно» не может быть больше, чем всего задач.'; err.hidden = false; return; }
+      if (!sc || !mx) { err.textContent = mock ? 'Впишите баллы и максимум.' : 'Впишите, сколько верно и из скольких.'; err.hidden = false; return; }
+      if (+sc > +mx) { err.textContent = mock ? 'Баллов не может быть больше максимума.' : '«Верно» не может быть больше, чем всего задач.'; err.hidden = false; return; }
       save.disabled = true; err.hidden = true;
       api('PUT', '/api/check/submissions/' + s.id, { score: +sc, max_score: +mx, comment: ta.value.trim() }).then(function (r) {
         var wasNew = s.status === 'new';

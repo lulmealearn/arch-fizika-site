@@ -179,6 +179,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     if any([deadlines.settle(p) for p in mprog.values()]):
         db.commit()
     tries = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == user.id))}
+    msubs = latest_submissions(db, user.id, "mock_id")
     out_mocks = []
     for m in mocks:
         item = mock_out(m)
@@ -190,6 +191,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         item["locked"] = not (p and p.first_started_at)
         if item["locked"]:
             item["url"] = None
+        item["submission"] = submission_out(msubs.get(m.id))
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
@@ -263,10 +265,9 @@ def submit_item(kind: str, pk: int, request: Request, db: Session = Depends(get_
     """Ученик отметил, что сдал. Только пока идёт срок: если он истёк, сначала берут новый.
     Пробник с автопроверкой сдаётся бланком ответов, а не этой кнопкой."""
     _, item, row = _my_item(request, db, kind, pk)
-    if kind == "mocks" and item.answer_key and deadlines.state(row) != "done":
-        raise HTTPException(400, "Этот пробник сдаётся бланком ответов.")
-    if kind == "lessons" and deadlines.state(row) != "done":
-        raise HTTPException(400, "Прикрепите решение: фото или PDF.")  # ДЗ сдаётся файлами (routes_check)
+    if deadlines.state(row) != "done":
+        # ДЗ и пробники сдаются файлами (routes_check): кнопки «Сдал» без решения больше нет
+        raise HTTPException(400, "Прикрепите решение: фото или PDF.")
     _need_active(db, row)
     if deadlines.state(row) == "active":
         deadlines.submit(row)
@@ -288,8 +289,8 @@ def ping(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/me/mocks/{mock_pk}/answers")
 def submit_answers(mock_pk: int, body: AnswersIn, request: Request, db: Session = Depends(get_db)):
-    """Бланк ответов первой части: проверка по ключу на сервере. Попытка одна, только пока идёт срок;
-    отправка бланка и есть сдача пробника."""
+    """Устарело: пробник сдаётся одной кнопкой вместе с решениями — POST /api/me/mocks/<id>/submission (routes_check)."""
+    raise HTTPException(400, "Отправьте пробник вместе с решениями: прикрепите фото или PDF и нажмите «Отправить пробник».")
     user, m, row = _my_item(request, db, "mocks", mock_pk)
     if not m.answer_key:
         raise HTTPException(400, "У этого пробника нет автопроверки.")

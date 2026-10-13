@@ -65,6 +65,8 @@ NEW_COLUMNS = [
     ("mock_progress", "last_overdue_at", "DATETIME NULL"),
     ("users", "role", "VARCHAR(16) NOT NULL DEFAULT 'student'"),
     ("users", "tg_chat_id", "VARCHAR(32) NULL"),
+    ("submissions", "mock_id", "INTEGER NULL"),
+    ("submissions", "files_purged_at", "DATETIME NULL"),
 ]
 
 
@@ -126,14 +128,43 @@ def _migrate_viewed_to_submitted(db) -> None:
     db.commit()
 
 
+def _submissions_lesson_nullable() -> None:
+    """Первая версия таблицы submissions была только для ДЗ (lesson_id NOT NULL). Теперь туда же сдаются пробники —
+    пересобираем таблицу с теми же данными. Нужно лишь базам, созданным до этого изменения (13.10.2026)."""
+    insp = inspect(engine)
+    if "submissions" not in insp.get_table_names():
+        return
+    col = next((c for c in insp.get_columns("submissions") if c["name"] == "lesson_id"), None)
+    if col is None or col.get("nullable", True):
+        return
+    from .models import Submission
+    old_cols = [c["name"] for c in insp.get_columns("submissions")]
+    keep = [c.name for c in Submission.__table__.columns if c.name in old_cols]
+    names = ", ".join(keep)
+    with engine.begin() as conn:
+        for ix in insp.get_indexes("submissions"):
+            if engine.dialect.name == "mysql":
+                conn.execute(text(f"DROP INDEX {ix['name']} ON submissions"))
+            else:
+                conn.execute(text(f"DROP INDEX {ix['name']}"))
+        conn.execute(text("ALTER TABLE submissions RENAME TO submissions_old"))
+        Submission.__table__.create(conn)
+        conn.execute(text(f"INSERT INTO submissions ({names}) SELECT {names} FROM submissions_old"))
+        conn.execute(text("DROP TABLE submissions_old"))
+    print("[db] Таблица submissions пересобрана: теперь в неё сдаются и пробники")
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
+    _submissions_lesson_nullable()
     with SessionLocal() as db:
         _migrate_homeworks(db)
         prune(db)  # журнал активности старше года не храним
         _fill_lesson_sections(db)
         _migrate_viewed_to_submitted(db)
+        from .routes_check import purge_old_files
+        purge_old_files(db)  # файлы давно проверенных работ
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

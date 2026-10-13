@@ -1,14 +1,15 @@
-"""Сдача ДЗ на сайте и проверка кураторами.
+"""Сдача ДЗ и пробников на сайте и проверка кураторами.
 
 Ученик прикрепляет к занятию фото или PDF (пока идёт срок) — это и есть «Сдал». Бот @Arch_Tutor_Bot присылает работу
 кураторам (и владельцу, если задан ADMIN_TG_CHAT_ID) со ссылкой на страницу проверки /check/. Куратор ставит
 «верно из всего» и комментарий — ученик видит результат в папке занятия.
 Куратор — обычный аккаунт с role="curator" (назначает админ во вкладке «Ученики»)."""
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -17,8 +18,9 @@ from sqlalchemy.orm import Session
 from . import config, deadlines, files, telegram
 from .access import current_user
 from .db import SessionLocal, get_db
-from .models import Lesson, Submission, User
-from .routes_auth import _my_item, _need_active
+from .mockcheck import grade
+from .models import Lesson, Mock, MockAttempt, Submission, User
+from .routes_auth import _my_item, _need_active, attempt_out
 from .security import check_same_origin, is_admin
 from .serialize import _iso
 from .tracking import touch
@@ -58,15 +60,35 @@ def submission_out(s: Optional[Submission]) -> Optional[dict]:
     if s is None:
         return None
     return {"id": s.id, "created_at": _iso(s.created_at), "files": files_out(s), "status": s.status,
-            "score": s.score, "max": s.max_score, "comment": s.comment or "", "checked_at": _iso(s.checked_at)}
+            "score": s.score, "max": s.max_score, "comment": s.comment or "", "checked_at": _iso(s.checked_at),
+            "purged": s.files_purged_at is not None}
 
 
-def latest_submissions(db: Session, user_id: int) -> dict:
-    """{lesson_id: последняя сдача ученика}."""
+def latest_submissions(db: Session, user_id: int, field: str = "lesson_id") -> dict:
+    """{lesson_id или mock_id: последняя сдача ученика}."""
     out = {}
-    for s in db.scalars(select(Submission).where(Submission.user_id == user_id).order_by(Submission.created_at, Submission.id)):
-        out[s.lesson_id] = s
+    col = getattr(Submission, field)
+    for s in db.scalars(select(Submission).where(Submission.user_id == user_id, col.is_not(None))
+                        .order_by(Submission.created_at, Submission.id)):
+        out[getattr(s, field)] = s
     return out
+
+
+def purge_old_files(db: Session) -> int:
+    """Удалить файлы работ, проверенных больше SUBMISSION_KEEP_DAYS дней назад. Балл и комментарий остаются."""
+    if config.SUBMISSION_KEEP_DAYS <= 0:
+        return 0
+    edge = datetime.now(timezone.utc) - timedelta(days=config.SUBMISSION_KEEP_DAYS)
+    old = db.scalars(select(Submission).where(Submission.status == "checked", Submission.files_purged_at.is_(None),
+                                              Submission.checked_at < edge)).all()
+    for s in old:
+        files.delete_submission_files(s.id)
+        s.files = []
+        s.files_purged_at = datetime.now(timezone.utc)
+    if old:
+        db.commit()
+        log.info("Удалены файлы %d проверенных работ старше %d дней", len(old), config.SUBMISSION_KEEP_DAYS)
+    return len(old)
 
 
 # ── Сдача ──
@@ -77,14 +99,7 @@ async def _read(upload: UploadFile) -> bytes:
     return data
 
 
-@router.post("/api/me/lessons/{pk}/submission")
-async def submit_homework(pk: int, request: Request, background: BackgroundTasks,
-                          files_in: List[UploadFile] = File(..., alias="files"), db: Session = Depends(get_db)):
-    """Ученик сдаёт ДЗ файлами. Только пока идёт срок; после сдачи занятие «Сдано», кураторам уходит сообщение."""
-    user, lesson, row = _my_item(request, db, "lessons", pk)
-    if deadlines.state(row) == "done":
-        raise HTTPException(409, "Это занятие уже сдано.")
-    _need_active(db, row)
+async def _collect(files_in: List[UploadFile]) -> List[Tuple[bytes, str, str]]:
     uploads = [f for f in files_in if f is not None and f.filename]
     if not uploads:
         raise HTTPException(400, "Прикрепите решение: фото или PDF.")
@@ -97,8 +112,11 @@ async def submit_homework(pk: int, request: Request, background: BackgroundTasks
         if not ext:
             raise HTTPException(400, f"«{up.filename}» — не фото и не PDF. Подойдут JPEG, PNG, WebP или PDF.")
         parts.append((data, ext, (up.filename or "")[:120]))
+    return parts
 
-    s = Submission(user_id=user.id, lesson_id=lesson.id, files=[], overdue=row.overdue_count or 0)
+
+def _store(db: Session, s: Submission, parts: List[Tuple[bytes, str, str]], row) -> None:
+    """Записать файлы работы на диск и отметить сдачу; при ошибке — откатить и убрать файлы."""
     db.add(s)
     db.flush()
     d = files.submission_dir(s.id)
@@ -116,8 +134,60 @@ async def submit_homework(pk: int, request: Request, background: BackgroundTasks
         db.rollback()
         files.delete_submission_files(s.id)
         raise
+
+
+@router.post("/api/me/mocks/{pk}/submission")
+async def submit_mock(pk: int, request: Request, background: BackgroundTasks,
+                      files_in: List[UploadFile] = File(..., alias="files"), answers: str = Form(""),
+                      db: Session = Depends(get_db)):
+    """Сдача пробника одной кнопкой: бланк первой части (если есть ключ — проверяется сразу) и решения файлами
+    (обычно один PDF, собранный из фото в браузере). Только пока идёт срок."""
+    user, m, row = _my_item(request, db, "mocks", pk)
+    if deadlines.state(row) == "done":
+        raise HTTPException(409, "Этот пробник уже сдан.")
+    _need_active(db, row)
+    parts = await _collect(files_in)
+    attempt = None
+    if m.answer_key:
+        if db.scalar(select(MockAttempt.id).where(MockAttempt.user_id == user.id, MockAttempt.mock_id == m.id)):
+            raise HTTPException(409, "Ответы на этот пробник уже отправлены.")
+        try:
+            raw = json.loads(answers or "{}")
+        except ValueError:
+            raise HTTPException(400, "Ответы переданы в неверном виде.")
+        allowed = {str(t["n"]) for t in m.answer_key}
+        given = {str(k): (str(v) if v is not None else "").strip()[:60] for k, v in (raw or {}).items() if str(k) in allowed}
+        score, total, details = grade(m.answer_key, given)
+        attempt = MockAttempt(user_id=user.id, mock_id=m.id, answers=given, score=score, max_score=total, details=details)
+        db.add(attempt)
+    s = Submission(user_id=user.id, mock_id=m.id, files=[], overdue=row.overdue_count or 0)
+    _store(db, s, parts, row)
     touch(db, user, request)
     background.add_task(notify_curators, s.id)
+    background.add_task(_purge_in_background)
+    return {"deadline": deadlines.status_out(row, m), "submission": submission_out(s),
+            "result": attempt_out(attempt) if attempt else None}
+
+
+def _purge_in_background() -> None:
+    with SessionLocal() as db:
+        purge_old_files(db)
+
+
+@router.post("/api/me/lessons/{pk}/submission")
+async def submit_homework(pk: int, request: Request, background: BackgroundTasks,
+                          files_in: List[UploadFile] = File(..., alias="files"), db: Session = Depends(get_db)):
+    """Ученик сдаёт ДЗ файлами. Только пока идёт срок; после сдачи занятие «Сдано», кураторам уходит сообщение."""
+    user, lesson, row = _my_item(request, db, "lessons", pk)
+    if deadlines.state(row) == "done":
+        raise HTTPException(409, "Это занятие уже сдано.")
+    _need_active(db, row)
+    parts = await _collect(files_in)
+    s = Submission(user_id=user.id, lesson_id=lesson.id, files=[], overdue=row.overdue_count or 0)
+    _store(db, s, parts, row)
+    touch(db, user, request)
+    background.add_task(notify_curators, s.id)
+    background.add_task(_purge_in_background)
     return {"deadline": deadlines.status_out(row, lesson), "submission": submission_out(s)}
 
 
@@ -150,10 +220,15 @@ class CheckIn(BaseModel):
     comment: str = ""
 
 
-def check_out(s: Submission, u: Optional[User], l: Optional[Lesson]) -> dict:
+def check_out(s: Submission, u: Optional[User], l: Optional[Lesson], m: Optional[Mock] = None,
+              a: Optional[MockAttempt] = None) -> dict:
     return {
         "id": s.id, "student": u.nickname if u else "?", "student_id": s.user_id,
+        "kind": "mock" if s.mock_id else "lesson",
         "lesson": {"pk": l.id, "number": l.number, "title": l.title, "hw_url": f"/hw/{l.number}" if l and l.hw_file else None} if l else None,
+        "mock": {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}"} if m else None,
+        "part1": {"score": a.score, "max": a.max_score, "wrong": [d["n"] for d in (a.details or []) if d["points"] < d["max"]]} if a else None,
+        "purged": s.files_purged_at is not None,
         "created_at": _iso(s.created_at), "overdue": s.overdue or 0, "files": files_out(s),
         "status": s.status, "score": s.score, "max": s.max_score, "comment": s.comment or "",
         "checked_by": s.checked_by, "checked_at": _iso(s.checked_at),
@@ -177,9 +252,12 @@ def check_list(response: Response, status: str = "new", name: str = Depends(requ
     q = q.order_by(Submission.created_at.asc() if status == "new" else Submission.created_at.desc(), Submission.id)
     subs = db.scalars(q.limit(300)).all()
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_({s.user_id for s in subs})))} if subs else {}
-    lessons = {l.id: l for l in db.scalars(select(Lesson).where(Lesson.id.in_({s.lesson_id for s in subs})))} if subs else {}
+    lessons = {l.id: l for l in db.scalars(select(Lesson).where(Lesson.id.in_({s.lesson_id for s in subs if s.lesson_id})))} if subs else {}
+    mocks = {m.id: m for m in db.scalars(select(Mock).where(Mock.id.in_({s.mock_id for s in subs if s.mock_id})))} if subs else {}
+    atts = {(a.user_id, a.mock_id): a for a in db.scalars(select(MockAttempt).where(MockAttempt.mock_id.in_(set(mocks))))} if mocks else {}
     counts = {st: len(db.scalars(select(Submission.id).where(Submission.status == st)).all()) for st in ("new", "checked")}
-    return {"items": [check_out(s, users.get(s.user_id), lessons.get(s.lesson_id)) for s in subs], "counts": counts}
+    return {"items": [check_out(s, users.get(s.user_id), lessons.get(s.lesson_id), mocks.get(s.mock_id),
+                                atts.get((s.user_id, s.mock_id))) for s in subs], "counts": counts}
 
 
 @router.put("/api/check/submissions/{sid}")
@@ -191,14 +269,16 @@ def check_save(sid: int, body: CheckIn, name: str = Depends(require_staff), db: 
     if not 1 <= body.max_score <= 500:
         raise HTTPException(400, "«Из скольких» — от 1 до 500.")
     if not 0 <= body.score <= body.max_score:
-        raise HTTPException(400, "«Верно» — от 0 до числа заданий.")
+        raise HTTPException(400, "Баллов не может быть больше максимума." if s.mock_id else "«Верно» — от 0 до числа заданий.")
     s.score, s.max_score = body.score, body.max_score
     s.comment = (body.comment or "").strip()[:3000]
     s.status = "checked"
     s.checked_by = name
     s.checked_at = datetime.now(timezone.utc)
     db.commit()
-    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id))
+    m = db.get(Mock, s.mock_id) if s.mock_id else None
+    a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id)) if m else None
+    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id) if s.lesson_id else None, m, a)
 
 
 # ── Уведомления через бота ──
@@ -223,7 +303,10 @@ def notify_curators(sub_id: int) -> None:
         s = db.get(Submission, sub_id)
         if s is None:
             return
-        u, l = db.get(User, s.user_id), db.get(Lesson, s.lesson_id)
+        u = db.get(User, s.user_id)
+        l = db.get(Lesson, s.lesson_id) if s.lesson_id else None
+        m = db.get(Mock, s.mock_id) if s.mock_id else None
+        a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id)) if m else None
         to = recipients(db)
         if not telegram.enabled():
             s.notify_error = "Бот не настроен (python run.py set-bot) — работа ждёт на странице проверки."
@@ -233,9 +316,15 @@ def notify_curators(sub_id: int) -> None:
             n_ph = sum(1 for f in s.files if f["type"].startswith("image/"))
             n_pdf = len(s.files) - n_ph
             what = ", ".join(x for x in (f"{n_ph} фото" if n_ph else "", f"{n_pdf} PDF" if n_pdf else "") if x)
-            title = f"занятие № {l.number}" + (f" «{l.title}»" if l and l.title else "") if l else "занятие"
-            caption = (f"Новое ДЗ на проверку\n{u.nickname if u else '?'} · {title}\n"
-                       f"Сдано {_msk(s.created_at)} (мск) · {what}\n"
+            if m:
+                title = f"пробник № {m.number}" + (f" «{m.title}»" if m.title else "")
+                head = "Новый пробник на проверку"
+                extra = f"Первая часть (автопроверка): {a.score} из {a.max_score}\n" if a else ""
+            else:
+                title = f"занятие № {l.number}" + (f" «{l.title}»" if l.title else "") if l else "занятие"
+                head, extra = "Новое ДЗ на проверку", ""
+            caption = (f"{head}\n{u.nickname if u else '?'} · {title}\n"
+                       f"Сдано {_msk(s.created_at)} (мск) · {what}\n" + extra
                        + (f"До сдачи срок истекал: {s.overdue}\n" if s.overdue else "")
                        + f"Проверить: {config.SITE_URL}/check/#s{s.id}")
             paths = [(files.submission_path(s.id, f["name"]), f["name"]) for f in s.files]

@@ -217,6 +217,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     _settle_all(db)
     from .routes_check import latest_submissions, submission_out
     subs = latest_submissions(db, u.id)
+    msubs = latest_submissions(db, u.id, "mock_id")
     lp = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == u.id))}
     mp = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == u.id))}
     # последний раз открывал материалы занятия / пробник
@@ -252,7 +253,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
                          **prog(lp.get(l.id))) for l in lessons],
         "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
                        result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key),
-                       deadline=deadlines.status_out(mp.get(m.id), m), **prog(mp.get(m.id))) for m in mocks],
+                       deadline=deadlines.status_out(mp.get(m.id), m), submission=submission_out(msubs.get(m.id)),
+                       **prog(mp.get(m.id))) for m in mocks],
     }
 
 
@@ -352,6 +354,7 @@ def users_reset_deadline(pk: int, kind: str, item_pk: int, db: Session = Depends
     elif kind == "mocks":
         db.execute(delete(MockProgress).where(MockProgress.user_id == u.id, MockProgress.mock_id == item_pk))
         db.execute(delete(MockAttempt).where(MockAttempt.user_id == u.id, MockAttempt.mock_id == item_pk))
+        _drop_submissions(db, Submission.user_id == u.id, Submission.mock_id == item_pk)
     else:
         raise HTTPException(404, "Не найдено.")
     db.commit()
@@ -630,6 +633,7 @@ def mocks_reset_attempt(pk: int, user_id: int, db: Session = Depends(get_db)):
     if not a:
         raise HTTPException(404, "Ответов этого ученика нет.")
     db.delete(a)
+    _drop_submissions(db, Submission.user_id == user_id, Submission.mock_id == pk)
     p = db.scalar(select(MockProgress).where(MockProgress.mock_id == pk, MockProgress.user_id == user_id))
     if p is not None:
         p.submitted_at = p.started_at = p.due_at = None
@@ -648,6 +652,7 @@ def mocks_delete(pk: int, db: Session = Depends(get_db)):
     drop_item(db, "mock", m.id)
     db.execute(delete(MockProgress).where(MockProgress.mock_id == m.id))
     db.execute(delete(MockAttempt).where(MockAttempt.mock_id == m.id))
+    _drop_submissions(db, Submission.mock_id == m.id)
     db.delete(m)
     db.commit()
     return {"ok": True}

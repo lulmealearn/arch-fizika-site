@@ -308,3 +308,5 @@ html.pop-lock { overflow: hidden; }
 /* куратор: ссылка на проверку */
 .acc__curator { align-self: flex-start; }
 .acc__head > .acc__head-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bsheet__h--files { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.bsheet .up { margin-top: 2px; }

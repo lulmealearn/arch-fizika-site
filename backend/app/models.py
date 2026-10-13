@@ -236,13 +236,16 @@ class Grant(Base):
 
 
 class Submission(Base):
-    """Сданное ДЗ: файлы ученика (фото или PDF в storage/submissions/), когда сдано, в срок ли, и результат проверки
-    куратором (верно из всего и комментарий). Сдача файлов и есть «Сдал» у занятия."""
+    """Сданная работа: ДЗ занятия (lesson_id) или пробник (mock_id). Файлы ученика (фото или PDF в storage/submissions/),
+    когда сдано, сколько раз до этого истекал срок, и результат проверки куратором: у ДЗ — верно из всего,
+    у пробника — баллы за вторую часть (первая проверяется автоматически, MockAttempt). Файлы проверенных работ
+    удаляются через SUBMISSION_KEEP_DAYS после проверки (files_purged_at), результат и комментарий остаются."""
     __tablename__ = "submissions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
+    lesson_id: Mapped[Optional[int]] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), nullable=True, index=True)
+    mock_id: Mapped[Optional[int]] = mapped_column(ForeignKey("mocks.id", ondelete="CASCADE"), nullable=True, index=True)
     # [{"name": "файл на диске", "orig": "имя у ученика", "type": "image/jpeg" | "application/pdf", "size": байт}]
     files: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
@@ -255,3 +258,4 @@ class Submission(Base):
     checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     notify_error: Mapped[str] = mapped_column(String(300), default="")
+    files_purged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

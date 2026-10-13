@@ -63,3 +63,5 @@
 .ck-view__stage { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 0 10px 20px; }
 .ck-view__stage img { max-width: 100%; height: auto; border-radius: 6px; background: #fff; }
 @media (prefers-reduced-motion: reduce) { .ck-card, .ck-file { transition: none; } }
+.ck-part1 { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--violet-tint); color: var(--violet-ink); font-size: 15px; }
+.ck-purged { margin: 0; font-size: 14px; color: var(--muted); }
