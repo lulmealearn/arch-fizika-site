@@ -70,6 +70,20 @@ NEW_COLUMNS = [
     ("submissions", "student_notified_at", "DATETIME NULL"),
     ("submissions", "task_scores", "JSON NULL"),
     ("submissions", "student_notify_error", "VARCHAR(300) NOT NULL DEFAULT ''"),
+    ("users", "sheet_tab", "VARCHAR(100) NULL"),
+    ("submissions", "sheet_synced_at", "DATETIME NULL"),
+    ("submissions", "sheet_place", "VARCHAR(160) NOT NULL DEFAULT ''"),
+    ("submissions", "sheet_row", "INTEGER NULL"),
+    ("submissions", "sheet_error", "VARCHAR(400) NOT NULL DEFAULT ''"),
+    ("reports", "kind", "VARCHAR(8) NOT NULL DEFAULT 'pdf'"),
+    ("reports", "status", "VARCHAR(12) NOT NULL DEFAULT 'published'"),
+    ("reports", "period_from", "VARCHAR(10) NULL"),
+    ("reports", "period_to", "VARCHAR(10) NULL"),
+    ("reports", "data", "JSON NULL"),
+    ("reports", "comment", "TEXT NULL"),
+    ("reports", "collected_at", "DATETIME NULL"),
+    ("reports", "published_at", "DATETIME NULL"),
+    ("reports", "notify_error", "VARCHAR(300) NOT NULL DEFAULT ''"),
 ]
 
 

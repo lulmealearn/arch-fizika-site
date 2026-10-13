@@ -294,7 +294,8 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
     db.execute(delete(Visit).where(Visit.user_id == u.id))
     db.execute(delete(View).where(View.user_id == u.id))
     for r in db.scalars(select(Report).where(Report.user_id == u.id)).all():
-        files.delete_hw(r.file_name)
+        if r.file_name:
+            files.delete_hw(r.file_name)
         db.delete(r)
     db.delete(u)
     db.commit()
@@ -312,6 +313,7 @@ def _drop_submissions(db: Session, *where) -> None:
 class RoleIn(BaseModel):
     curator: bool
     tg_chat_id: str = ""
+    sheet_tab: Optional[str] = None  # вкладка в Google-таблице; пусто — искать по chat id
 
 
 @router.put("/users/{pk}/role")
@@ -323,6 +325,8 @@ def users_set_role(pk: int, body: RoleIn, db: Session = Depends(get_db)):
         raise HTTPException(400, "Chat id — это число, например 123456789. Узнать его можно у бота @userinfobot.")
     u.role = "curator" if body.curator else "student"
     u.tg_chat_id = chat or None
+    if body.sheet_tab is not None:
+        u.sheet_tab = body.sheet_tab.strip()[:100] or None
     db.commit()
     return user_out(u, user_grants(db).get(u.id))
 
@@ -698,7 +702,8 @@ def reports_delete(pk: int, db: Session = Depends(get_db)):
     r = db.get(Report, pk)
     if not r:
         raise HTTPException(404, "Отчёт не найден.")
-    files.delete_hw(r.file_name)
+    if r.file_name:
+        files.delete_hw(r.file_name)
     db.delete(r)
     db.commit()
     return {"ok": True}

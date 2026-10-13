@@ -114,7 +114,34 @@
     if (s.comment) box.appendChild(el('p', null, s.comment));
     if (s.student_notified_at) box.appendChild(el('span', 'ck-sent', 'результат отправлен ученику в Telegram ' + when(s.student_notified_at)));
     else if (s.student_notify_error) box.appendChild(el('span', 'ck-sent ck-sent--no', s.student_notify_error));
+    var sh = sheetLine(s);
+    if (sh) box.appendChild(sh);
     return box;
+  }
+  /* Google-таблица: результат записывается фоном; если не вышло — видно здесь, можно повторить */
+  var sheetRefresh = null;
+  function sheetLine(s) {
+    if (!s.sheet) return null;
+    var wrap = el('span', 'ck-sent ck-sheet');
+    var fresh = s.sheet.synced_at && (!s.checked_at || new Date(s.sheet.synced_at) >= new Date(s.checked_at));
+    if (fresh && !s.sheet.error) {
+      wrap.textContent = 'записано в таблицу: ' + s.sheet.place;
+      return wrap;
+    }
+    if (s.sheet.error) { wrap.classList.add('ck-sent--no'); wrap.textContent = 'в таблицу не записано: ' + s.sheet.error + ' '; }
+    else {
+      wrap.textContent = 'записываю в таблицу… ';
+      if (!sheetRefresh) sheetRefresh = setTimeout(function () { sheetRefresh = null; load(); }, 6000);
+    }
+    var again = el('button', 'btn btn--small', 'Записать ещё раз'); again.type = 'button';
+    again.addEventListener('click', function () {
+      again.disabled = true; again.textContent = 'Записываю…';
+      api('POST', '/api/check/submissions/' + s.id + '/sheet').then(function (r) {
+        Object.keys(r).forEach(function (k) { s[k] = r[k]; }); render();
+      }).catch(function (e) { again.disabled = false; again.textContent = 'Записать ещё раз'; wrap.firstChild.textContent = e.message + ' '; });
+    });
+    wrap.appendChild(again);
+    return wrap;
   }
   function form(s) {
     var f = el('form', 'ck-form'); f.noValidate = true;

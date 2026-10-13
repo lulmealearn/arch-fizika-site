@@ -77,3 +77,5 @@
 .ck-task__row .ck-of { padding-top: 0; }
 .ck-tasks__total { flex: 1 1 100%; margin: 0; font-size: 16px; color: var(--ink-2); }
 .ck-tasks__total b { font-family: var(--display); font-size: 20px; color: var(--violet-ink); }
+.ck-sheet { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; text-transform: none; }
+.ck-sheet .btn { min-height: 40px; }

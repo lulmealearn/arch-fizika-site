@@ -168,6 +168,7 @@
     ]).then(function (r) {
       data.users = r[0].users; data.lessons = r[1].items; data.viz = r[2].items; data.sections = r[2].sections || []; data.mocks = r[3].items;
       renderUsers(); renderLessons(); renderMocks(); counts();
+      loadAuto();
     }).catch(function (e) { toast(e.message, true); });
   }
   function counts() {
@@ -398,7 +399,9 @@
       var dev = el('span', st.devices_30d >= 3 ? 'urow__warn' : null, 'устройств: ' + (st.devices_30d || 0));
       if (st.devices_30d >= 3) dev.title = 'Заходили с трёх и более устройств за месяц — возможно, аккаунтом пользуются несколько человек';
       facts.appendChild(dev);
+      var drafts = (u.reports || []).filter(function (r) { return r.status === 'draft'; }).length;
       facts.appendChild(el('span', null, 'отчётов: ' + (u.reports || []).length));
+      if (drafts) facts.appendChild(el('span', 'urow__warn', 'черновик отчёта ждёт проверки'));
       if (st.lessons_active) facts.appendChild(el('span', null, 'ДЗ в работе: ' + st.lessons_active));
       if (st.mocks_active) facts.appendChild(el('span', null, 'пробников в работе: ' + st.mocks_active));
       if (st.next_due) {
@@ -611,38 +614,107 @@
     });
   }
 
-  /* Отчёты для родителей: личные PDF ученика, раз в месяц */
+  /* Отчёты для родителей. Из Google-таблицы сайт сам собирает черновик раз в месяц (решение владельца):
+     открыть, дописать комментарий, опубликовать — ученик увидит его в кабинете. Можно и загрузить готовый PDF. */
   function monthTitle() {
     var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (new Date().getDate() < 15 ? 1 : 0));
     var t = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' }).replace(' г.', '');
     return t.charAt(0).toUpperCase() + t.slice(1);
   }
+  function ymd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function prevMonth() {
+    var now = new Date(), first = new Date(now.getFullYear(), now.getMonth() - 1, 1), last = new Date(now.getFullYear(), now.getMonth(), 0);
+    return [ymd(first), ymd(last)];
+  }
+  function reloadUsers() {
+    return api('GET', '/api/admin/users').then(function (d) { data.users = d.users; renderUsers(); return d.users; });
+  }
+  function reportRow(u, r, redraw) {
+    var li = el('li', 'rep' + (r.kind === 'auto' ? ' rep--auto' : ''));
+    var top = el('div', 'rep__top');
+    var a = el('a', 'rep__title', r.title); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+    top.appendChild(a);
+    top.appendChild(el('span', 'rep__badge' + (r.status === 'draft' ? ' rep__badge--draft' : ''), r.status === 'draft' ? 'черновик' : 'опубликован'));
+    top.appendChild(el('span', 'rep__date', r.kind === 'auto' ? 'из таблицы · ' + date(r.collected_at) : 'PDF · ' + date(r.created_at)));
+    li.appendChild(top);
+    var acts = el('div', 'rep__acts');
+    function busy(btn, p, done) {
+      btn.disabled = true;
+      return p.then(function (x) { if (done) done(x); }).catch(function (e) { toast(e.message, true); }).then(function () { btn.disabled = false; });
+    }
+    if (r.kind === 'auto') {
+      li.appendChild(el('p', 'rep__meta', 'Вкладка «' + (r.tab || '?') + '» · занятий: ' + r.lessons + ' · пробников: ' + r.mocks +
+        (r.notify_error ? ' · ' + r.notify_error : '')));
+      var ta = el('textarea', 'input rep__comment'); ta.rows = 4; ta.maxLength = 5000; ta.value = r.comment || '';
+      ta.placeholder = 'Комментарий преподавателя: как прошёл месяц, что получается, над чем работаем дальше. Пустая строка — новый абзац.';
+      ta.setAttribute('aria-label', 'Комментарий преподавателя');
+      li.appendChild(ta);
+      var save = el('button', 'btn btn--small', 'Сохранить комментарий'); save.type = 'button';
+      save.addEventListener('click', function () {
+        busy(save, api('PUT', '/api/admin/reports/' + r.pk, { comment: ta.value }), function (x) { r.comment = x.comment; toast('Комментарий сохранён'); });
+      });
+      var ref = el('button', 'btn btn--small', 'Обновить из таблицы'); ref.type = 'button';
+      ref.title = 'Заново взять цифры из таблицы, если там что-то поправили. Комментарий останется.';
+      ref.addEventListener('click', function () {
+        busy(ref, api('POST', '/api/admin/reports/' + r.pk + '/refresh'), function (x) { Object.assign(r, x); toast('Цифры обновлены'); redraw(); });
+      });
+      var pub = el('button', 'btn btn--small ' + (r.status === 'draft' ? 'btn--solid' : ''), r.status === 'draft' ? 'Опубликовать' : 'Снять с публикации'); pub.type = 'button';
+      pub.addEventListener('click', function () {
+        var go = r.status === 'draft'
+          ? api('PUT', '/api/admin/reports/' + r.pk, { comment: ta.value }).then(function () { return api('POST', '/api/admin/reports/' + r.pk + '/publish'); })
+          : api('POST', '/api/admin/reports/' + r.pk + '/unpublish');
+        busy(pub, go, function (x) {
+          Object.assign(r, x);
+          toast(x.status === 'published' ? 'Опубликован: ученик видит отчёт в кабинете' : 'Снят с публикации');
+          redraw(); reloadUsers(); loadAuto();
+        });
+      });
+      acts.appendChild(save); acts.appendChild(ref); acts.appendChild(pub);
+    }
+    var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
+    del.addEventListener('click', function () {
+      armDelete(del, function () {
+        return api('DELETE', '/api/admin/reports/' + r.pk).then(function () {
+          toast('Отчёт удалён: ' + r.title);
+          u.reports = (u.reports || []).filter(function (x) { return x.pk !== r.pk; });
+          redraw(); reloadUsers(); loadAuto();
+        });
+      });
+    });
+    acts.appendChild(del);
+    li.appendChild(acts);
+    return li;
+  }
   function editUserReports(u) {
     openEditor2('Отчёты: ' + u.nickname, function (body) {
-      body.appendChild(el('p', 'hint', 'Отчёт видит только этот ученик — в кабинете на вкладке «Отчёты». Новые показываются сверху.'));
+      body.appendChild(el('p', 'hint', 'Отчёт видит только этот ученик (и родители — через его аккаунт) на вкладке «Отчёты», после публикации. Черновики сайт собирает сам из таблицы 1-го числа за прошлый месяц: откройте, допишите комментарий и опубликуйте — бот пришлёт ученику ссылку.'));
       var list = el('ul', 'rep-list');
-      (u.reports || []).forEach(function (r) {
-        var li = el('li', 'rep');
-        var a = el('a', 'rep__title', r.title); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
-        li.appendChild(a);
-        li.appendChild(el('span', 'rep__date', date(r.created_at)));
-        var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
-        del.addEventListener('click', function () {
-          armDelete(del, function () {
-            return api('DELETE', '/api/admin/reports/' + r.pk).then(function () {
-              li.remove(); toast('Отчёт удалён: ' + r.title);
-              return api('GET', '/api/admin/users').then(function (d) { data.users = d.users; renderUsers(); });
-            });
-          });
-        });
-        li.appendChild(del);
-        list.appendChild(li);
+      function redraw() {
+        list.textContent = '';
+        (u.reports || []).forEach(function (r) { list.appendChild(reportRow(u, r, redraw)); });
+        if (!(u.reports || []).length) list.appendChild(el('li', 'picker__empty', 'Отчётов пока нет.'));
+      }
+      redraw();
+      body.appendChild(field('Отчёты', list));
+
+      var pm = prevMonth();
+      var box = el('div', 'rep-make');
+      var f1 = el('input', 'input'); f1.type = 'date'; f1.id = 'e-from'; f1.value = pm[0]; f1.setAttribute('aria-label', 'Начало периода');
+      var f2 = el('input', 'input'); f2.type = 'date'; f2.id = 'e-to'; f2.value = pm[1]; f2.setAttribute('aria-label', 'Конец периода');
+      var mk = el('button', 'btn btn--small btn--solid', 'Собрать черновик'); mk.type = 'button';
+      box.appendChild(f1); box.appendChild(el('span', null, '—')); box.appendChild(f2); box.appendChild(mk);
+      body.appendChild(field('Собрать из Google-таблицы за период', box));
+      mk.addEventListener('click', function () {
+        mk.disabled = true; mk.textContent = 'Собираю…';
+        api('POST', '/api/admin/users/' + u.id + '/reports/auto', { period_from: f1.value, period_to: f2.value })
+          .then(function (r) { u.reports = [r].concat(u.reports || []); redraw(); reloadUsers(); toast('Черновик готов: ' + r.title); })
+          .catch(function (e) { toast(e.message, true); })
+          .then(function () { mk.disabled = false; mk.textContent = 'Собрать черновик'; });
       });
-      if (!(u.reports || []).length) list.appendChild(el('li', 'picker__empty', 'Отчётов пока нет.'));
-      body.appendChild(field('Загружено', list));
-      body.appendChild(field('Период *', textInput('e-title', monthTitle(), 'Например: Октябрь 2026')));
+
+      body.appendChild(field('Или загрузить готовый PDF — период *', textInput('e-title', monthTitle(), 'Например: Октябрь 2026')));
       var pdf = pdfField('e-report', null, 'Перетащи PDF отчёта или нажми, чтобы выбрать');
-      body.appendChild(field('Новый отчёт (PDF)', pdf.box));
+      body.appendChild(field('PDF отчёта (публикуется сразу)', pdf.box));
       return function () {
         var f = pdf.file();
         if (!f) { closeEditor2(); return Promise.resolve(); }
@@ -654,6 +726,91 @@
     });
   }
 
+  /* Черновики отчётов за прошлый месяц: сайт собирает их сам при первом открытии админки после 1-го числа */
+  var autoTimer = null;
+  function loadAuto() {
+    var bar = $('reports-auto');
+    clearTimeout(autoTimer);
+    api('GET', '/api/admin/reports/auto').then(function (s) {
+      bar.textContent = '';
+      if (!s.enabled) { bar.hidden = true; return; }
+      bar.hidden = false;
+      if (s.running) {
+        bar.appendChild(el('p', null, 'Собираю из таблицы черновики отчётов за ' + s.label + '…'));
+        autoTimer = setTimeout(function () { reloadUsers().then(loadAuto); }, 5000);
+        return;
+      }
+      if (s.drafts.length) {
+        bar.appendChild(el('p', null, 'Черновики отчётов за ' + s.label + ' ждут проверки — откройте, допишите комментарий и опубликуйте:'));
+        var names = el('div', 'auto-bar__names');
+        s.drafts.forEach(function (d) {
+          var b = el('button', 'btn btn--small', d.nickname); b.type = 'button';
+          b.addEventListener('click', function () {
+            var u = data.users.filter(function (x) { return x.id === d.user_id; })[0];
+            if (u) editUserReports(u);
+          });
+          names.appendChild(b);
+        });
+        bar.appendChild(names);
+      } else {
+        bar.appendChild(el('p', null, 'Отчёты за ' + s.label + ': ' + (s.made.length ? 'все черновики проверены.' : 'черновиков нет — ни у кого из привязанных учеников не было занятий в таблице.')));
+      }
+      if (s.errors.length) {
+        var er = el('p', 'auto-bar__err', 'Не собрались: ' + s.errors.join('; '));
+        bar.appendChild(er);
+      }
+      var again = el('button', 'btn btn--small', 'Собрать недостающие'); again.type = 'button';
+      again.title = 'Например, после того как ученику указали chat id или вкладку в таблице';
+      again.addEventListener('click', function () {
+        again.disabled = true;
+        api('POST', '/api/admin/reports/auto/run').then(loadAuto).catch(function (e) { toast(e.message, true); again.disabled = false; });
+      });
+      bar.appendChild(again);
+    }).catch(function () { bar.hidden = true; });
+  }
+
+  /* Связь с Google-таблицей: какие вкладки учеников видит сайт и кто к какой привязан */
+  function showSheet() {
+    openEditor2('Google-таблица', function (body) {
+      body.appendChild(el('p', 'hint', 'Проверяю связь…'));
+      api('GET', '/api/admin/sheet').then(function (s) {
+        body.textContent = '';
+        if (!s.enabled) {
+          body.appendChild(el('p', 'hint', 'Таблица не подключена. Как подключить: tools/sheets/README.md — вставить скрипт в Apps Script, развернуть как веб-приложение, затем остановить сайт и выполнить «python run.py set-sheet».'));
+          return;
+        }
+        if (!s.ok) { body.appendChild(el('p', 'form-error', s.error)); return; }
+        body.appendChild(el('p', 'hint', 'Связь есть: «' + s.title + '». Сайт пишет туда сданные и проверенные ДЗ (по теме урока) и пробники (в столбец с номером пробника), а оттуда берёт цифры для отчётов. Ученик находится по chat id в первой строке его вкладки; если там его нет — укажите вкладку вручную (кнопка «Telegram» у ученика).'));
+        var tl = el('ul', 'slist');
+        s.tabs.slice().sort(function (a, b) {
+          function w(t) { return t.users.length ? 0 : t.chat_ids.length ? 1 : 2; }
+          return w(a) - w(b);
+        }).forEach(function (t) {
+          var li = el('li', 'srow');
+          li.appendChild(el('b', null, t.name));
+          li.appendChild(el('span', null, t.chat_ids.length ? 'chat id ' + t.chat_ids.join(', ') : 'chat id не указан'));
+          li.appendChild(el('span', null, t.mock_tab ? 'пробники: ' + t.mock_tab : 'без вкладки пробников'));
+          li.appendChild(el('span', t.users.length ? null : 'urow__warn', t.users.length ? 'на сайте: ' + t.users.join(', ') : 'на сайте никто не привязан'));
+          tl.appendChild(li);
+        });
+        body.appendChild(field('Вкладки учеников', tl));
+        var lost = s.users.filter(function (x) { return !x.tab; });
+        if (lost.length) {
+          var ul = el('ul', 'slist');
+          lost.forEach(function (x) {
+            var li = el('li', 'srow');
+            li.appendChild(el('b', null, x.nickname));
+            li.appendChild(el('span', 'urow__warn', x.manual ? 'указанной вкладки нет в таблице' : x.chat ? 'chat id нет ни на одной вкладке' : 'нет chat id'));
+            ul.appendChild(li);
+          });
+          body.appendChild(field('Ученики сайта без вкладки', ul));
+        }
+      }).catch(function (e) { body.textContent = ''; body.appendChild(el('p', 'form-error', e.message)); });
+      return null;
+    });
+  }
+  $('users-sheet').addEventListener('click', showSheet);
+
   /* Куратор: проверяет сданные ДЗ на /check/, бот присылает ему новые работы */
   function editUserRole(u) {
     openEditor2('Telegram и роль: ' + u.nickname, function (body) {
@@ -664,6 +821,8 @@
       body.appendChild(lab);
       var chat = textInput('e-chat', u.tg_chat_id || '', 'например 123456789'); chat.inputMode = 'numeric'; chat.classList.add('mono');
       body.appendChild(field('Telegram chat id — ученику: результаты, куратору: новые работы', chat));
+      var tab = textInput('e-tab', u.sheet_tab || '', 'пусто — найти по chat id');
+      body.appendChild(field('Вкладка в Google-таблице (если chat id в ней не записан)', tab));
       var bot = el('p', 'hint', 'Проверяю бота…');
       body.appendChild(bot);
       api('GET', '/api/admin/telegram').then(function (t) {
@@ -674,7 +833,7 @@
       var test = el('button', 'btn btn--small', 'Отправить пробное сообщение'); test.type = 'button';
       test.addEventListener('click', function () {
         test.disabled = true;
-        api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: $('e-chat').value.trim() })
+        api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: $('e-chat').value.trim(), sheet_tab: $('e-tab').value.trim() })
           .then(function () { return api('POST', '/api/admin/users/' + u.id + '/tg-test'); })
           .then(function () { toast('Сообщение отправлено — проверьте Telegram'); })
           .catch(function (e) { toast(e.message, true); })
@@ -684,7 +843,7 @@
       return function () {
         var c = $('e-chat').value.trim();
         if (c && !/^-?\d{3,20}$/.test(c)) throw new Error('Chat id — это число, например 123456789.');
-        return api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: c })
+        return api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: c, sheet_tab: $('e-tab').value.trim() })
           .then(function (r) { toast(u.nickname + (r.role === 'curator' ? ' — куратор' : ' — ученик') + (r.tg_chat_id ? ', Telegram подключён' : ', без Telegram')); });
       };
     });

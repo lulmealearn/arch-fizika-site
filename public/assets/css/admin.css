@@ -308,3 +308,20 @@ textarea.input { resize: vertical; min-height: 84px; }
 .dlrow__bar i { display: block; height: 100%; border-radius: 3px; background: var(--violet); }
 .dlrow.is-soon .dlrow__bar i { background: #c8372d; }
 .urow__role--tg { background: #e3f1fb; color: #1f5f8b; }
+
+/* Отчёты из Google-таблицы: черновик → комментарий → опубликовать */
+.rep--auto, .rep { flex-wrap: wrap; }
+.rep__top { display: flex; align-items: center; gap: 10px; flex: 1 1 100%; flex-wrap: wrap; min-width: 0; }
+.rep__badge { padding: 3px 9px; border-radius: 99px; background: #e7f6ec; color: #1d6b3a; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.rep__badge--draft { background: #fff3cd; color: #7a5a00; }
+.rep__meta { flex: 1 1 100%; margin: 0; font-size: 14px; color: var(--muted); }
+.rep__comment { flex: 1 1 100%; }
+.rep__acts { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; justify-content: flex-end; }
+.rep--auto { align-items: stretch; padding: 12px 14px; }
+.rep-make { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rep-make .input { width: auto; flex: 1 1 140px; }
+.auto-bar { margin: 0 0 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid #f0d98a; background: #fffaf0; display: flex; flex-direction: column; gap: 10px; }
+.auto-bar p { margin: 0; }
+.auto-bar__names { display: flex; flex-wrap: wrap; gap: 8px; }
+.auto-bar__err { color: #a61f1f; font-size: 14px; }
+.auto-bar > .btn { align-self: flex-start; }

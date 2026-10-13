@@ -65,6 +65,8 @@ class User(Base):
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     role: Mapped[str] = mapped_column(String(16), default="student", server_default="student")
     tg_chat_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # вкладка ученика в Google-таблице; пусто — ищем вкладку по chat_id в её первой строке
+    sheet_tab: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
 class Homework(Base):
@@ -185,14 +187,27 @@ class MockAttempt(Base):
 
 
 class Report(Base):
-    """Отчёт для родителей: личный PDF ученика с аналитикой за период. Загружает админ раз в месяц."""
+    """Отчёт для родителей за период. Два вида:
+    kind="pdf" — PDF, загруженный админом; kind="auto" — собран сайтом из Google-таблицы (data — снимок цифр,
+    comment — комментарий преподавателя), показывается страницей /report/<id>.
+    Черновик (status="draft") видит только админ; ученик — после «Опубликовать» (решение владельца: сайт сам
+    готовит отчёты раз в месяц, владелец проверяет)."""
     __tablename__ = "reports"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200))
-    file_name: Mapped[str] = mapped_column(String(160))
+    file_name: Mapped[str] = mapped_column(String(160), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    kind: Mapped[str] = mapped_column(String(8), default="pdf", server_default="pdf")
+    status: Mapped[str] = mapped_column(String(12), default="published", server_default="published")
+    period_from: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # ГГГГ-ММ-ДД
+    period_to: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    collected_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    notify_error: Mapped[str] = mapped_column(String(300), default="", server_default="")
 
 
 class Visit(Base):
@@ -264,6 +279,11 @@ class Submission(Base):
     # результат проверки ушёл ученику в Telegram (если у него есть chat id)
     student_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     student_notify_error: Mapped[str] = mapped_column(String(300), default="")
+    # запись в Google-таблицу: когда записано, куда (вкладка, строка ДЗ) и ошибка, если не вышло
+    sheet_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    sheet_place: Mapped[str] = mapped_column(String(160), default="", server_default="")
+    sheet_row: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sheet_error: Mapped[str] = mapped_column(String(400), default="", server_default="")
 
 
 class Setting(Base):

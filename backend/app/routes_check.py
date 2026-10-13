@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import config, deadlines, files, scale, telegram
+from . import config, deadlines, files, scale, sheets, telegram
 from .access import current_user
 from .db import SessionLocal, get_db
 from .mockcheck import grade
@@ -165,6 +165,7 @@ async def submit_mock(pk: int, request: Request, background: BackgroundTasks,
     _store(db, s, parts, row)
     touch(db, user, request)
     background.add_task(notify_curators, s.id)
+    background.add_task(sheets.push_submission, s.id)  # первая часть — сразу в таблицу
     background.add_task(_purge_in_background)
     return {"deadline": deadlines.status_out(row, m), "submission": submission_out(s),
             "result": attempt_out(attempt) if attempt else None}
@@ -188,6 +189,7 @@ async def submit_homework(pk: int, request: Request, background: BackgroundTasks
     _store(db, s, parts, row)
     touch(db, user, request)
     background.add_task(notify_curators, s.id)
+    background.add_task(sheets.push_submission, s.id)  # «ДЗ сдал» и дата — сразу в таблицу
     background.add_task(_purge_in_background)
     return {"deadline": deadlines.status_out(row, lesson), "submission": submission_out(s)}
 
@@ -238,6 +240,8 @@ def check_out(s: Submission, u: Optional[User], l: Optional[Lesson], m: Optional
         "status": s.status, "score": s.score, "max": s.max_score, "comment": s.comment or "",
         "checked_by": s.checked_by, "checked_at": _iso(s.checked_at),
         "notified_at": _iso(s.notified_at), "notify_error": s.notify_error or "",
+        "sheet": {"synced_at": _iso(s.sheet_synced_at), "place": s.sheet_place or "", "error": s.sheet_error or ""}
+        if sheets.enabled() else None,
     }
 
 
@@ -294,6 +298,24 @@ def check_save(sid: int, body: CheckIn, background: BackgroundTasks, name: str =
     db.commit()
     if not same:
         background.add_task(notify_student, s.id, edited)  # результат — ученику в Telegram одновременно с сайтом
+    if not same or s.sheet_error or not s.sheet_synced_at:
+        background.add_task(sheets.push_submission, s.id)  # и в Google-таблицу
+    m = db.get(Mock, s.mock_id) if s.mock_id else None
+    a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id)) if m else None
+    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id) if s.lesson_id else None, m, a, scale.get(db))
+
+
+@router.post("/api/check/submissions/{sid}/sheet")
+def check_sheet_retry(sid: int, name: str = Depends(require_staff), db: Session = Depends(get_db)):
+    """«Записать в таблицу ещё раз» — после того как поправили тему или chat id. Ждём ответа скрипта."""
+    s = db.get(Submission, sid)
+    if s is None:
+        raise HTTPException(404, "Работа не найдена.")
+    if not sheets.enabled():
+        raise HTTPException(400, "Таблица не подключена (python run.py set-sheet).")
+    sheets.push_submission(s.id)
+    db.expire_all()
+    s = db.get(Submission, sid)
     m = db.get(Mock, s.mock_id) if s.mock_id else None
     a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id)) if m else None
     return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id) if s.lesson_id else None, m, a, scale.get(db))

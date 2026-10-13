@@ -79,7 +79,14 @@ def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
 
 
 def report_out(r: Report) -> Dict[str, Any]:
-    return {"pk": r.id, "title": r.title, "url": f"/report/{r.id}", "created_at": _iso(r.created_at)}
+    out = {"pk": r.id, "title": r.title, "url": f"/report/{r.id}", "created_at": _iso(r.published_at or r.created_at),
+           "kind": r.kind or "pdf", "status": r.status or "published"}
+    if r.kind == "auto":
+        d = r.data or {}
+        out.update(period_from=r.period_from, period_to=r.period_to, comment=r.comment or "",
+                   collected_at=_iso(r.collected_at), published_at=_iso(r.published_at), notify_error=r.notify_error or "",
+                   tab=d.get("tab") or "", lessons=len(d.get("lessons") or []), mocks=len(d.get("mocks") or []))
+    return out
 
 
 def user_out(u: User, grants: Optional[Dict[str, List[int]]] = None) -> Dict[str, Any]:
@@ -88,5 +95,5 @@ def user_out(u: User, grants: Optional[Dict[str, List[int]]] = None) -> Dict[str
         "id": u.id, "nickname": u.nickname,
         "created_at": _iso(u.created_at), "last_login_at": _iso(u.last_login_at),
         "grants": {k: sorted(g.get(k, [])) for k in ("viz", "lesson", "mock")},
-        "role": u.role or "student", "tg_chat_id": u.tg_chat_id or "",
+        "role": u.role or "student", "tg_chat_id": u.tg_chat_id or "", "sheet_tab": u.sheet_tab or "",
     }

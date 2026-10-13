@@ -55,9 +55,10 @@ MAX_PDF_BYTES = int(float(os.environ.get("MAX_PDF_MB", "25")) * 1024 * 1024)
 # Сдача ДЗ: фото сжимаются в браузере ученика, на сервер приходят уже лёгкими
 MAX_SUB_FILE_BYTES = int(float(os.environ.get("MAX_SUB_FILE_MB", "20")) * 1024 * 1024)
 MAX_SUB_FILES = int(os.environ.get("MAX_SUB_FILES", "15"))
-# Файлы работ, проверенных больше N дней назад, удаляются (решение владельца: 90 дней после проверки); балл и комментарий
+# Файлы работ, проверенных больше N дней назад, удаляются (решение владельца); балл и комментарий
 # остаются, копии — у кураторов в Telegram. Непроверенные не удаляются никогда. 0 в .env — не удалять вообще.
-SUBMISSION_KEEP_DAYS = int(os.environ.get("SUBMISSION_KEEP_DAYS", "90"))
+# Срок — 45 дней (решение владельца: ученикам пишем «работы хранятся полтора месяца»).
+SUBMISSION_KEEP_DAYS = int(os.environ.get("SUBMISSION_KEEP_DAYS", "45"))
 
 # Бот @Arch_Tutor_Bot присылает кураторам новые работы. Токен — от @BotFather (`python run.py set-bot`).
 def _clean_token(raw: str) -> str:
@@ -73,3 +74,9 @@ TELEGRAM_API = os.environ.get("TELEGRAM_API", "https://api.telegram.org")  # д�
 ADMIN_TG_CHAT_ID = os.environ.get("ADMIN_TG_CHAT_ID", "").strip()
 # Адрес сайта для ссылок в сообщениях бота, например https://arch-fizika.ru
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
+
+# Google-таблица «Ученики — учёт занятий» — главное хранилище результатов (решение владельца). Сайт пишет туда проверенные
+# ДЗ и пробники и берёт оттуда данные для ежемесячных отчётов — через веб-приложение Apps Script (tools/sheets/site.gs).
+# Настройка: `python run.py set-sheet`. Пусто — сайт работает без таблицы.
+SHEETS_URL = os.environ.get("SHEETS_URL", "").strip()
+SHEETS_SECRET = os.environ.get("SHEETS_SECRET", "").strip()

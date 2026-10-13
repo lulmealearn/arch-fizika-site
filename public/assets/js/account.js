@@ -234,10 +234,10 @@
   }
   function renderReports(reports) {
     var list = $('reports'); list.textContent = '';
-    if (!reports.length) list.appendChild(el('li', 'folders__empty', 'Отчётов пока нет. Первый появится в конце месяца.'));
+    if (!reports.length) list.appendChild(el('li', 'folders__empty', 'Отчётов пока нет. Первый появится в начале следующего месяца.'));
     reports.forEach(function (r) {
       var d = r.created_at ? new Date(r.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-      list.appendChild(item(r.url, ICONS.pdf, 'Отчёт' + (d ? ' · ' + d : ''), r.title, 'PDF →', true));
+      list.appendChild(item(r.url, ICONS.pdf, 'Отчёт' + (d ? ' · ' + d : ''), r.title, r.kind === 'auto' ? 'Открыть →' : 'PDF →', true));
     });
     $('kt-reports').textContent = reports.length || '';
   }

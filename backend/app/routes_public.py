@@ -2,11 +2,11 @@
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from . import config, files
+from . import config, files, report_build
 from .db import get_db
 from .access import can_open, current_user, granted_ids, lesson_unlocked, mock_unlocked, opened_viz_ids
 from .tracking import record_view
@@ -173,9 +173,14 @@ def open_report(pk: int, request: Request, db: Session = Depends(get_db)):
     """Отчёт для родителей — только его ученику и админу."""
     r = db.get(Report, pk)
     user = current_user(request, db)
-    if not r or not (is_admin(request) or (user and user.id == r.user_id)):
+    admin = is_admin(request)
+    if not r or not (admin or (user and user.id == r.user_id and r.status == "published")):
         return _to_account(f"/report/{pk}", user is not None)
-    out = _pdf(r.file_name, f"Otchet-{pk}")
+    if r.kind == "auto":  # собран из таблицы — страница в вёрстке отчётов, «Сохранить PDF» — печатью браузера
+        out = HTMLResponse(report_build.render(r, "admin" if admin else "student"),
+                           headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
+    else:
+        out = _pdf(r.file_name, f"Otchet-{pk}")
     _track(db, request, user, "report", str(pk), r.title)
     return out
 

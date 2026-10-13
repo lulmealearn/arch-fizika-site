@@ -5,6 +5,7 @@
     python run.py --port 8080     — другой порт
     python run.py set-password    — задать или сменить пароль админки
     python run.py set-bot         — токен бота и адрес сайта (бот присылает кураторам сданные ДЗ)
+    python run.py set-sheet       — связь с Google-таблицей (результаты ДЗ и пробников, отчёты)
 """
 import argparse
 import getpass
@@ -73,6 +74,33 @@ def set_bot() -> None:
         print("Ничего не изменено.")
 
 
+def _env_value(key: str) -> str:
+    if not ENV_FILE.exists():
+        return ""
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        if line.split("=", 1)[0].strip() == key and "=" in line:
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
+def set_sheet() -> None:
+    """Адрес веб-приложения Apps Script (tools/sheets/site.gs) и общий секрет — в .env."""
+    secret = _env_value("SHEETS_SECRET")
+    if not secret:
+        secret = secrets.token_urlsafe(24)
+        _update_env({"SHEETS_SECRET": secret})
+    print("Связь с Google-таблицей. Инструкция — tools/sheets/README.md.\n")
+    print("1) Секрет для скрипта (впишите его в строку const SECRET = '…' в site.gs):\n")
+    print("   " + secret + "\n")
+    url = input("2) Адрес веб-приложения (https://script.google.com/macros/s/…/exec), Enter — оставить как есть: ").strip()
+    if url:
+        if not url.startswith("https://script.google.com/") or not url.rstrip("/").endswith("/exec"):
+            print("Нужен адрес вида https://script.google.com/macros/s/…/exec (Развернуть → Управление развертываниями). Не сохранено.")
+            return
+        _update_env({"SHEETS_URL": url.rstrip("/")})
+    print(f"Готово, сохранено в {ENV_FILE.name}. Перезапустите сайт и нажмите в админке «Ученики» → «Таблица» → «Проверить связь».")
+
+
 def lan_ip() -> str:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -84,7 +112,7 @@ def lan_ip() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Сайт Arch / Физика")
-    parser.add_argument("command", nargs="?", choices=["set-password", "set-bot"], help="служебная команда")
+    parser.add_argument("command", nargs="?", choices=["set-password", "set-bot", "set-sheet"], help="служебная команда")
     parser.add_argument("--lan", action="store_true", help="доступ с телефона в той же сети")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--no-reload", action="store_true", help="не перезапускать при правке кода")
@@ -95,6 +123,9 @@ def main() -> None:
         return
     if args.command == "set-bot":
         set_bot()
+        return
+    if args.command == "set-sheet":
+        set_sheet()
         return
 
     import uvicorn

@@ -195,7 +195,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         item["submission"] = submission_out(msubs.get(m.id))
         item["total"] = scale.total(sc, tries.get(m.id), msubs.get(m.id))  # итог из 45 и тестовый балл
         out_mocks.append(item)
-    reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
+    reports = db.scalars(select(Report).where(Report.user_id == user.id, Report.status == "published").order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
         "user": {"nickname": user.nickname, "curator": user.role == "curator"},
         "lessons": out_lessons,
