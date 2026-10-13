@@ -2,7 +2,7 @@ from datetime import timezone
 from typing import Any, Dict, List, Optional
 
 from .mockcheck import key_to_text
-from .models import Lesson, Mock, Report, Section, User, Visualization
+from .models import DEFAULT_DEADLINE_DAYS, Lesson, Mock, Report, Section, User, Visualization
 
 
 def section_out(s: Section) -> Dict[str, Any]:
@@ -58,7 +58,7 @@ def lesson_files(l: Lesson) -> Dict[str, Any]:
 def lesson_out(l: Lesson, user_ids: Optional[List[int]] = None, viz_ids: Optional[List[int]] = None) -> Dict[str, Any]:
     """Занятие для админки: всё содержимое папки и кому оно открыто."""
     out = {"pk": l.id, "number": l.number, "title": l.title, "url": l.url or "", "created_at": _iso(l.created_at),
-           "section": l.section.slug if l.section else None}
+           "section": l.section.slug if l.section else None, "deadline_days": l.deadline_days or DEFAULT_DEADLINE_DAYS}
     out.update(lesson_files(l))
     out["viz_ids"] = list(viz_ids or [])
     out["user_ids"] = sorted(user_ids or [])

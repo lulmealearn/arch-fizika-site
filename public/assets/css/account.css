@@ -60,7 +60,7 @@
 .acc__admin .btn { border-color: #fff; color: #fff; }
 .acc__admin .btn:hover { background: #fff; color: var(--ink); }
 
-/* ── Цвета папок: красная — не просмотрено, зелёная — просмотрено (выбор владельца) ── */
+/* ── Цвета папок: красная — не начато, фиолетовая — в работе, зелёная — сдано (красный/зелёный — выбор владельца) ── */
 :root {
   --todo: #c8372d; --todo-tint: #fbe4e1; --todo-ink: #9b2a22;
   --done: #1f8a4c; --done-tint: #dcf2e3; --done-ink: #17663a;
@@ -172,7 +172,7 @@ html.pop-lock { overflow: hidden; }
 .litem__title { font-family: var(--display); font-weight: 700; font-size: 18px; line-height: 1.2; overflow-wrap: break-word; hyphens: auto; }
 .litem__go { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--violet-ink); }
 
-/* Переключатель «просмотрено»: красный → зелёный */
+/* Переключатель «решён» у пробника: красный → зелёный */
 .mark { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--tint); cursor: pointer; }
 .mark input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .mark__track { flex: none; position: relative; width: 58px; height: 34px; border-radius: 999px; background: var(--todo); transition: background .2s; }
@@ -245,7 +245,7 @@ html.pop-lock { overflow: hidden; }
 .rrow--bad { background: #fdf0ee; }
 .rrow--bad .rrow__pts { color: #a61f1f; }
 
-/* Разделы физики над фильтром «просмотрено» */
+/* Разделы физики над фильтром по статусу ДЗ */
 .finder__chips--sec { padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .22); }
 .fchip__dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .7); }
 .fchip--sec[aria-pressed="true"] .fchip__dot { box-shadow: none; }
@@ -256,3 +256,27 @@ html.pop-lock { overflow: hidden; }
 }
 .folder__sec { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
 .folder__secdot { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ── Срок на ДЗ: «Не начато» (красная) → «В работе» (фиолетовая, идёт срок) → «Сдано» (зелёная) ── */
+:root { --active: #6d28d9; --active-tint: #ede7fb; --active-ink: #5b21b6; }
+.folder--active { --c: var(--active); --tint: var(--active-tint); --ink-c: var(--active-ink); }
+.lesson.is-active { --c: var(--active); --tint: var(--active-tint); }
+.fchip--active::before { display: block; background: #c4b5fd; }
+.fchip--active[aria-pressed="true"]::before { background: var(--active); }
+.folder__foot { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.folder__foot .folder__state { margin-top: 0; }
+.folder__late { padding: 5px 10px; border-radius: 999px; background: var(--todo); color: #fff; font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+
+.dl { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-radius: 16px; background: var(--tint); border: 1.5px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.dl__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.dl__label { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.dl__state { padding: 4px 10px; border-radius: 999px; background: var(--c); color: #fff; font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.dl__text { margin: 0; font-size: 16px; line-height: 1.45; color: var(--ink); }
+.dl__kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: -8px; }
+.dl__left { font-family: var(--display); font-size: clamp(28px, 6vw, 36px); line-height: 1.1; color: var(--active-ink); }
+.dl__bar { display: block; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .85); overflow: hidden; }
+.dl__bar i { display: block; height: 100%; border-radius: 4px; background: var(--c); }
+.dl__btn { align-self: flex-start; min-height: 48px; }
+.dl__btn.is-armed { background: var(--violet); border-color: var(--violet); }
+@media (max-width: 480px) { .dl__btn { align-self: stretch; } }
+.dl .form-error { margin: 0; }

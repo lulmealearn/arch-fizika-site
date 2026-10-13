@@ -80,10 +80,10 @@
     return w;
   }
 
-  function armDelete(btn, run) {
+  function armDelete(btn, run, armedText) {
     if (btn.classList.contains('is-armed')) { btn.disabled = true; run().catch(function (e) { toast(e.message, true); btn.disabled = false; }); return; }
     var label = btn.textContent;
-    btn.classList.add('is-armed'); btn.textContent = 'Точно удалить?';
+    btn.classList.add('is-armed'); btn.textContent = armedText || 'Точно удалить?';
     setTimeout(function () { if (btn.isConnected) { btn.classList.remove('is-armed'); btn.textContent = label; } }, 3500);
   }
   function nick(id) {
@@ -203,7 +203,7 @@
       var text = el('div', 'adm-row__text');
       text.appendChild(el('h2', 'adm-row__title', l.title || 'Занятие № ' + l.number));
       var sec = data.sections.filter(function (x) { return x.id === l.section; })[0];
-      text.appendChild(el('span', 'adm-row__meta', (sec ? sec.label + '  ·  ' : 'без раздела  ·  ') + lessonContents(l) + '  ·  ' + whoLine(l.user_ids)));
+      text.appendChild(el('span', 'adm-row__meta', (sec ? sec.label + '  ·  ' : 'без раздела  ·  ') + lessonContents(l) + (l.deadline_days && l.deadline_days !== 3 ? '  ·  срок на ДЗ ' + l.deadline_days + ' ' + plural(l.deadline_days, 'день', 'дня', 'дней') : '') + '  ·  ' + whoLine(l.user_ids)));
       var actions = el('div', 'row-actions');
       var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
       edit.addEventListener('click', function () { editLesson(l); });
@@ -264,6 +264,8 @@
       });
       sel.value = l ? (l.section || 'none') : 'auto';
       body.appendChild(field('Раздел (фильтр в кабинете ученика)', sel));
+      var dd = numberInput('e-deadline', l ? l.deadline_days : 3); dd.maxLength = 2;
+      body.appendChild(field('Срок на ДЗ, дней (считается с момента, когда ученик нажал «Начать»)', dd));
       var url = textInput('e-url', l ? l.url : '', 'https://… (можно добавить позже)'); url.type = 'url'; url.inputMode = 'url'; url.spellcheck = false;
       body.appendChild(field('Ссылка на запись', url));
       var notes = pdfField('e-notes', l && l.notes_url, 'Перетащи PDF конспекта или нажми, чтобы выбрать');
@@ -287,6 +289,9 @@
         fd.append('title', $('e-title').value.trim());
         fd.append('url', u);
         fd.append('section', $('e-section').value);
+        var ddv = $('e-deadline').value.trim();
+        if (ddv && !(+ddv >= 1 && +ddv <= 60)) throw new Error('Срок на ДЗ — от 1 до 60 дней.');
+        fd.append('deadline_days', ddv);
         fd.append('viz_ids', JSON.stringify(getV()));
         fd.append('user_ids', JSON.stringify(getU()));
         if (notes.file()) fd.append('notes', notes.file()); else if (notes.remove()) fd.append('remove_notes', 'true');
@@ -386,9 +391,11 @@
       if (st.devices_30d >= 3) dev.title = 'Заходили с трёх и более устройств за месяц — возможно, аккаунтом пользуются несколько человек';
       facts.appendChild(dev);
       facts.appendChild(el('span', null, 'отчётов: ' + (u.reports || []).length));
+      if (st.lessons_active) facts.appendChild(el('span', null, 'ДЗ в работе: ' + st.lessons_active));
+      if (st.lessons_overdue) facts.appendChild(el('span', 'urow__warn', 'просрочек: ' + st.lessons_overdue));
       text.appendChild(facts);
       var meters = el('div', 'urow__meters');
-      meters.appendChild(meter('Занятия просмотрены', st.lessons_done || 0, st.lessons_total || 0));
+      meters.appendChild(meter('ДЗ сданы', st.lessons_done || 0, st.lessons_total || 0));
       meters.appendChild(meter('Пробники решены', st.mocks_done || 0, st.mocks_total || 0));
       text.appendChild(meters);
       var actions = el('div', 'row-actions');
@@ -445,13 +452,35 @@
           var ul = el('ul', 'plist');
           if (!items.length) ul.appendChild(el('li', 'picker__empty', kind === 'mock' ? 'Пробники не открыты.' : 'Занятия не открыты.'));
           items.forEach(function (it) {
-            var li = el('li', 'prow prow--' + (it.done ? 'done' : 'todo'));
+            var dl = kind === 'lesson' ? it.deadline : null;
+            var li = el('li', 'prow prow--' + (dl ? dl.state : (it.done ? 'done' : 'todo')));
             li.appendChild(el('span', 'prow__dot'));
             var t = el('span', 'prow__text');
             t.appendChild(el('b', null, (kind === 'mock' ? 'Пробник № ' : 'Занятие № ') + it.number + (it.title ? ' · ' + it.title : '')));
-            t.appendChild(el('span', null,
-              (it.done ? (kind === 'mock' ? 'решён ' : 'просмотрено ') + dateTime(it.marked_at) : 'не отмечено') +
-              '  ·  ' + (it.opened_at ? 'открывал ' + dateTime(it.opened_at) : 'не открывал')));
+            var stText = dl ? (dl.state === 'done' ? 'ДЗ сдано ' + dateTime(dl.submitted_at)
+                : dl.state === 'active' ? 'ДЗ в работе, срок до ' + dateTime(dl.due_at)
+                : 'ДЗ не начато')
+              : (it.done ? 'решён ' + dateTime(it.marked_at) : 'не отмечено');
+            t.appendChild(el('span', null, stText + '  ·  ' + (it.opened_at ? 'открывал ' + dateTime(it.opened_at) : 'не открывал')));
+            if (dl && (dl.overdue || dl.first_started_at)) {
+              var info = el('span', 'prow__res');
+              if (dl.overdue) info.appendChild(el('b', 'urow__warn', 'Просрочено ' + dl.overdue + ' ' + plural(dl.overdue, 'раз', 'раза', 'раз')));
+              if (dl.first_started_at) info.appendChild(document.createTextNode((dl.overdue ? '  ·  ' : '') + 'впервые начал ' + dateTime(dl.first_started_at) + '  ·  срок ' + dl.days + ' ' + plural(dl.days, 'день', 'дня', 'дней')));
+              t.appendChild(info);
+            }
+            if (dl && (dl.state !== 'todo' || dl.overdue)) {
+              var rs = el('button', 'btn btn--small btn--danger prow__reset', 'Сбросить срок'); rs.type = 'button';
+              rs.title = 'Снова «Не начато», без засчитанных просрочек';
+              rs.addEventListener('click', function () {
+                armDelete(rs, function () {
+                  return api('DELETE', '/api/admin/users/' + u.id + '/lessons/' + it.pk + '/deadline').then(function () {
+                    toast('Срок сброшен: занятие № ' + it.number + ' у ' + u.nickname + ' снова «Не начато»'); showActivity(u);
+                  });
+                }, 'Точно сбросить?');
+              });
+              li.appendChild(t); li.appendChild(rs); ul.appendChild(li);
+              return;
+            }
             if (kind === 'mock' && it.result) {
               var r = it.result;
               var res = el('span', 'prow__res');
@@ -466,7 +495,7 @@
                   return api('DELETE', '/api/admin/mocks/' + it.pk + '/attempts/' + u.id).then(function () {
                     toast('Ответы сброшены: ' + u.nickname + ' может сдать пробник № ' + it.number + ' заново'); showActivity(u);
                   });
-                });
+                }, 'Точно сбросить?');
               });
               li.appendChild(t); li.appendChild(reset); ul.appendChild(li);
               return;
@@ -479,7 +508,7 @@
           return ul;
         }
         var ld = a.lessons.filter(function (x) { return x.done; }).length, md = a.mocks.filter(function (x) { return x.done; }).length;
-        body.appendChild(field('Занятия: просмотрено ' + ld + ' из ' + a.lessons.length, progressList(a.lessons, 'lesson')));
+        body.appendChild(field('Занятия: ДЗ сдано ' + ld + ' из ' + a.lessons.length, progressList(a.lessons, 'lesson')));
         body.appendChild(field('Пробники: решено ' + md + ' из ' + a.mocks.length, progressList(a.mocks, 'mock')));
 
         var sess = el('ul', 'slist');

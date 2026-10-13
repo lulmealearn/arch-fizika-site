@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from . import config
+from . import config, deadlines
 from .access import current_user, granted_ids
 from .tracking import touch
 from .db import get_db
@@ -149,8 +149,9 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         select(Visualization).options(joinedload(Visualization.section))
         .where(Visualization.id.in_(all_viz), Visualization.is_published.is_(True))
     )} if all_viz else {}
-    done = set(db.scalars(select(LessonProgress.lesson_id).where(
-        LessonProgress.user_id == user.id, LessonProgress.done.is_(True))))
+    progress = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == user.id))}
+    if any([deadlines.settle(p) for p in progress.values()]):
+        db.commit()  # истёкшие сроки вернулись в «Не начато»
 
     in_lessons = {vid for ids in by_lesson.values() for vid in ids}
     # отдельные визуализации: в кабинете только 3 последних открытых, остальные ученик найдёт в хранилище (там они без замка)
@@ -160,8 +161,10 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     out_lessons = []
     for l in lessons:
         # запись открывается через /watch/<номер>: так виден факт просмотра, а ссылка не лежит в кабинете в открытую
-        item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None, "done": l.id in done,
+        item = {"pk": l.id, "number": l.number, "title": l.title, "url": f"/watch/{l.number}" if l.url else None,
                 "section": l.section.slug if l.section else None}
+        item["deadline"] = deadlines.status_out(progress.get(l.id), l)
+        item["done"] = item["deadline"]["state"] == "done"
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
         out_lessons.append(item)
@@ -187,22 +190,48 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     }
 
 
-@router.put("/me/progress/{lesson_pk}")
-def set_progress(lesson_pk: int, body: ProgressIn, request: Request, db: Session = Depends(get_db)):
-    """Ученик отмечает занятие просмотренным (зелёная папка) или снимает отметку (красная)."""
+def _my_lesson(request: Request, db: Session, lesson_pk: int):
     check_same_origin(request)
     user = current_user(request, db)
     if not user:
         raise HTTPException(401, "Войдите в личный кабинет.")
-    if lesson_pk not in granted_ids(db, user.id, "lesson"):
+    lesson = db.get(Lesson, lesson_pk)
+    if not lesson or lesson_pk not in granted_ids(db, user.id, "lesson"):
         raise HTTPException(404, "Занятие не найдено.")
     row = db.scalar(select(LessonProgress).where(LessonProgress.user_id == user.id, LessonProgress.lesson_id == lesson_pk))
     if row is None:
-        row = LessonProgress(user_id=user.id, lesson_id=lesson_pk)
+        row = LessonProgress(user_id=user.id, lesson_id=lesson_pk, done=False, overdue_count=0)
         db.add(row)
-    row.done = body.done
+    deadlines.settle(row)
+    return lesson, row
+
+
+@router.post("/me/lessons/{lesson_pk}/start")
+def start_lesson(lesson_pk: int, request: Request, db: Session = Depends(get_db)):
+    """Ученик подтвердил, что начинает ДЗ: с этой минуты идёт срок. Повторное нажатие срок не продлевает."""
+    lesson, row = _my_lesson(request, db, lesson_pk)
+    st = deadlines.state(row)
+    if st == "done":
+        raise HTTPException(409, "Это занятие уже сдано.")
+    if st == "todo":
+        deadlines.start(row, lesson)
     db.commit()
-    return {"done": row.done}
+    return {"deadline": deadlines.status_out(row, lesson)}
+
+
+@router.post("/me/lessons/{lesson_pk}/submit")
+def submit_lesson(lesson_pk: int, request: Request, db: Session = Depends(get_db)):
+    """Ученик отметил, что сдал ДЗ. Только пока идёт срок: если он истёк, сначала берут новый."""
+    lesson, row = _my_lesson(request, db, lesson_pk)
+    st = deadlines.state(row)
+    if st == "todo":
+        db.commit()  # могла засчитаться просрочка
+        msg = "Срок истёк. Нажмите «Начать», чтобы взять новый срок." if row.overdue_count else "Сначала нажмите «Начать»."
+        raise HTTPException(409, msg)
+    if st == "active":
+        deadlines.submit(row)
+    db.commit()
+    return {"deadline": deadlines.status_out(row, lesson)}
 
 
 @router.put("/me/mock-progress/{mock_pk}")

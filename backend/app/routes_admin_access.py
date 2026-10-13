@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from . import files
+from . import deadlines, files
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
@@ -115,7 +115,15 @@ def users_list(db: Session = Depends(get_db)):
         if seen >= month_ago:
             visits30[v.user_id] = visits30.get(v.user_id, 0) + 1
             devices30.setdefault(v.user_id, set()).add(v.device)
+    _settle_all(db)
     done_l = _done_map(db, LessonProgress, LessonProgress.lesson_id)
+    overdue_l: Dict[int, int] = {}
+    active_l: Dict[int, int] = {}
+    for p in db.scalars(select(LessonProgress)):
+        if p.overdue_count:
+            overdue_l[p.user_id] = overdue_l.get(p.user_id, 0) + p.overdue_count
+        if deadlines.state(p) == "active":
+            active_l[p.user_id] = active_l.get(p.user_id, 0) + 1
     done_m = _done_map(db, MockProgress, MockProgress.mock_id)
     out = []
     for u in users:
@@ -129,11 +137,21 @@ def users_list(db: Session = Depends(get_db)):
             "devices_30d": len(devices30.get(u.id, ())),
             "lessons_done": len(done_l.get(u.id, set()) & set(g.get("lesson", []))),
             "lessons_total": len(g.get("lesson", [])),
+            "lessons_active": active_l.get(u.id, 0),
+            "lessons_overdue": overdue_l.get(u.id, 0),
             "mocks_done": len(done_m.get(u.id, set()) & set(g.get("mock", []))),
             "mocks_total": len(g.get("mock", [])),
         }
         out.append(d)
     return {"users": out}
+
+
+def _settle_all(db: Session) -> None:
+    """Истёкшие сроки на ДЗ → «Не начато» с засчитанной просрочкой (до того как считать сводки)."""
+    now = datetime.now(timezone.utc)
+    rows = db.scalars(select(LessonProgress).where(LessonProgress.submitted_at.is_(None), LessonProgress.due_at.is_not(None))).all()
+    if any([deadlines.settle(p, now) for p in rows]):
+        db.commit()
 
 
 def _done_map(db: Session, model, item_col) -> Dict[int, set]:
@@ -175,6 +193,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
 
     g = user_grants(db).get(u.id) or {}
     lesson_ids, mock_ids = g.get("lesson", []), g.get("mock", [])
+    _settle_all(db)
     lp = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == u.id))}
     mp = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == u.id))}
     # последний раз открывал материалы занятия / пробник
@@ -189,7 +208,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     attempts = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == u.id))}
 
     def prog(p):
-        return {"done": bool(p and p.done), "marked_at": _iso(p.updated_at) if p and p.done else None}
+        when = (p.submitted_at or p.updated_at) if isinstance(p, LessonProgress) else (p.updated_at if p else None)
+        return {"done": bool(p and p.done), "marked_at": _iso(when) if p and p.done else None}
 
     month_ago = datetime.now(timezone.utc) - timedelta(days=30)
     recent = [v for v in visits if _aware(v.last_seen_at) >= month_ago]
@@ -203,7 +223,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
         },
         "visits": out_visits,
         "views": [{"kind": w.kind, "ref": w.ref, "title": w.title, "at": _iso(w.at)} for w in views[:80]],
-        "lessons": [dict(number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))), **prog(lp.get(l.id))) for l in lessons],
+        "lessons": [dict(pk=l.id, number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))),
+                         deadline=deadlines.status_out(lp.get(l.id), l), **prog(lp.get(l.id))) for l in lessons],
         "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
                        result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key), **prog(mp.get(m.id))) for m in mocks],
     }
@@ -250,6 +271,15 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
 
 
 # ── Доступ к одному материалу: кому открыт ──
+@router.delete("/users/{pk}/lessons/{lesson_pk}/deadline")
+def users_reset_deadline(pk: int, lesson_pk: int, db: Session = Depends(get_db)):
+    """Сбросить срок по занятию: снова «Не начато», без засчитанных просрочек (если ученик нажал «Сдал» по ошибке и т. п.)."""
+    u = _user(db, pk)
+    db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id, LessonProgress.lesson_id == lesson_pk))
+    db.commit()
+    return {"ok": True}
+
+
 @router.put("/access/{kind}/{item_id}")
 def access_set(kind: str, item_id: int, body: UsersIn, db: Session = Depends(get_db)):
     if kind not in KIND_MODEL:
@@ -300,6 +330,20 @@ def _apply_section(db: Session, l: Lesson, value: str) -> None:
         l.section_id = s.id
 
 
+def _deadline_days(value: Optional[str]) -> Optional[int]:
+    """Срок на ДЗ в днях; пусто или по умолчанию — None (тогда deadlines.DEFAULT_DAYS)."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    try:
+        n = int(v)
+    except ValueError:
+        raise HTTPException(400, "Срок на ДЗ — целое число дней.")
+    if not 1 <= n <= deadlines.MAX_DAYS:
+        raise HTTPException(400, f"Срок на ДЗ — от 1 до {deadlines.MAX_DAYS} дней.")
+    return None if n == deadlines.DEFAULT_DAYS else n
+
+
 def _lesson_number_free(db: Session, number: int, pk: Optional[int] = None) -> None:
     q = select(Lesson.id).where(Lesson.number == number)
     if pk is not None:
@@ -318,14 +362,14 @@ def lessons_list(db: Session = Depends(get_db)):
 @router.post("/lessons", status_code=201)
 async def lessons_create(
     number: str = Form(...), title: str = Form(""), url: str = Form(""), section: Optional[str] = Form(None),
-    user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
+    user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
     notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
 ):
     n = _number(number, "занятия")
     _lesson_number_free(db, n)
     users, vizs = _parse_ids(user_ids), _parse_ids(viz_ids)
-    l = Lesson(number=n, title=_title(title), url=_url(url))
+    l = Lesson(number=n, title=_title(title), url=_url(url), deadline_days=_deadline_days(deadline_days))
     if notes is not None and notes.filename:
         l.notes_file = await files.save_lesson_pdf("notes", n, notes)
     if hw is not None and hw.filename:
@@ -358,7 +402,7 @@ async def _replace_pdf(kind: str, l: Lesson, upload: Optional[UploadFile], remov
 @router.patch("/lessons/{pk}")
 async def lessons_update(
     pk: int, number: Optional[str] = Form(None), title: Optional[str] = Form(None), url: Optional[str] = Form(None),
-    section: Optional[str] = Form(None),
+    section: Optional[str] = Form(None), deadline_days: Optional[str] = Form(None),
     user_ids: Optional[str] = Form(None), viz_ids: Optional[str] = Form(None),
     notes: Optional[UploadFile] = File(None), hw: Optional[UploadFile] = File(None),
     remove_notes: Optional[str] = Form(None), remove_hw: Optional[str] = Form(None),
@@ -375,6 +419,8 @@ async def lessons_update(
         l.title = _title(title)
     if url is not None:
         l.url = _url(url)
+    if deadline_days is not None:
+        l.deadline_days = _deadline_days(deadline_days)  # идущие сроки не меняются, новый срок — со следующего «Начать»
     await _replace_pdf("notes", l, notes, remove_notes)
     await _replace_pdf("hw", l, hw, remove_hw)
     vizs, users = _parse_ids(viz_ids), _parse_ids(user_ids)

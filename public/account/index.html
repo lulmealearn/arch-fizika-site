@@ -103,8 +103,9 @@
         </div>
         <div class="finder__chips finder__chips--sec" id="sec-chips" role="group" aria-label="Раздел" hidden></div>
         <div class="finder__chips" role="group" aria-label="Показать только">
-          <button type="button" class="fchip fchip--todo" data-filter="todo" aria-pressed="false">Не просмотрены <span id="c-todo"></span></button>
-          <button type="button" class="fchip fchip--done" data-filter="done" aria-pressed="false">Просмотрены <span id="c-done"></span></button>
+          <button type="button" class="fchip fchip--todo" data-filter="todo" aria-pressed="false">Не начаты <span id="c-todo"></span></button>
+          <button type="button" class="fchip fchip--active" data-filter="active" aria-pressed="false">В работе <span id="c-active"></span></button>
+          <button type="button" class="fchip fchip--done" data-filter="done" aria-pressed="false">Сданы <span id="c-done"></span></button>
         </div>
         <p class="finder__hint" id="finder-hint" role="status" hidden></p>
       </form>
@@ -181,10 +182,11 @@
     </div>
     <ul class="lesson__items" id="lesson-items"></ul>
     <div class="bsheet" id="lesson-sheet" hidden></div>
-    <label class="mark">
+    <div class="dl" id="lesson-dl" hidden></div>
+    <label class="mark" id="lesson-mark">
       <input type="checkbox" id="lesson-done">
       <span class="mark__track" aria-hidden="true"><span class="mark__thumb"></span></span>
-      <span class="mark__text"><b id="lesson-done-label">Не просмотрено</b><span id="lesson-done-hint">Отметьте, когда посмотрите запись и разберёте конспект</span></span>
+      <span class="mark__text"><b id="lesson-done-label">Не решён</b><span id="lesson-done-hint">Отметьте, когда решите вариант</span></span>
     </label>
   </div>
 </dialog>

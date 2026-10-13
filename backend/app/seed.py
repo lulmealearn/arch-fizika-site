@@ -5,7 +5,7 @@ from sqlalchemy import func, inspect, select, text
 
 from . import config, files
 from .db import Base, SessionLocal, engine
-from .models import Grant, Homework, Lesson, LessonViz, Section, Visualization
+from .models import Grant, Homework, Lesson, LessonProgress, LessonViz, Section, Visualization
 from .tracking import prune
 
 # Старые разделы → новые. Визуализации переезжают, старые разделы удаляются.
@@ -49,6 +49,13 @@ NEW_COLUMNS = [
     ("lessons", "hw_file", "VARCHAR(160) NULL"),
     ("mocks", "answer_key", "TEXT NULL"),
     ("lessons", "section_id", "INTEGER NULL"),  # JSON-строка (ключ автопроверки)
+    ("lessons", "deadline_days", "INTEGER NULL"),
+    ("lesson_progress", "first_started_at", "DATETIME NULL"),
+    ("lesson_progress", "started_at", "DATETIME NULL"),
+    ("lesson_progress", "due_at", "DATETIME NULL"),
+    ("lesson_progress", "submitted_at", "DATETIME NULL"),
+    ("lesson_progress", "overdue_count", "INTEGER NOT NULL DEFAULT 0"),
+    ("lesson_progress", "last_overdue_at", "DATETIME NULL"),
 ]
 
 
@@ -98,6 +105,14 @@ def _fill_lesson_sections(db) -> None:
     db.commit()
 
 
+def _migrate_viewed_to_submitted(db) -> None:
+    """Раньше ученик отмечал занятие «просмотрено». Теперь вместо этого срок на ДЗ: старые отметки считаем сданными,
+    чтобы прошлые занятия не покраснели разом. Повторный запуск ничего не меняет (у сданных submitted_at уже есть)."""
+    for p in db.scalars(select(LessonProgress).where(LessonProgress.done.is_(True), LessonProgress.submitted_at.is_(None))).all():
+        p.submitted_at = p.updated_at
+    db.commit()
+
+
 def init_db() -> None:
     Base.metadata.create_all(engine)
     _add_missing_columns()
@@ -105,6 +120,7 @@ def init_db() -> None:
         _migrate_homeworks(db)
         prune(db)  # журнал активности старше года не храним
         _fill_lesson_sections(db)
+        _migrate_viewed_to_submitted(db)
     seed_file = config.SEED_DIR / "visualizations.json"
     if not seed_file.exists():
         return

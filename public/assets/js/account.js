@@ -136,11 +136,35 @@
   }
   function lessonTitle(l) { return l.title || 'Занятие № ' + l.number; }
 
+  /* ── Срок на ДЗ: «Не начато» → «Начать» (идёт срок) → «Сдал». Истёк без сдачи — снова «Не начато», просрочка в счётчике ── */
+  var STATE_TEXT = { todo: 'не начато', active: 'в работе', done: 'сдано' };
+  function dlState(l) { return (l.deadline && l.deadline.state) || 'todo'; }
+  function daysWord(n) { return n + ' ' + plural(n, 'день', 'дня', 'дней'); }
+  function timeLeft(iso) {
+    var ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 'срок истёк';
+    var min = Math.ceil(ms / 60000), d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+    if (d) return d + ' ' + plural(d, 'день', 'дня', 'дней') + (h ? ' ' + h + ' ' + plural(h, 'час', 'часа', 'часов') : '');
+    if (h) return h + ' ' + plural(h, 'час', 'часа', 'часов') + (m ? ' ' + m + ' мин' : '');
+    return m + ' мин';
+  }
+  function when(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) + ', ' +
+      d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+  function stateLine(l) {
+    var st = dlState(l), dl = l.deadline || {};
+    if (st === 'active') return 'осталось ' + timeLeft(dl.due_at);
+    return STATE_TEXT[st];
+  }
+
   function folderCard(l) {
     var li = el('li');
-    var b = el('button', 'folder folder--' + (l.done ? 'done' : 'todo'));
+    var st0 = dlState(l);
+    var b = el('button', 'folder folder--' + st0);
     b.type = 'button';
-    b.setAttribute('aria-label', 'Занятие № ' + l.number + ': ' + lessonTitle(l) + '. ' + (l.done ? 'Просмотрено' : 'Не просмотрено'));
+    b.setAttribute('aria-label', 'Занятие № ' + l.number + ': ' + lessonTitle(l) + '. ' + stateLine(l));
     var tab = el('span', 'folder__tab');
     tab.appendChild(el('span', null, 'Занятие'));
     tab.appendChild(el('b', null, '№ ' + l.number));
@@ -154,8 +178,13 @@
       body.appendChild(tag);
     }
     body.appendChild(el('span', 'folder__what', contents(l)));
-    var st = el('span', 'folder__state', l.done ? 'просмотрено' : 'не просмотрено');
-    body.appendChild(st);
+    var foot = el('span', 'folder__foot');
+    var st = el('span', 'folder__state', stateLine(l));
+    if (st0 === 'active') st.dataset.due = l.deadline.due_at;
+    foot.appendChild(st);
+    var over = (l.deadline && l.deadline.overdue) || 0;
+    if (over) foot.appendChild(el('span', 'folder__late', 'просрочено' + (over > 1 ? ' × ' + over : '')));
+    body.appendChild(foot);
     b.appendChild(tab); b.appendChild(body);
     b.addEventListener('click', function () { openLesson(l); });
     li.appendChild(b);
@@ -250,10 +279,11 @@
     var q = $('f-find').value.trim();
     var list = $('folders'); list.textContent = '';
     var pool = lessons.filter(inSection);
-    var todo = pool.filter(function (l) { return !l.done; }).length;
-    $('c-todo').textContent = todo; $('c-done').textContent = pool.length - todo;
+    var cnt = { todo: 0, active: 0, done: 0 };
+    pool.forEach(function (l) { cnt[dlState(l)]++; });
+    $('c-todo').textContent = cnt.todo; $('c-active').textContent = cnt.active; $('c-done').textContent = cnt.done;
     var shown = pool.filter(function (l) {
-      return matches(l, q) && (filter === 'all' || (filter === 'done') === l.done);
+      return matches(l, q) && (filter === 'all' || dlState(l) === filter);
     });
     shown.forEach(function (l) { list.appendChild(folderCard(l)); });
     var hint = $('finder-hint');
@@ -270,7 +300,7 @@
   }
 
   $('f-find').addEventListener('input', renderFolders);
-  /* «Не просмотрены» / «Просмотрены» — переключатели: повторное нажатие снимает фильтр */
+  /* «Не начаты» / «В работе» / «Сданы» — переключатели: повторное нажатие снимает фильтр */
   document.querySelectorAll('.fchip[data-filter]').forEach(function (b) {
     b.addEventListener('click', function () {
       filter = filter === b.dataset.filter ? 'all' : b.dataset.filter;
@@ -311,12 +341,78 @@
   }
   function paintDone(l) {
     var mock = currentKind === 'mock';
+    $('lesson-mark').hidden = !mock;
+    $('lesson-dl').hidden = mock;
+    dlg.classList.remove('is-active');
+    if (!mock) return renderDeadline(l);
     dlg.classList.toggle('is-done', l.done);
     $('lesson-done').checked = l.done;
-    $('lesson-done-label').textContent = mock ? (l.done ? 'Решён' : 'Не решён') : (l.done ? 'Просмотрено' : 'Не просмотрено');
-    $('lesson-done-hint').textContent = mock ? 'Отметьте, когда решите вариант'
-      : 'Отметьте, когда посмотрите запись и разберёте конспект';
+    $('lesson-done-label').textContent = l.done ? 'Решён' : 'Не решён';
+    $('lesson-done-hint').textContent = 'Отметьте, когда решите вариант';
   }
+  /* Панель срока в окне занятия */
+  function confirmButton(text, armedText, cls, onGo) {
+    var btn = el('button', 'btn ' + cls, text); btn.type = 'button';
+    var armed = false;
+    btn.addEventListener('click', function () {
+      if (!armed) {
+        armed = true; btn.textContent = armedText; btn.classList.add('is-armed');
+        setTimeout(function () { if (btn.isConnected && armed) { armed = false; btn.textContent = text; btn.classList.remove('is-armed'); } }, 5000);
+        return;
+      }
+      btn.disabled = true;
+      onGo(function () { btn.disabled = false; armed = false; btn.textContent = text; btn.classList.remove('is-armed'); });
+    });
+    return btn;
+  }
+  function dlAction(l, action) {
+    return function (restore) {
+      api('POST', '/api/me/lessons/' + l.pk + '/' + action).then(function (r) {
+        l.deadline = r.deadline; l.done = r.deadline.state === 'done';
+        paintDone(l);
+      }).catch(function (e) {
+        restore();
+        var err = $('lesson-dl').querySelector('.form-error');
+        if (err) { err.textContent = e.message; err.hidden = false; }
+        reloadLessons();  // срок мог истечь — подтянуть свежее состояние
+      });
+    };
+  }
+  function renderDeadline(l) {
+    var box = $('lesson-dl'); box.textContent = '';
+    var st = dlState(l), dl = l.deadline || {}, days = dl.days || 3, over = dl.overdue || 0;
+    dlg.classList.toggle('is-done', st === 'done');
+    dlg.classList.toggle('is-active', st === 'active');
+    box.className = 'dl dl--' + st;
+    var head = el('div', 'dl__head');
+    head.appendChild(el('span', 'dl__label', 'Домашнее задание'));
+    head.appendChild(el('span', 'dl__state', STATE_TEXT[st]));
+    box.appendChild(head);
+    var err = el('p', 'form-error'); err.hidden = true;
+    if (st === 'todo') {
+      box.appendChild(el('p', 'dl__text', over
+        ? 'Срок истёк' + (over > 1 ? ' уже ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') : '') + ', а задание не отмечено сданным. Возьмите новый срок и сдайте задание — просрочка останется в истории.'
+        : 'Когда будете готовы приступить, нажмите «Начать». С этого момента у вас ' + daysWord(days) + ' на решение.'));
+      box.appendChild(confirmButton(over ? 'Взять новый срок · ' + daysWord(days) : 'Начать · срок ' + daysWord(days),
+        'Подтвердите: срок пойдёт сразу', 'btn--solid dl__btn', dlAction(l, 'start')));
+    } else if (st === 'active') {
+      var big = el('b', 'dl__left', timeLeft(dl.due_at)); big.dataset.due = dl.due_at;
+      box.appendChild(el('span', 'dl__kicker', 'Осталось'));
+      box.appendChild(big);
+      box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. Когда отправите решение, нажмите «Сдал».'));
+      var total = new Date(dl.due_at) - new Date(dl.started_at), passed = Date.now() - new Date(dl.started_at);
+      var bar = el('span', 'dl__bar'); var fill = el('i');
+      fill.style.width = Math.max(2, Math.min(100, 100 * passed / total)) + '%';
+      fill.dataset.from = dl.started_at; fill.dataset.to = dl.due_at;
+      bar.appendChild(fill); box.appendChild(bar);
+      box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
+    } else {
+      box.appendChild(el('p', 'dl__text', 'Сдано ' + when(dl.submitted_at) + '.' +
+        (over ? ' Срок был просрочен ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') + '.' : '')));
+    }
+    box.appendChild(err);
+  }
+
   function showDialog() {
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
     document.documentElement.classList.add('pop-lock');
@@ -439,12 +535,13 @@
   dlg.querySelectorAll('[data-close-lesson]').forEach(function (b) { b.addEventListener('click', closeLesson); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) closeLesson(); });
 
+  /* переключатель «решён» — только у пробников; у занятий вместо него срок на ДЗ */
   $('lesson-done').addEventListener('change', function () {
     var l = current, want = this.checked, box = this;
-    if (!l) return;
+    if (!l || currentKind !== 'mock') return;
     l.done = want; paintDone(l);
     box.disabled = true;
-    api('PUT', (currentKind === 'mock' ? '/api/me/mock-progress/' : '/api/me/progress/') + l.pk, { done: want }).catch(function (e) {
+    api('PUT', '/api/me/mock-progress/' + l.pk, { done: want }).catch(function (e) {
       l.done = !want; paintDone(l); note(e.message);
     }).then(function () { box.disabled = false; });
   });
@@ -492,6 +589,31 @@
     lessons.forEach(function (l) { if (String(l.number) === m[1]) openLesson(l); });
   }
   window.addEventListener('hashchange', function () { openFromHash(location.hash); });
+
+  /* Свежие состояния сроков без перерисовки всего кабинета */
+  function reloadLessons() {
+    return api('GET', '/api/me/materials').then(function (d) {
+      var byPk = {};
+      d.lessons.forEach(function (x) { byPk[x.pk] = x; });
+      lessons.forEach(function (l) { var x = byPk[l.pk]; if (x) { l.deadline = x.deadline; l.done = x.done; } });
+      if (current && currentKind === 'lesson') paintDone(current);
+      if (!dlg.open) renderFolders();
+    }).catch(function () { /* не важно */ });
+  }
+  /* Таймеры: раз в 30 секунд обновляем «осталось …»; истёк срок — берём состояние с сервера */
+  setInterval(function () {
+    if ($('view-dash').hidden) return;
+    var expired = false;
+    document.querySelectorAll('[data-due]').forEach(function (n) {
+      if (new Date(n.dataset.due).getTime() <= Date.now()) expired = true;
+      n.textContent = (n.classList.contains('folder__state') ? 'осталось ' : '') + timeLeft(n.dataset.due);
+    });
+    document.querySelectorAll('.dl__bar i[data-from]').forEach(function (i) {
+      var a = new Date(i.dataset.from).getTime(), b = new Date(i.dataset.to).getTime();
+      i.style.width = Math.max(2, Math.min(100, 100 * (Date.now() - a) / (b - a))) + '%';
+    });
+    if (expired) reloadLessons();
+  }, 30000);
 
   /* Пока кабинет открыт и виден на экране, раз в минуту продлеваем сеанс (для статистики в админке) */
   setInterval(function () {

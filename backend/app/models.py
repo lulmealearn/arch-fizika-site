@@ -75,6 +75,9 @@ class Homework(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+DEFAULT_DEADLINE_DAYS = 3  # срок на ДЗ по умолчанию, дней
+
+
 class Lesson(Base):
     """Занятие — папка ученика: запись (ссылка), конспект и ДЗ (PDF в storage/hw/) и визуализации к нему."""
     __tablename__ = "lessons"
@@ -88,6 +91,8 @@ class Lesson(Base):
     hw_file: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     # раздел физики — для фильтра в кабинете; по умолчанию раздел первой визуализации в папке
     section_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sections.id"), nullable=True)
+    # срок на ДЗ в днях с момента, когда ученик нажал «Начать»; пусто — по умолчанию (deadlines.DEFAULT_DAYS)
+    deadline_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     section: Mapped[Optional[Section]] = relationship()
@@ -105,15 +110,24 @@ class LessonViz(Base):
 
 
 class LessonProgress(Base):
-    """Отметка ученика «просмотрено» (зелёная папка). Нет строки — не просмотрено (красная)."""
+    """Срок на ДЗ занятия (deadlines.py). Нет строки или started_at пуст — «Не начато» (красная папка);
+    started_at и due_at заданы — «В работе», идёт срок; submitted_at — «Сдано» (зелёная).
+    Срок истёк без сдачи — занятие возвращается в «Не начато», overdue_count растёт, срок берут заново.
+    done повторяет «сдано» (для сводок)."""
     __tablename__ = "lesson_progress"
     __table_args__ = (UniqueConstraint("user_id", "lesson_id", name="uq_lesson_progress"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
-    done: Mapped[bool] = mapped_column(Boolean, default=True)
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    first_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    overdue_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_overdue_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Mock(Base):
@@ -131,7 +145,7 @@ class Mock(Base):
 
 
 class MockProgress(Base):
-    """Отметка ученика «решён» у пробника (как «просмотрено» у занятия)."""
+    """Отметка ученика «решён» у пробника."""
     __tablename__ = "mock_progress"
     __table_args__ = (UniqueConstraint("user_id", "mock_id", name="uq_mock_progress"),)
 

@@ -261,6 +261,7 @@ textarea.input { resize: vertical; min-height: 84px; }
 .prow:last-child, .srow:last-child { border-bottom: 0; }
 .prow__dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: #c8372d; }
 .prow--done .prow__dot { background: #1f8a4c; }
+.prow--active .prow__dot { background: #6d28d9; }
 .prow__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .prow__text b { font-family: var(--display); font-size: 16px; overflow-wrap: break-word; }
 .prow__text span { font-size: 13px; color: var(--muted); }
