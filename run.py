@@ -4,6 +4,7 @@
     python run.py --lan           — открыть и для телефона в той же Wi-Fi сети
     python run.py --port 8080     — другой порт
     python run.py set-password    — задать или сменить пароль админки
+    python run.py set-bot         — токен бота и адрес сайта (бот присылает кураторам сданные ДЗ)
 """
 import argparse
 import getpass
@@ -49,6 +50,29 @@ def set_password() -> None:
     print(f"Готово. Пароль сохранён в {ENV_FILE.name} (в git этот файл не попадает). Перезапусти сайт.")
 
 
+def set_bot() -> None:
+    """Токен бота (от @BotFather) и адрес сайта для ссылок — в .env. Токен — секрет: в git и в чат его не отправлять."""
+    print("Бот присылает кураторам сданные ДЗ. Токен — у @BotFather (/mybots → бот → API Token).")
+    token = getpass.getpass("Токен бота (символы не отображаются, Enter — оставить как есть): ").strip()
+    url = input("Адрес сайта для ссылок, например https://arch-fizika.ru (Enter — оставить): ").strip().rstrip("/")
+    chat = input("Ваш chat id, чтобы работы приходили и вам (Enter — не нужно или оставить): ").strip()
+    values = {}
+    if token:
+        if ":" not in token:
+            print("Это не похоже на токен (в нём есть двоеточие, например 123456:ABC...). Ничего не сохранено.")
+            return
+        values["TELEGRAM_BOT_TOKEN"] = token
+    if url:
+        values["SITE_URL"] = url
+    if chat:
+        values["ADMIN_TG_CHAT_ID"] = chat
+    if values:
+        _update_env(values)
+        print(f"Готово, сохранено в {ENV_FILE.name}. Перезапусти сайт.")
+    else:
+        print("Ничего не изменено.")
+
+
 def lan_ip() -> str:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -60,7 +84,7 @@ def lan_ip() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Сайт Arch / Физика")
-    parser.add_argument("command", nargs="?", choices=["set-password"], help="служебная команда")
+    parser.add_argument("command", nargs="?", choices=["set-password", "set-bot"], help="служебная команда")
     parser.add_argument("--lan", action="store_true", help="доступ с телефона в той же сети")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--no-reload", action="store_true", help="не перезапускать при правке кода")
@@ -68,6 +92,9 @@ def main() -> None:
 
     if args.command == "set-password":
         set_password()
+        return
+    if args.command == "set-bot":
+        set_bot()
         return
 
     import uvicorn

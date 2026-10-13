@@ -88,4 +88,5 @@ def user_out(u: User, grants: Optional[Dict[str, List[int]]] = None) -> Dict[str
         "id": u.id, "nickname": u.nickname,
         "created_at": _iso(u.created_at), "last_login_at": _iso(u.last_login_at),
         "grants": {k: sorted(g.get(k, [])) for k in ("viz", "lesson", "mock")},
+        "role": u.role or "student", "tg_chat_id": u.tg_chat_id or "",
     }

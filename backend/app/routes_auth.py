@@ -70,7 +70,7 @@ def me(request: Request, response: Response, db: Session = Depends(get_db)):
     if user and not is_admin(request):
         touch(db, user, request)
     # admin: в этом браузере открыта админка — тогда сайт показывает всё, и об этом надо предупредить
-    return {"user": {"nickname": user.nickname} if user else None, "admin": is_admin(request)}
+    return {"user": {"nickname": user.nickname, "curator": user.role == "curator"} if user else None, "admin": is_admin(request)}
 
 
 @router.post("/auth/register", status_code=201)
@@ -145,6 +145,8 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         select(Visualization).options(joinedload(Visualization.section))
         .where(Visualization.id.in_(all_viz), Visualization.is_published.is_(True))
     )} if all_viz else {}
+    from .routes_check import latest_submissions, submission_out  # здесь, чтобы не было круговых импортов
+    subs = latest_submissions(db, user.id)
     progress = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == user.id))}
     if any([deadlines.settle(p) for p in progress.values()]):
         db.commit()  # истёкшие сроки вернулись в «Не начато»
@@ -169,6 +171,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         item["locked"] = not (p and p.first_started_at)
         if item["locked"]:
             item.update(url=None, notes_url=None, hw_url=None, viz=[])
+        item["submission"] = submission_out(subs.get(l.id))
         out_lessons.append(item)
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []
@@ -190,7 +193,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
-        "user": {"nickname": user.nickname},
+        "user": {"nickname": user.nickname, "curator": user.role == "curator"},
         "lessons": out_lessons,
         "sections": [section_out(s) for s in db.scalars(select(Section).order_by(Section.position))],
         "viz": [viz_public(v) for v in extra],
@@ -252,6 +255,8 @@ def submit_item(kind: str, pk: int, request: Request, db: Session = Depends(get_
     _, item, row = _my_item(request, db, kind, pk)
     if kind == "mocks" and item.answer_key and deadlines.state(row) != "done":
         raise HTTPException(400, "Этот пробник сдаётся бланком ответов.")
+    if kind == "lessons" and deadlines.state(row) != "done":
+        raise HTTPException(400, "Прикрепите решение: фото или PDF.")  # ДЗ сдаётся файлами (routes_check)
     _need_active(db, row)
     if deadlines.state(row) == "active":
         deadlines.submit(row)

@@ -63,6 +63,8 @@ NEW_COLUMNS = [
     ("mock_progress", "submitted_at", "DATETIME NULL"),
     ("mock_progress", "overdue_count", "INTEGER NOT NULL DEFAULT 0"),
     ("mock_progress", "last_overdue_at", "DATETIME NULL"),
+    ("users", "role", "VARCHAR(16) NOT NULL DEFAULT 'student'"),
+    ("users", "tg_chat_id", "VARCHAR(32) NULL"),
 ]
 
 

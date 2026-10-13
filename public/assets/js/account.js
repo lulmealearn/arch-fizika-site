@@ -158,6 +158,10 @@
   function stateLine(l) {
     var st = dlState(l), dl = l.deadline || {};
     if (st === 'active') return 'осталось ' + timeLeft(dl.due_at);
+    if (st === 'done' && l.submission) {
+      var sb = l.submission;
+      return sb.status === 'checked' && sb.max ? 'проверено · ' + Math.round(100 * sb.score / sb.max) + '%' : 'на проверке';
+    }
     return STATE_TEXT[st];
   }
 
@@ -406,18 +410,140 @@
       box.appendChild(big);
       box.appendChild(el('p', 'dl__text', 'Сдать до ' + when(dl.due_at) + '. ' + (sheet
         ? 'Решите вариант, впишите ответы в бланк ниже и отправьте — отправка бланка и есть сдача.'
-        : mock ? 'Когда решите вариант и отправите решение, нажмите «Сдал».' : 'Когда отправите решение, нажмите «Сдал».')));
+        : mock ? 'Когда решите вариант и отправите решение, нажмите «Сдал».' : 'Сфотографируйте решение или прикрепите PDF и отправьте на проверку — это и есть сдача.')));
       var total = new Date(dl.due_at) - new Date(dl.started_at), passed = Date.now() - new Date(dl.started_at);
       var bar = el('span', 'dl__bar'); var fill = el('i');
       fill.style.width = Math.max(2, Math.min(100, 100 * passed / total)) + '%';
       fill.dataset.from = dl.started_at; fill.dataset.to = dl.due_at;
       bar.appendChild(fill); box.appendChild(bar);
-      if (!sheet) box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
+      if (!mock) box.appendChild(uploader(l, err));
+      else if (!sheet) box.appendChild(confirmButton('Сдал', 'Точно сдали? Отменить будет нельзя', 'btn--solid dl__btn', dlAction(l, 'submit')));
     } else {
       box.appendChild(el('p', 'dl__text', 'Сдано ' + when(dl.submitted_at) + '.' +
         (over ? ' Срок был просрочен ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') + '.' : '')));
+      if (!mock && l.submission) box.appendChild(submissionView(l.submission));
     }
     box.appendChild(err);
+  }
+
+  /* ── Сдача ДЗ файлами: фото сжимаются здесь, в браузере, и уходят на сервер; оттуда бот присылает их куратору ── */
+  var MAX_FILES = 15, MAX_SIDE = 2000;
+  var pending = {};  // pk занятия → выбранные, но ещё не отправленные файлы
+  function shrink(file) {
+    /* фото → JPEG не больше 2000 px по длинной стороне; PDF — как есть */
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return Promise.resolve({ blob: file, name: file.name, pdf: true });
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) {
+          if (!b) return reject(new Error('Не получилось обработать «' + file.name + '».'));
+          resolve({ blob: b, name: (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', pdf: false });
+        }, 'image/jpeg', 0.82);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('«' + file.name + '» не открывается как фото. Подойдут JPEG, PNG или PDF.'));
+      };
+      img.src = url;
+    });
+  }
+  function uploader(l, err) {
+    var list = pending[l.pk] || (pending[l.pk] = []);
+    var wrap = el('div', 'up');
+    var picks = el('div', 'up__picks');
+    function picker(label, cls, accept, capture) {
+      var lab = el('label', 'btn up__pick ' + cls);
+      var inp = el('input'); inp.type = 'file'; inp.accept = accept; inp.multiple = !capture; inp.className = 'up__input';
+      if (capture) inp.setAttribute('capture', 'environment');
+      lab.appendChild(document.createTextNode(label)); lab.appendChild(inp);
+      inp.addEventListener('change', function () {
+        var chosen = Array.prototype.slice.call(inp.files || []);
+        inp.value = '';
+        if (!chosen.length) return;
+        if (list.length + chosen.length > MAX_FILES) { err.textContent = 'Не больше ' + MAX_FILES + ' файлов.'; err.hidden = false; return; }
+        err.hidden = true;
+        status.textContent = 'Готовлю файлы…';
+        Promise.all(chosen.map(shrink)).then(function (out) {
+          out.forEach(function (f) { f.thumb = f.pdf ? null : URL.createObjectURL(f.blob); list.push(f); });
+          paintDone(l);
+        }).catch(function (e) { status.textContent = ''; err.textContent = e.message; err.hidden = false; });
+      });
+      return lab;
+    }
+    picks.appendChild(picker('Сфотографировать', 'up__pick--cam', 'image/*', true));
+    picks.appendChild(picker(list.length ? 'Добавить ещё' : 'Выбрать фото или PDF', 'up__pick--files', 'image/*,application/pdf,.pdf', false));
+    wrap.appendChild(picks);
+    if (list.length) {
+      var ul = el('ul', 'up__list');
+      list.forEach(function (f, i) {
+        var li = el('li', 'up__item');
+        if (f.thumb) { var im = el('img'); im.src = f.thumb; im.alt = ''; li.appendChild(im); }
+        else li.appendChild(el('span', 'up__pdf', 'PDF'));
+        li.appendChild(el('span', 'up__name', f.name));
+        var x = el('button', 'up__del', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать ' + f.name);
+        x.addEventListener('click', function () { if (f.thumb) URL.revokeObjectURL(f.thumb); list.splice(i, 1); paintDone(l); });
+        li.appendChild(x);
+        ul.appendChild(li);
+      });
+      wrap.appendChild(ul);
+    }
+    var status = el('p', 'up__status', list.length ? 'Выбрано: ' + list.length + ' ' + plural(list.length, 'файл', 'файла', 'файлов') + '. Проверьте, что всё читается.' : 'Можно несколько фото: каждая страница решения — отдельным снимком.');
+    wrap.appendChild(status);
+    if (list.length) {
+      wrap.appendChild(confirmButton('Отправить на проверку', 'Отправить? Изменить будет нельзя', 'btn--solid dl__btn', function (restore) {
+        var fd = new FormData();
+        list.forEach(function (f) { fd.append('files', f.blob, f.name); });
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/me/lessons/' + l.pk + '/submission');
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = function (e) { if (e.lengthComputable) status.textContent = 'Отправляю… ' + Math.round(100 * e.loaded / e.total) + '%'; };
+        xhr.onload = function () {
+          var d = {}; try { d = JSON.parse(xhr.responseText); } catch (e) { /* пусто */ }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            list.forEach(function (f) { if (f.thumb) URL.revokeObjectURL(f.thumb); });
+            delete pending[l.pk];
+            l.deadline = d.deadline; l.done = true; l.submission = d.submission;
+            paintDone(l);
+          } else {
+            restore(); status.textContent = '';
+            err.textContent = typeof d.detail === 'string' ? d.detail : 'Сервер ответил ошибкой ' + xhr.status + '.'; err.hidden = false;
+            if (xhr.status === 409) reloadLessons();
+          }
+        };
+        xhr.onerror = function () { restore(); status.textContent = ''; err.textContent = 'Нет связи с сервером. Файлы не потерялись — попробуйте ещё раз.'; err.hidden = false; };
+        xhr.send(fd);
+      }));
+    }
+    return wrap;
+  }
+  /* Что сдано и результат проверки */
+  function submissionView(sb) {
+    var box = el('div', 'sres sres--' + sb.status);
+    var files = el('div', 'sres__files');
+    sb.files.forEach(function (f, i) {
+      var a = el('a', 'sres__file'); a.href = f.url; a.target = '_blank'; a.rel = 'noopener';
+      if (f.type.indexOf('image/') === 0) { var im = el('img'); im.src = f.url; im.alt = 'Фото ' + (i + 1); im.loading = 'lazy'; a.appendChild(im); }
+      else a.appendChild(el('span', 'up__pdf', 'PDF'));
+      files.appendChild(a);
+    });
+    box.appendChild(files);
+    if (sb.status === 'checked') {
+      var pct = sb.max ? Math.round(100 * sb.score / sb.max) : 0;
+      var head = el('div', 'sres__head');
+      head.appendChild(el('span', 'dl__label', 'Результат проверки'));
+      head.appendChild(el('b', 'sres__score', sb.score + ' из ' + sb.max + ' · ' + pct + '%'));
+      box.appendChild(head);
+      if (sb.comment) box.appendChild(el('p', 'sres__comment', sb.comment));
+    } else {
+      box.appendChild(el('p', 'sres__wait', 'Работа на проверке. Результат появится здесь.'));
+    }
+    return box;
   }
 
   function showDialog() {
@@ -577,6 +703,7 @@
   function loadDash() {
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
+      $('curator-link').hidden = !d.user.curator;
       $('acc-title').textContent = 'Мои материалы';
       /* вошли: подсказка «войдите, чтобы открыть» больше не нужна */
       if (params.get('locked') !== '1' && $('acc-note').dataset.kind === 'next') note('');

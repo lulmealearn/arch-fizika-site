@@ -50,7 +50,8 @@ class Visualization(Base):
 
 
 class User(Base):
-    """Ученик: только ник и хеш пароля, больше ничего не храним."""
+    """Ученик (или куратор): ник и хеш пароля. Куратор — тот же аккаунт с role="curator": проверяет сданные ДЗ
+    на странице /check/; tg_chat_id — куда бот присылает ему новые работы."""
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -62,6 +63,8 @@ class User(Base):
     session_version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    role: Mapped[str] = mapped_column(String(16), default="student", server_default="student")
+    tg_chat_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
 
 class Homework(Base):
@@ -230,3 +233,25 @@ class Grant(Base):
     kind: Mapped[str] = mapped_column(String(10))
     item_id: Mapped[int] = mapped_column(Integer, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Submission(Base):
+    """Сданное ДЗ: файлы ученика (фото или PDF в storage/submissions/), когда сдано, в срок ли, и результат проверки
+    куратором (верно из всего и комментарий). Сдача файлов и есть «Сдал» у занятия."""
+    __tablename__ = "submissions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"), index=True)
+    # [{"name": "файл на диске", "orig": "имя у ученика", "type": "image/jpeg" | "application/pdf", "size": байт}]
+    files: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    overdue: Mapped[int] = mapped_column(Integer, default=0)  # сколько раз срок истекал до этой сдачи
+    status: Mapped[str] = mapped_column(String(16), default="new")  # new — ждёт проверки, checked — проверено
+    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    max_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    comment: Mapped[str] = mapped_column(Text, default="")
+    checked_by: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # ник куратора или «Админ»
+    checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    notify_error: Mapped[str] = mapped_column(String(300), default="")

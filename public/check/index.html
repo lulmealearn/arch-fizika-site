@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Проверка работ · Артур, физика</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jura:wght@500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/css/main.css">
+<link rel="stylesheet" href="/assets/css/check.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="ck-top">
+    <a class="ck-top__back" href="/account/">← Личный кабинет</a>
+    <span class="ck-top__who" id="who"></span>
+  </header>
+
+  <main class="ck">
+    <section class="ck__head">
+      <span class="eyebrow">Кураторам</span>
+      <h1>Проверка работ</h1>
+      <p class="ck__lead">Сданные домашние задания учеников. Поставьте, сколько задач решено верно, и при необходимости оставьте комментарий — ученик увидит результат в папке занятия.</p>
+    </section>
+
+    <p class="ck__msg" id="msg" hidden></p>
+
+    <div class="ck__body" id="body" hidden>
+      <nav class="ck-tabs" role="tablist" aria-label="Какие работы показать">
+        <button type="button" role="tab" class="ck-tabs__btn" data-status="new" aria-selected="true">Ждут проверки <span id="c-new"></span></button>
+        <button type="button" role="tab" class="ck-tabs__btn" data-status="checked" aria-selected="false">Проверены <span id="c-checked"></span></button>
+      </nav>
+      <ul class="ck-list" id="list" aria-live="polite"></ul>
+    </div>
+  </main>
+</div>
+
+<!-- Просмотр фото крупно -->
+<dialog class="ck-view" id="view" aria-label="Фото решения">
+  <div class="ck-view__bar">
+    <span id="view-count"></span>
+    <span class="ck-view__nav">
+      <button class="btn btn--small" type="button" id="view-prev">← Назад</button>
+      <button class="btn btn--small" type="button" id="view-next">Дальше →</button>
+      <a class="btn btn--small" id="view-open" target="_blank" rel="noopener">Оригинал</a>
+      <button class="btn btn--small" type="button" id="view-close">Закрыть</button>
+    </span>
+  </div>
+  <div class="ck-view__stage"><img id="view-img" alt=""></div>
+</dialog>
+
+<script src="/assets/js/check.js" defer></script>
+</body>
+</html>

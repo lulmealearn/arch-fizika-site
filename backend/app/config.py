@@ -29,7 +29,8 @@ STORAGE_DIR = Path(os.environ.get("STORAGE_DIR", ROOT / "storage")).resolve()
 VIZ_DIR = STORAGE_DIR / "viz"
 COVERS_DIR = STORAGE_DIR / "covers"
 HW_DIR = STORAGE_DIR / "hw"
-for _d in (STORAGE_DIR, VIZ_DIR, COVERS_DIR, HW_DIR):
+SUBMISSIONS_DIR = STORAGE_DIR / "submissions"  # сданные ДЗ учеников: фото и PDF
+for _d in (STORAGE_DIR, VIZ_DIR, COVERS_DIR, HW_DIR, SUBMISSIONS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # SQLite по умолчанию; для MySQL: mysql+pymysql://user:pass@host:3306/dbname?charset=utf8mb4
@@ -50,3 +51,15 @@ SESSION_DAYS = int(os.environ.get("SESSION_DAYS", "14"))
 MAX_HTML_BYTES = int(float(os.environ.get("MAX_HTML_MB", "8")) * 1024 * 1024)
 MAX_COVER_BYTES = int(float(os.environ.get("MAX_COVER_MB", "3")) * 1024 * 1024)
 MAX_PDF_BYTES = int(float(os.environ.get("MAX_PDF_MB", "25")) * 1024 * 1024)
+
+# Сдача ДЗ: фото сжимаются в браузере ученика, на сервер приходят уже лёгкими
+MAX_SUB_FILE_BYTES = int(float(os.environ.get("MAX_SUB_FILE_MB", "20")) * 1024 * 1024)
+MAX_SUB_FILES = int(os.environ.get("MAX_SUB_FILES", "15"))
+
+# Бот @Arch_Tutor_Bot присылает кураторам новые работы. Токен — от @BotFather (`python run.py set-bot`).
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_API = os.environ.get("TELEGRAM_API", "https://api.telegram.org")  # для тестов можно подменить
+# Ваш личный chat id: бот присылает новые работы и вам (необязательно)
+ADMIN_TG_CHAT_ID = os.environ.get("ADMIN_TG_CHAT_ID", "").strip()
+# Адрес сайта для ссылок в сообщениях бота, например https://arch-fizika.ru
+SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")

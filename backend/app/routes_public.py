@@ -113,6 +113,8 @@ def _lesson_pdf(kind: str, number: int, request: Request, db: Session):
     l = db.scalar(select(Lesson).where(Lesson.number == number))
     user = current_user(request, db)
     name = (l.hw_file if kind == "hw" else l.notes_file) if l else None
+    if l and user is not None and user.role == "curator":
+        return _pdf(name, ("DZ" if kind == "hw" else "Konspekt") + f"-{number}")  # куратору — условие ДЗ для проверки
     if not l or not can_open(db, request, "lesson", l.id, user):
         # не говорим, существует ли занятие: без доступа всё выглядит одинаково
         return _to_account(f"/{prefix}/{number}", user is not None)

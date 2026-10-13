@@ -1,5 +1,6 @@
 """Админка: ученики и ручные доступы, занятия (запись, конспект, ДЗ и визуализации в одной папке)."""
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
@@ -9,11 +10,11 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from . import deadlines, files
+from . import config, deadlines, files, telegram
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
-from .models import DEFAULT_MOCK_DEADLINE_DAYS, GRANT_KINDS, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
+from .models import DEFAULT_MOCK_DEADLINE_DAYS, GRANT_KINDS, Submission, Grant, Lesson, Section, LessonProgress, LessonViz, Mock, MockAttempt, MockProgress, Report, User, View, Visit, Visualization
 from .tracking import _aware
 from .routes_auth import check_password_rules
 from .security import hash_password, require_admin
@@ -202,6 +203,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     g = user_grants(db).get(u.id) or {}
     lesson_ids, mock_ids = g.get("lesson", []), g.get("mock", [])
     _settle_all(db)
+    from .routes_check import latest_submissions, submission_out
+    subs = latest_submissions(db, u.id)
     lp = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == u.id))}
     mp = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == u.id))}
     # последний раз открывал материалы занятия / пробник
@@ -232,7 +235,8 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
         "visits": out_visits,
         "views": [{"kind": w.kind, "ref": w.ref, "title": w.title, "at": _iso(w.at)} for w in views[:80]],
         "lessons": [dict(pk=l.id, number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))),
-                         deadline=deadlines.status_out(lp.get(l.id), l), **prog(lp.get(l.id))) for l in lessons],
+                         deadline=deadlines.status_out(lp.get(l.id), l), submission=submission_out(subs.get(l.id)),
+                         **prog(lp.get(l.id))) for l in lessons],
         "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
                        result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key),
                        deadline=deadlines.status_out(mp.get(m.id), m), **prog(mp.get(m.id))) for m in mocks],
@@ -267,6 +271,7 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
     u = _user(db, pk)
     db.execute(delete(Grant).where(Grant.user_id == u.id))
     db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id))
+    _drop_submissions(db, Submission.user_id == u.id)
     db.execute(delete(MockProgress).where(MockProgress.user_id == u.id))
     db.execute(delete(MockAttempt).where(MockAttempt.user_id == u.id))
     db.execute(delete(Visit).where(Visit.user_id == u.id))
@@ -280,6 +285,49 @@ def users_delete(pk: int, db: Session = Depends(get_db)):
 
 
 # ── Доступ к одному материалу: кому открыт ──
+def _drop_submissions(db: Session, *where) -> None:
+    """Удалить сданные работы вместе с файлами."""
+    for s in db.scalars(select(Submission).where(*where)).all():
+        files.delete_submission_files(s.id)
+        db.delete(s)
+
+
+class RoleIn(BaseModel):
+    curator: bool
+    tg_chat_id: str = ""
+
+
+@router.put("/users/{pk}/role")
+def users_set_role(pk: int, body: RoleIn, db: Session = Depends(get_db)):
+    """Куратор проверяет сданные ДЗ на странице /check/; chat id — куда бот присылает новые работы."""
+    u = _user(db, pk)
+    chat = (body.tg_chat_id or "").strip()
+    if chat and not re.fullmatch(r"-?\d{3,20}", chat):
+        raise HTTPException(400, "Chat id — это число, например 123456789. Узнать его можно у бота @userinfobot.")
+    u.role = "curator" if body.curator else "student"
+    u.tg_chat_id = chat or None
+    db.commit()
+    return user_out(u, user_grants(db).get(u.id))
+
+
+@router.post("/users/{pk}/tg-test")
+def users_tg_test(pk: int, db: Session = Depends(get_db)):
+    """Пробное сообщение куратору — проверить токен бота и chat id."""
+    u = _user(db, pk)
+    if not u.tg_chat_id:
+        raise HTTPException(400, "Сначала впишите chat id.")
+    try:
+        telegram.send_text(u.tg_chat_id, f"Проверка связи: сюда будут приходить ДЗ учеников на проверку.\nСтраница проверки: {config.SITE_URL}/check/")
+    except telegram.TelegramError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+@router.get("/telegram")
+def telegram_status():
+    return {"enabled": telegram.enabled(), "site_url": config.SITE_URL, "admin_chat": bool(config.ADMIN_TG_CHAT_ID)}
+
+
 @router.delete("/users/{pk}/{kind}/{item_pk}/deadline")
 def users_reset_deadline(pk: int, kind: str, item_pk: int, db: Session = Depends(get_db)):
     """Сбросить срок по занятию или пробнику: снова «Не начато», материалы снова закрыты до «Начать», просрочек нет.
@@ -287,6 +335,7 @@ def users_reset_deadline(pk: int, kind: str, item_pk: int, db: Session = Depends
     u = _user(db, pk)
     if kind == "lessons":
         db.execute(delete(LessonProgress).where(LessonProgress.user_id == u.id, LessonProgress.lesson_id == item_pk))
+        _drop_submissions(db, Submission.user_id == u.id, Submission.lesson_id == item_pk)
     elif kind == "mocks":
         db.execute(delete(MockProgress).where(MockProgress.user_id == u.id, MockProgress.mock_id == item_pk))
         db.execute(delete(MockAttempt).where(MockAttempt.user_id == u.id, MockAttempt.mock_id == item_pk))
@@ -464,6 +513,7 @@ def lessons_delete(pk: int, db: Session = Depends(get_db)):
     drop_item(db, "lesson", l.id)
     db.execute(delete(LessonViz).where(LessonViz.lesson_id == l.id))
     db.execute(delete(LessonProgress).where(LessonProgress.lesson_id == l.id))
+    _drop_submissions(db, Submission.lesson_id == l.id)
     db.delete(l)
     db.commit()
     return {"ok": True}

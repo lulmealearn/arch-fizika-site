@@ -191,3 +191,38 @@ def media_type_for(name: str) -> Tuple[str, bool]:
         "png": ("image/png", True), "jpg": ("image/jpeg", True),
         "webp": ("image/webp", True), "svg": ("image/svg+xml", True),
     }.get(ext, ("application/octet-stream", False))
+
+
+# ── Сданные ДЗ: storage/submissions/<id>/01.jpg … ──
+SUB_TYPES = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "pdf": "application/pdf"}
+
+
+def detect_submission(data: bytes) -> Optional[str]:
+    """Расширение по содержимому, а не по имени: принимаем только фото (JPEG, PNG, WebP) и PDF."""
+    if data[:4] == b"%PDF":
+        return "pdf"
+    if data[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def submission_dir(sub_id: int) -> Path:
+    return config.SUBMISSIONS_DIR / str(int(sub_id))
+
+
+def submission_path(sub_id: int, name: str) -> Path:
+    if not re.fullmatch(r"\d{2}\.(jpg|png|webp|pdf)", name or ""):
+        raise HTTPException(404, "Такого файла нет.")
+    return submission_dir(sub_id) / name
+
+
+def delete_submission_files(sub_id: int) -> None:
+    d = submission_dir(sub_id)
+    if d.exists():
+        for f in d.iterdir():
+            f.unlink(missing_ok=True)
+        d.rmdir()

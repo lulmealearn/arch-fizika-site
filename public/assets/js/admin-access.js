@@ -387,6 +387,7 @@
       var st = u.stats || {};
       var head = el('div', 'urow__head');
       head.appendChild(el('h2', 'adm-row__title', u.nickname));
+      if (u.role === 'curator') head.appendChild(el('span', 'urow__role', 'куратор' + (u.tg_chat_id ? '' : ' · без Telegram')));
       var seen = el('span', 'urow__seen' + (st.last_seen_at && Date.now() - new Date(st.last_seen_at) < 864e5 ? ' is-fresh' : ''), ago(st.last_seen_at));
       seen.title = st.last_seen_at ? 'Последняя активность: ' + dateTime(st.last_seen_at) : '';
       head.appendChild(seen);
@@ -418,13 +419,15 @@
       acc.addEventListener('click', function () { editUserAccess(u); });
       var rep = el('button', 'btn btn--small', 'Отчёты'); rep.type = 'button';
       rep.addEventListener('click', function () { editUserReports(u); });
+      var cur = el('button', 'btn btn--small', 'Куратор'); cur.type = 'button';
+      cur.addEventListener('click', function () { editUserRole(u); });
       var pw = el('button', 'btn btn--small', 'Пароль'); pw.type = 'button';
       pw.addEventListener('click', function () { editUserPassword(u); });
       var del = el('button', 'btn btn--small btn--danger', 'Удалить'); del.type = 'button';
       del.addEventListener('click', function () {
         armDelete(del, function () { return api('DELETE', '/api/admin/users/' + u.id).then(function () { toast('Ученик ' + u.nickname + ' удалён'); return loadAll(); }); });
       });
-      actions.appendChild(acc); actions.appendChild(rep); actions.appendChild(pw); actions.appendChild(del);
+      actions.appendChild(acc); actions.appendChild(rep); actions.appendChild(cur); actions.appendChild(pw); actions.appendChild(del);
       li.appendChild(av); li.appendChild(text); li.appendChild(actions);
       list.appendChild(li);
     });
@@ -479,6 +482,15 @@
               if (dl.overdue) info.appendChild(el('b', 'urow__warn', 'Просрочено ' + dl.overdue + ' ' + plural(dl.overdue, 'раз', 'раза', 'раз')));
               if (dl.first_started_at) info.appendChild(document.createTextNode((dl.overdue ? '  ·  ' : '') + 'впервые начал ' + dateTime(dl.first_started_at) + '  ·  срок ' + dl.days + ' ' + plural(dl.days, 'день', 'дня', 'дней')));
               t.appendChild(info);
+            }
+            if (!mock && it.submission) {
+              var sb = it.submission, sres = el('span', 'prow__res');
+              var link = el('a', null, sb.files.length + ' ' + plural(sb.files.length, 'файл', 'файла', 'файлов'));
+              link.href = '/check/#s' + sb.id; link.target = '_blank'; link.rel = 'noopener';
+              if (sb.status === 'checked') sres.appendChild(el('b', null, 'Проверено: ' + sb.score + ' из ' + sb.max + ' (' + Math.round(100 * sb.score / sb.max) + '%)  ·  '));
+              else sres.appendChild(el('b', null, 'Ждёт проверки  ·  '));
+              sres.appendChild(link);
+              t.appendChild(sres);
             }
             if (mock && it.result) {
               var r = it.result;
@@ -602,6 +614,42 @@
         if (!$('e-title').value.trim()) throw new Error('Укажи период, например «Октябрь 2026».');
         var fd = new FormData(); fd.append('title', $('e-title').value.trim()); fd.append('pdf', f);
         return api('POST', '/api/admin/users/' + u.id + '/reports', fd).then(function (r) { toast('Отчёт загружен: ' + r.title); });
+      };
+    });
+  }
+
+  /* Куратор: проверяет сданные ДЗ на /check/, бот присылает ему новые работы */
+  function editUserRole(u) {
+    openEditor2('Куратор: ' + u.nickname, function (body) {
+      body.appendChild(el('p', 'hint', 'Куратор входит в личный кабинет под своим ником и открывает страницу «Проверка работ» (/check/): там сданные ДЗ, фото и PDF, поле для результата и комментария. Ученик видит результат в папке занятия.'));
+      var lab = el('label', 'check-row');
+      var cb = el('input'); cb.type = 'checkbox'; cb.id = 'e-curator'; cb.checked = u.role === 'curator';
+      lab.appendChild(cb); lab.appendChild(el('span', null, 'Куратор — проверяет домашние задания'));
+      body.appendChild(lab);
+      var chat = textInput('e-chat', u.tg_chat_id || '', 'например 123456789'); chat.inputMode = 'numeric'; chat.classList.add('mono');
+      body.appendChild(field('Telegram chat id — куда бот присылает новые работы', chat));
+      var bot = el('p', 'hint', 'Проверяю бота…');
+      body.appendChild(bot);
+      api('GET', '/api/admin/telegram').then(function (t) {
+        bot.textContent = t.enabled
+          ? 'Бот подключён. Chat id куратор узнаёт у @userinfobot (или командой в вашем боте), потом должен один раз открыть @Arch_Tutor_Bot и нажать /start — иначе Telegram не даст боту ему написать. Ссылки в сообщениях ведут на ' + t.site_url + '.'
+          : 'Бот ещё не подключён: остановите сайт и выполните «python run.py set-bot» — он попросит токен бота и адрес сайта. Пока работы ждут на странице проверки без уведомлений.';
+      }).catch(function () { bot.textContent = ''; });
+      var test = el('button', 'btn btn--small', 'Отправить пробное сообщение'); test.type = 'button';
+      test.addEventListener('click', function () {
+        test.disabled = true;
+        api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: $('e-chat').value.trim() })
+          .then(function () { return api('POST', '/api/admin/users/' + u.id + '/tg-test'); })
+          .then(function () { toast('Сообщение отправлено — проверьте Telegram куратора'); })
+          .catch(function (e) { toast(e.message, true); })
+          .then(function () { test.disabled = false; });
+      });
+      body.appendChild(test);
+      return function () {
+        var c = $('e-chat').value.trim();
+        if (c && !/^-?\d{3,20}$/.test(c)) throw new Error('Chat id — это число, например 123456789.');
+        return api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: c })
+          .then(function (r) { toast(r.role === 'curator' ? u.nickname + ' — куратор' : u.nickname + ' больше не куратор'); });
       };
     });
   }

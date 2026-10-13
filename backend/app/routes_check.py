@@ -1,0 +1,252 @@
+"""Сдача ДЗ на сайте и проверка кураторами.
+
+Ученик прикрепляет к занятию фото или PDF (пока идёт срок) — это и есть «Сдал». Бот @Arch_Tutor_Bot присылает работу
+кураторам (и владельцу, если задан ADMIN_TG_CHAT_ID) со ссылкой на страницу проверки /check/. Куратор ставит
+«верно из всего» и комментарий — ученик видит результат в папке занятия.
+Куратор — обычный аккаунт с role="curator" (назначает админ во вкладке «Ученики»)."""
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional, Tuple
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from . import config, deadlines, files, telegram
+from .access import current_user
+from .db import SessionLocal, get_db
+from .models import Lesson, Submission, User
+from .routes_auth import _my_item, _need_active
+from .security import check_same_origin, is_admin
+from .serialize import _iso
+from .tracking import touch
+
+log = logging.getLogger("check")
+router = APIRouter()
+MSK = timezone(timedelta(hours=3))  # Москва без перехода на летнее время
+
+
+# ── Кто проверяет ──
+def staff_name(request: Request, db: Session) -> Optional[str]:
+    """Ник куратора, «Админ» — для админки в этом браузере, None — не проверяющий."""
+    if is_admin(request):
+        return "Админ"
+    u = current_user(request, db)
+    if u is not None and u.role == "curator":
+        return u.nickname
+    return None
+
+
+def require_staff(request: Request, db: Session = Depends(get_db)) -> str:
+    name = staff_name(request, db)
+    if not name:
+        raise HTTPException(401, "Страница проверки — только для кураторов. Войдите в личный кабинет под аккаунтом куратора.")
+    check_same_origin(request)
+    return name
+
+
+# ── Вывод ──
+def files_out(s: Submission) -> List[dict]:
+    return [{"url": f"/sub/{s.id}/{f['name']}", "type": f["type"], "name": f.get("orig") or f["name"], "size": f.get("size", 0)}
+            for f in (s.files or [])]
+
+
+def submission_out(s: Optional[Submission]) -> Optional[dict]:
+    """Для ученика: что сдал и результат проверки."""
+    if s is None:
+        return None
+    return {"id": s.id, "created_at": _iso(s.created_at), "files": files_out(s), "status": s.status,
+            "score": s.score, "max": s.max_score, "comment": s.comment or "", "checked_at": _iso(s.checked_at)}
+
+
+def latest_submissions(db: Session, user_id: int) -> dict:
+    """{lesson_id: последняя сдача ученика}."""
+    out = {}
+    for s in db.scalars(select(Submission).where(Submission.user_id == user_id).order_by(Submission.created_at, Submission.id)):
+        out[s.lesson_id] = s
+    return out
+
+
+# ── Сдача ──
+async def _read(upload: UploadFile) -> bytes:
+    data = await upload.read(config.MAX_SUB_FILE_BYTES + 1)
+    if len(data) > config.MAX_SUB_FILE_BYTES:
+        raise HTTPException(413, f"Файл «{upload.filename}» больше {config.MAX_SUB_FILE_BYTES // (1024 * 1024)} МБ.")
+    return data
+
+
+@router.post("/api/me/lessons/{pk}/submission")
+async def submit_homework(pk: int, request: Request, background: BackgroundTasks,
+                          files_in: List[UploadFile] = File(..., alias="files"), db: Session = Depends(get_db)):
+    """Ученик сдаёт ДЗ файлами. Только пока идёт срок; после сдачи занятие «Сдано», кураторам уходит сообщение."""
+    user, lesson, row = _my_item(request, db, "lessons", pk)
+    if deadlines.state(row) == "done":
+        raise HTTPException(409, "Это занятие уже сдано.")
+    _need_active(db, row)
+    uploads = [f for f in files_in if f is not None and f.filename]
+    if not uploads:
+        raise HTTPException(400, "Прикрепите решение: фото или PDF.")
+    if len(uploads) > config.MAX_SUB_FILES:
+        raise HTTPException(400, f"Не больше {config.MAX_SUB_FILES} файлов за раз.")
+    parts: List[Tuple[bytes, str, str]] = []
+    for up in uploads:
+        data = await _read(up)
+        ext = files.detect_submission(data)
+        if not ext:
+            raise HTTPException(400, f"«{up.filename}» — не фото и не PDF. Подойдут JPEG, PNG, WebP или PDF.")
+        parts.append((data, ext, (up.filename or "")[:120]))
+
+    s = Submission(user_id=user.id, lesson_id=lesson.id, files=[], overdue=row.overdue_count or 0)
+    db.add(s)
+    db.flush()
+    d = files.submission_dir(s.id)
+    d.mkdir(parents=True, exist_ok=True)
+    meta = []
+    try:
+        for i, (data, ext, orig) in enumerate(parts, 1):
+            name = f"{i:02d}.{ext}"
+            (d / name).write_bytes(data)
+            meta.append({"name": name, "orig": orig, "type": files.SUB_TYPES[ext], "size": len(data)})
+        s.files = meta
+        deadlines.submit(row)
+        db.commit()
+    except Exception:
+        db.rollback()
+        files.delete_submission_files(s.id)
+        raise
+    touch(db, user, request)
+    background.add_task(notify_curators, s.id)
+    return {"deadline": deadlines.status_out(row, lesson), "submission": submission_out(s)}
+
+
+# ── Файлы сданных работ ──
+@router.get("/sub/{sid}/{name}")
+def open_submission_file(sid: int, name: str, request: Request, db: Session = Depends(get_db)):
+    """Файл видят сам ученик, кураторы и админ."""
+    s = db.get(Submission, sid)
+    path = files.submission_path(sid, name)
+    if s is None or not path.exists():
+        raise HTTPException(404, "Такого файла нет.")
+    if not staff_name(request, db):
+        u = current_user(request, db)
+        if u is None or u.id != s.user_id:
+            raise HTTPException(404, "Такого файла нет.")
+    meta = next((f for f in (s.files or []) if f["name"] == name), None)
+    if meta is None:
+        raise HTTPException(404, "Такого файла нет.")
+    return FileResponse(path, media_type=meta["type"], headers={
+        "Content-Disposition": f'inline; filename="DZ-{sid}-{name}"',
+        "Cache-Control": "private, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
+    })
+
+
+# ── Страница проверки ──
+class CheckIn(BaseModel):
+    score: int
+    max_score: int
+    comment: str = ""
+
+
+def check_out(s: Submission, u: Optional[User], l: Optional[Lesson]) -> dict:
+    return {
+        "id": s.id, "student": u.nickname if u else "?", "student_id": s.user_id,
+        "lesson": {"pk": l.id, "number": l.number, "title": l.title, "hw_url": f"/hw/{l.number}" if l and l.hw_file else None} if l else None,
+        "created_at": _iso(s.created_at), "overdue": s.overdue or 0, "files": files_out(s),
+        "status": s.status, "score": s.score, "max": s.max_score, "comment": s.comment or "",
+        "checked_by": s.checked_by, "checked_at": _iso(s.checked_at),
+        "notified_at": _iso(s.notified_at), "notify_error": s.notify_error or "",
+    }
+
+
+@router.get("/api/check/me")
+def check_me(response: Response, name: str = Depends(require_staff)):
+    response.headers["Cache-Control"] = "no-store"
+    return {"name": name, "bot": telegram.enabled()}
+
+
+@router.get("/api/check/submissions")
+def check_list(response: Response, status: str = "new", name: str = Depends(require_staff), db: Session = Depends(get_db)):
+    """Очередь: «ждут проверки» — старые сверху (кто раньше сдал), «проверены» — свежие сверху."""
+    response.headers["Cache-Control"] = "no-store"
+    q = select(Submission)
+    if status in ("new", "checked"):
+        q = q.where(Submission.status == status)
+    q = q.order_by(Submission.created_at.asc() if status == "new" else Submission.created_at.desc(), Submission.id)
+    subs = db.scalars(q.limit(300)).all()
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_({s.user_id for s in subs})))} if subs else {}
+    lessons = {l.id: l for l in db.scalars(select(Lesson).where(Lesson.id.in_({s.lesson_id for s in subs})))} if subs else {}
+    counts = {st: len(db.scalars(select(Submission.id).where(Submission.status == st)).all()) for st in ("new", "checked")}
+    return {"items": [check_out(s, users.get(s.user_id), lessons.get(s.lesson_id)) for s in subs], "counts": counts}
+
+
+@router.put("/api/check/submissions/{sid}")
+def check_save(sid: int, body: CheckIn, name: str = Depends(require_staff), db: Session = Depends(get_db)):
+    """Результат проверки: сколько верно из скольких и комментарий. Можно исправить позже."""
+    s = db.get(Submission, sid)
+    if s is None:
+        raise HTTPException(404, "Работа не найдена.")
+    if not 1 <= body.max_score <= 500:
+        raise HTTPException(400, "«Из скольких» — от 1 до 500.")
+    if not 0 <= body.score <= body.max_score:
+        raise HTTPException(400, "«Верно» — от 0 до числа заданий.")
+    s.score, s.max_score = body.score, body.max_score
+    s.comment = (body.comment or "").strip()[:3000]
+    s.status = "checked"
+    s.checked_by = name
+    s.checked_at = datetime.now(timezone.utc)
+    db.commit()
+    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id))
+
+
+# ── Уведомления через бота ──
+def _msk(dt: Optional[datetime]) -> str:
+    if dt is None:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(MSK).strftime("%d.%m в %H:%M")
+
+
+def recipients(db: Session) -> List[str]:
+    ids = [c for c in db.scalars(select(User.tg_chat_id).where(User.role == "curator", User.tg_chat_id.is_not(None))) if c]
+    if config.ADMIN_TG_CHAT_ID and config.ADMIN_TG_CHAT_ID not in ids:
+        ids.append(config.ADMIN_TG_CHAT_ID)
+    return ids
+
+
+def notify_curators(sub_id: int) -> None:
+    """Фоном после ответа ученику: отправить работу кураторам. Ошибка не мешает сдаче — она видна на странице проверки."""
+    with SessionLocal() as db:
+        s = db.get(Submission, sub_id)
+        if s is None:
+            return
+        u, l = db.get(User, s.user_id), db.get(Lesson, s.lesson_id)
+        to = recipients(db)
+        if not telegram.enabled():
+            s.notify_error = "Бот не настроен (python run.py set-bot) — работа ждёт на странице проверки."
+        elif not to:
+            s.notify_error = "Нет кураторов с Telegram chat id — работа ждёт на странице проверки."
+        else:
+            n_ph = sum(1 for f in s.files if f["type"].startswith("image/"))
+            n_pdf = len(s.files) - n_ph
+            what = ", ".join(x for x in (f"{n_ph} фото" if n_ph else "", f"{n_pdf} PDF" if n_pdf else "") if x)
+            title = f"занятие № {l.number}" + (f" «{l.title}»" if l and l.title else "") if l else "занятие"
+            caption = (f"Новое ДЗ на проверку\n{u.nickname if u else '?'} · {title}\n"
+                       f"Сдано {_msk(s.created_at)} (мск) · {what}\n"
+                       + (f"До сдачи срок истекал: {s.overdue}\n" if s.overdue else "")
+                       + f"Проверить: {config.SITE_URL}/check/#s{s.id}")
+            paths = [(files.submission_path(s.id, f["name"]), f["name"]) for f in s.files]
+            errors = []
+            for chat in to:
+                try:
+                    telegram.send_files(chat, paths, caption)
+                except telegram.TelegramError as e:
+                    errors.append(f"{chat}: {e}")
+                    log.warning("ДЗ %s не отправлено в %s: %s", s.id, chat, e)
+            s.notify_error = "; ".join(errors)[:300]
+            if len(errors) < len(to):
+                s.notified_at = datetime.now(timezone.utc)
+        db.commit()

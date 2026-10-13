@@ -274,3 +274,37 @@ html.pop-lock { overflow: hidden; }
 .dl__btn.is-armed { background: var(--violet); border-color: var(--violet); }
 @media (max-width: 480px) { .dl__btn { align-self: stretch; } }
 .dl .form-error { margin: 0; }
+
+/* ── Сдача ДЗ файлами ── */
+.up { display: flex; flex-direction: column; gap: 10px; }
+.up__picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.up__pick { position: relative; min-height: 48px; cursor: pointer; background: #fff; }
+.up__pick:focus-within { outline: 2.5px solid var(--violet); outline-offset: 2px; }
+.up__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+@media (hover: hover) and (pointer: fine) { .up__pick--cam { display: none; } }  /* на компьютере камера не нужна */
+@media (max-width: 480px) { .up__pick { flex: 1 1 100%; justify-content: center; } }
+.up__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.up__item { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+.up__item img, .up__pdf { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--bg); }
+.up__pdf { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--violet-ink); background: var(--violet-tint); }
+.up__name { font-family: var(--mono); font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up__del { position: absolute; top: 2px; right: 2px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(24, 24, 32, .78); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.up__del:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 1px; }
+.up__status { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+/* что сдано и результат */
+.sres { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.sres__files { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.sres__file { flex: none; width: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.sres__file img, .sres__file .up__pdf { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 0; }
+.sres__file img { display: block; }
+.sres__file { text-decoration: none; }
+.sres__file:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 2px; }
+.sres__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--c) 25%, transparent); }
+.sres__score { font-family: var(--display); font-size: 24px; color: var(--done-ink); }
+.sres__comment { margin: 0; padding: 12px 14px; border-radius: 12px; background: #fff; font-size: 15px; line-height: 1.5; white-space: pre-wrap; }
+.sres__wait { margin: 0; font-size: 15px; color: var(--ink-2); }
+
+/* куратор: ссылка на проверку */
+.acc__curator { align-self: flex-start; }
+.acc__head > .acc__head-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
