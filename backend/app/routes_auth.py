@@ -203,6 +203,36 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
     }
 
 
+@router.get("/me/deadlines")
+def my_deadlines(request: Request, response: Response, db: Session = Depends(get_db)):
+    """Кнопка «Дедлайны» в шапке: что ученик начал и сколько осталось, плюс просроченное (срок истёк, ждёт нового «Начать»)."""
+    response.headers["Cache-Control"] = "no-store"
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(401, "Войдите в личный кабинет.")
+    out = []
+    for model, prog, col, kind, label, href in ((Lesson, LessonProgress, "lesson_id", "lesson", "Занятие", "z"),
+                                                (Mock, MockProgress, "mock_id", "mock", "Пробник", "p")):
+        ids = granted_ids(db, user.id, kind)
+        if not ids:
+            continue
+        rows = db.scalars(select(prog).where(prog.user_id == user.id, getattr(prog, col).in_(ids))).all()
+        if any([deadlines.settle(p) for p in rows]):
+            db.commit()
+        items = {i.id: i for i in db.scalars(select(model).where(model.id.in_({getattr(p, col) for p in rows})))} if rows else {}
+        for p in rows:
+            st = deadlines.state(p)
+            it = items.get(getattr(p, col))
+            if it is None or not (st == "active" or (st == "todo" and p.overdue_count)):
+                continue
+            d = deadlines.status_out(p, it)
+            out.append({"kind": kind, "label": f"{label} № {it.number}", "title": it.title or "", "url": f"/account/#{href}{it.number}",
+                        "state": st, "started_at": d["started_at"], "due_at": d["due_at"], "days": d["days"],
+                        "overdue": d["overdue"], "last_overdue_at": d["last_overdue_at"]})
+    out.sort(key=lambda x: (x["state"] != "active", x["due_at"] or "", x["label"]))
+    return {"user": {"nickname": user.nickname, "curator": user.role == "curator"}, "items": out}
+
+
 KINDS = {"lessons": (Lesson, LessonProgress, "lesson_id", "lesson", "Занятие не найдено.", "Это занятие уже сдано."),
          "mocks": (Mock, MockProgress, "mock_id", "mock", "Пробник не найден.", "Этот пробник уже сдан.")}
 

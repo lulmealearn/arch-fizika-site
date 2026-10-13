@@ -90,7 +90,7 @@
   });
 
   $('logout').addEventListener('click', function () {
-    api('POST', '/api/auth/logout').then(function () { note(''); mode = 'login'; toAuth(); });
+    api('POST', '/api/auth/logout').then(function () { note(''); mode = 'login'; toAuth(); syncDeadlines(); });
   });
 
   function toAuth() {
@@ -136,6 +136,8 @@
     if (i.viz) parts.push(i.viz + ' ' + plural(i.viz, 'визуализация', 'визуализации', 'визуализаций'));
     return parts.length ? parts.join(' · ') : 'материалы скоро появятся';
   }
+  /* кнопка «Дедлайны» в шапке (main.js) — обновить после «Начать», сдачи, входа и выхода */
+  function syncDeadlines() { if (window.refreshDeadlines) window.refreshDeadlines(); }
   function lessonTitle(l) { return l.title || 'Занятие № ' + l.number; }
 
   /* ── Срок на ДЗ: «Не начато» → «Начать» (идёт срок) → «Сдал». Истёк без сдачи — снова «Не начато», просрочка в счётчике ── */
@@ -374,6 +376,7 @@
       var mock = currentKind === 'mock';
       api('POST', '/api/me/' + (mock ? 'mocks/' : 'lessons/') + l.pk + '/' + action).then(function (r) {
         l.deadline = r.deadline; l.done = r.deadline.state === 'done';
+        syncDeadlines();
         if (mock) renderSheet(l);
         paintDone(l);
         if (l.locked) reloadLessons();  // после первого «Начать» сервер открыл материалы — подтягиваем ссылки
@@ -509,6 +512,7 @@
             list.forEach(function (f) { if (f.thumb) URL.revokeObjectURL(f.thumb); });
             delete pending[l.pk];
             l.deadline = d.deadline; l.done = true; l.submission = d.submission;
+            syncDeadlines();
             paintDone(l);
           } else {
             restore(); status.textContent = '';
@@ -629,7 +633,7 @@
       m.tasks.forEach(function (t) { answers[t] = (draft[t] || '').trim(); });
       api('POST', '/api/me/mocks/' + m.pk + '/answers', { answers: answers }).then(function (r) {
         m.result = r; dropDraft(m);
-        if (r.deadline) { m.deadline = r.deadline; m.done = r.deadline.state === 'done'; }
+        if (r.deadline) { m.deadline = r.deadline; m.done = r.deadline.state === 'done'; syncDeadlines(); }
         renderSheet(m); paintDone(m);
       }).catch(function (e) {
         err.textContent = e.message; err.hidden = false; btn.disabled = false; armed = false; btn.textContent = 'Отправить ответы'; btn.classList.remove('is-armed');
@@ -704,6 +708,7 @@
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
       $('curator-link').hidden = !d.user.curator;
+      syncDeadlines();
       $('acc-title').textContent = 'Мои материалы';
       /* вошли: подсказка «войдите, чтобы открыть» больше не нужна */
       if (params.get('locked') !== '1' && $('acc-note').dataset.kind === 'next') note('');
