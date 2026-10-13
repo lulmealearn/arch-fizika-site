@@ -794,15 +794,19 @@
           names.appendChild(b);
         });
         bar.appendChild(names);
+      } else if (!s.linked) {
+        bar.appendChild(el('p', null, 'Отчёты за ' + s.label + ': пока не из чего собирать — ни один ученик не привязан к таблице. Впишите ученикам chat id (кнопка «Telegram») и проверьте привязку кнопкой «Таблица».'));
+      } else if (s.made.length) {
+        bar.appendChild(el('p', null, 'Отчёты за ' + s.label + ': все черновики проверены и опубликованы.'));
       } else {
-        bar.appendChild(el('p', null, 'Отчёты за ' + s.label + ': ' + (s.made.length ? 'все черновики проверены.' : 'черновиков нет — ни у кого из привязанных учеников не было занятий в таблице.')));
+        bar.appendChild(el('p', null, 'Отчёты за ' + s.label + ': черновиков нет — у привязанных учеников' + (s.skipped.length ? ' (' + s.skipped.join(', ') + ')' : '') + ' в таблице нет занятий за этот месяц.'));
       }
       if (s.errors.length) {
         var er = el('p', 'auto-bar__err', 'Не собрались: ' + s.errors.join('; '));
         bar.appendChild(er);
       }
       var again = el('button', 'btn btn--small', 'Собрать недостающие'); again.type = 'button';
-      again.title = 'Например, после того как ученику указали chat id или вкладку в таблице';
+      again.title = 'Собрать черновики за ' + s.label + ' тем, у кого их ещё нет: например, после того как ученика привязали к таблице';
       again.addEventListener('click', function () {
         again.disabled = true;
         api('POST', '/api/admin/reports/auto/run').then(loadAuto).catch(function (e) { toast(e.message, true); again.disabled = false; });

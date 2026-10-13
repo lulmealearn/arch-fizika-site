@@ -249,7 +249,8 @@ def reports_auto_status(background: BackgroundTasks, db: Session = Depends(get_d
     drafts = db.scalars(select(Report).where(Report.kind == "auto", Report.status == "draft",
                                              Report.period_from == d_from.isoformat())).all()
     names = {u.id: u.nickname for u in db.scalars(select(User).where(User.id.in_({r.user_id for r in drafts})))} if drafts else {}
-    return {"enabled": True, "period": d_from.isoformat(), "to": d_to.isoformat(),
+    linked = sum(1 for u in db.scalars(select(User).where(User.role != "curator")) if sheets.linked(u))
+    return {"enabled": True, "linked": linked, "period": d_from.isoformat(), "to": d_to.isoformat(),
             "label": report_build.period_label(d_from, d_to), "running": _lock.locked() or _just_started(st),
             "made": st.get("made") or [], "skipped": st.get("skipped") or [], "errors": st.get("errors") or [],
             "drafts": [{"report": r.id, "user_id": r.user_id, "nickname": names.get(r.user_id, "?")} for r in drafts]}
