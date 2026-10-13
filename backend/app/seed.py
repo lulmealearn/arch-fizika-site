@@ -110,6 +110,9 @@ def _migrate_viewed_to_submitted(db) -> None:
     чтобы прошлые занятия не покраснели разом. Повторный запуск ничего не меняет (у сданных submitted_at уже есть)."""
     for p in db.scalars(select(LessonProgress).where(LessonProgress.done.is_(True), LessonProgress.submitted_at.is_(None))).all():
         p.submitted_at = p.updated_at
+    # материалы открываются после первого «Начать»: у сданных по старой отметке считаем, что начато тогда же
+    for p in db.scalars(select(LessonProgress).where(LessonProgress.submitted_at.is_not(None), LessonProgress.first_started_at.is_(None))).all():
+        p.first_started_at = p.submitted_at
     db.commit()
 
 

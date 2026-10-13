@@ -127,11 +127,13 @@
 
   /* что лежит в папке — коротко, для карточки */
   function contents(l) {
+    /* inside — что лежит в папке, даже пока материалы закрыты до «Начать» */
+    var i = l.inside || { video: !!l.url, notes: !!l.notes_url, hw: !!l.hw_url, viz: l.viz.length };
     var parts = [];
-    if (l.url) parts.push('запись');
-    if (l.notes_url) parts.push('конспект');
-    if (l.hw_url) parts.push('ДЗ');
-    if (l.viz.length) parts.push(l.viz.length + ' ' + plural(l.viz.length, 'визуализация', 'визуализации', 'визуализаций'));
+    if (i.video) parts.push('запись');
+    if (i.notes) parts.push('конспект');
+    if (i.hw) parts.push('ДЗ');
+    if (i.viz) parts.push(i.viz + ' ' + plural(i.viz, 'визуализация', 'визуализации', 'визуализаций'));
     return parts.length ? parts.join(' · ') : 'материалы скоро появятся';
   }
   function lessonTitle(l) { return l.title || 'Занятие № ' + l.number; }
@@ -370,6 +372,7 @@
       api('POST', '/api/me/lessons/' + l.pk + '/' + action).then(function (r) {
         l.deadline = r.deadline; l.done = r.deadline.state === 'done';
         paintDone(l);
+        if (l.locked) reloadLessons();  // после первого «Начать» сервер открыл материалы — подтягиваем ссылки
       }).catch(function (e) {
         restore();
         var err = $('lesson-dl').querySelector('.form-error');
@@ -392,7 +395,7 @@
     if (st === 'todo') {
       box.appendChild(el('p', 'dl__text', over
         ? 'Срок истёк' + (over > 1 ? ' уже ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') : '') + ', а задание не отмечено сданным. Возьмите новый срок и сдайте задание — просрочка останется в истории.'
-        : 'Когда будете готовы приступить, нажмите «Начать». С этого момента у вас ' + daysWord(days) + ' на решение.'));
+        : 'Материалы занятия откроются, когда вы нажмёте «Начать». С этого момента у вас ' + daysWord(days) + ' на домашнее задание — начинайте, когда будете готовы.'));
       box.appendChild(confirmButton(over ? 'Взять новый срок · ' + daysWord(days) : 'Начать · срок ' + daysWord(days),
         'Подтвердите: срок пойдёт сразу', 'btn--solid dl__btn', dlAction(l, 'start')));
     } else if (st === 'active') {
@@ -507,18 +510,30 @@
     });
     box.appendChild(table);
   }
+  /* Содержимое папки. До первого «Начать» материалы закрыты (их не отдаёт и сервер) — показываем только, что внутри */
+  function fillLesson(l) {
+    var list = $('lesson-items'); list.textContent = '';
+    if (l.locked) {
+      var what = contents(l);
+      var li = el('li', 'lesson__locked');
+      li.appendChild(el('b', null, 'Материалы откроются после «Начать»'));
+      li.appendChild(el('span', null, what === 'материалы скоро появятся' ? 'Материалы этого занятия скоро появятся.' : 'В папке: ' + what + '.'));
+      list.appendChild(li);
+    } else {
+      if (l.url) list.appendChild(item(l.url, ICONS.video, 'Запись', 'Смотреть запись занятия', 'Смотреть →', true));
+      if (l.notes_url) list.appendChild(item(l.notes_url, ICONS.notes, 'Конспект', 'Конспект занятия', 'PDF →', true));
+      if (l.hw_url) list.appendChild(item(l.hw_url, ICONS.hw, 'Домашнее задание', 'ДЗ к занятию № ' + l.number, 'PDF →', true));
+      l.viz.forEach(function (v) { list.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false)); });
+      if (!list.children.length) list.appendChild(el('li', 'lesson__empty', 'Материалы этого занятия скоро появятся.'));
+    }
+    paintDone(l);
+  }
   function openLesson(l) {
     current = l; currentKind = 'lesson';
     $('lesson-sheet').hidden = true;
     $('lesson-tab').textContent = 'Занятие № ' + l.number;
     $('lesson-title').textContent = lessonTitle(l);
-    var list = $('lesson-items'); list.textContent = '';
-    if (l.url) list.appendChild(item(l.url, ICONS.video, 'Запись', 'Смотреть запись занятия', 'Смотреть →', true));
-    if (l.notes_url) list.appendChild(item(l.notes_url, ICONS.notes, 'Конспект', 'Конспект занятия', 'PDF →', true));
-    if (l.hw_url) list.appendChild(item(l.hw_url, ICONS.hw, 'Домашнее задание', 'ДЗ к занятию № ' + l.number, 'PDF →', true));
-    l.viz.forEach(function (v) { list.appendChild(item('../viz/' + v.file, iconImg(vizIcon(v)), 'Визуализация', v.title, '→', false)); });
-    if (!list.children.length) list.appendChild(el('li', 'lesson__empty', 'Материалы этого занятия скоро появятся.'));
-    paintDone(l);
+    fillLesson(l);
     try { history.replaceState(null, '', '#z' + l.number); } catch (e) { /* без истории */ }
     showDialog();
   }
@@ -595,8 +610,11 @@
     return api('GET', '/api/me/materials').then(function (d) {
       var byPk = {};
       d.lessons.forEach(function (x) { byPk[x.pk] = x; });
-      lessons.forEach(function (l) { var x = byPk[l.pk]; if (x) { l.deadline = x.deadline; l.done = x.done; } });
-      if (current && currentKind === 'lesson') paintDone(current);
+      lessons.forEach(function (l) {
+        var x = byPk[l.pk];
+        if (x) Object.keys(x).forEach(function (k) { l[k] = x[k]; });  // тот же объект: окно и папки ссылаются на него
+      });
+      if (current && currentKind === 'lesson') fillLesson(current);
       if (!dlg.open) renderFolders();
     }).catch(function () { /* не важно */ });
   }

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from . import config, files
 from .db import get_db
-from .access import can_open, current_user, opened_viz_ids
+from .access import can_open, current_user, granted_ids, lesson_unlocked, opened_viz_ids
 from .tracking import record_view
-from .models import Lesson, Mock, Report, Section, Visualization
+from .models import Lesson, LessonViz, Mock, Report, Section, Visualization
 from .security import is_admin
 from .serialize import section_out, viz_public
 
@@ -65,6 +65,11 @@ def _to_account(next_path: str, signed_in: bool) -> RedirectResponse:
     return RedirectResponse("/account/?" + q, status_code=303, headers={"Cache-Control": "no-store"})
 
 
+def _to_lesson(number: int) -> RedirectResponse:
+    """Занятие открыто, но ученик ещё не нажал «Начать»: ведём в папку занятия, там кнопка."""
+    return RedirectResponse(f"/account/#z{number}", status_code=303, headers={"Cache-Control": "no-store"})
+
+
 @router.get("/viz/{name}")
 def open_visualization(name: str, request: Request, db: Session = Depends(get_db)):
     if name == "index.html":
@@ -76,6 +81,13 @@ def open_visualization(name: str, request: Request, db: Session = Depends(get_db
         raise HTTPException(404, "Нет такой визуализации.")
     user = current_user(request, db)
     if v.access == "private" and not can_open(db, request, "viz", v.id, user):
+        if user is not None:
+            # визуализация из открытого, но ещё не начатого занятия — ведём к кнопке «Начать»
+            lessons = granted_ids(db, user.id, "lesson")
+            n = db.scalar(select(Lesson.number).join(LessonViz, LessonViz.lesson_id == Lesson.id)
+                          .where(LessonViz.viz_id == v.id, Lesson.id.in_(lessons)).limit(1)) if lessons else None
+            if n is not None:
+                return _to_lesson(n)
         return _to_account(f"/viz/{name}", user is not None)
     path = files.viz_path(name)
     if not path.exists():
@@ -104,6 +116,8 @@ def _lesson_pdf(kind: str, number: int, request: Request, db: Session):
     if not l or not can_open(db, request, "lesson", l.id, user):
         # не говорим, существует ли занятие: без доступа всё выглядит одинаково
         return _to_account(f"/{prefix}/{number}", user is not None)
+    if not lesson_unlocked(db, request, l.id, user):
+        return _to_lesson(number)
     out = _pdf(name, ("DZ" if kind == "hw" else "Konspekt") + f"-{number}")
     _track(db, request, user, kind, str(number), l.title)
     return out
@@ -167,6 +181,8 @@ def watch_lesson(number: int, request: Request, db: Session = Depends(get_db)):
     user = current_user(request, db)
     if not l or not can_open(db, request, "lesson", l.id, user):
         return _to_account(f"/watch/{number}", user is not None)
+    if not lesson_unlocked(db, request, l.id, user):
+        return _to_lesson(number)
     if not l.url:
         raise HTTPException(404, "У этого занятия пока нет записи.")
     _track(db, request, user, "video", str(number), l.title)

@@ -1,6 +1,7 @@
 """Кто что может открыть: текущий ученик, его ручные доступы и проверка перед выдачей материала.
 
-Ученику открыто занятие (grants.kind = lesson) — значит, открыто и всё в его папке, включая закрытые визуализации.
+Ученику открыто занятие (grants.kind = lesson) — он видит папку, но её содержимое (запись, конспект, ДЗ, визуализации)
+открывается только после того, как он нажал «Начать» (срок на ДЗ, deadlines.py) — иначе ДЗ можно было бы читать до старта срока.
 Отдельную закрытую визуализацию можно открыть и без занятия (grants.kind = viz)."""
 from typing import Dict, Iterable, List, Optional, Set
 
@@ -8,7 +9,7 @@ from fastapi import Request
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .models import GRANT_KINDS, Grant, LessonViz, User
+from .models import GRANT_KINDS, Grant, LessonProgress, LessonViz, User
 from .security import is_admin, read_user_token
 
 
@@ -27,9 +28,18 @@ def granted_ids(db: Session, user_id: int, kind: str) -> Set[int]:
     return set(db.scalars(select(Grant.item_id).where(Grant.user_id == user_id, Grant.kind == kind)))
 
 
+def started_lesson_ids(db: Session, user_id: int) -> Set[int]:
+    """Открытые ученику занятия, где он хоть раз нажал «Начать», — их материалы доступны (и после просрочки тоже)."""
+    granted = granted_ids(db, user_id, "lesson")
+    if not granted:
+        return set()
+    return set(db.scalars(select(LessonProgress.lesson_id).where(
+        LessonProgress.user_id == user_id, LessonProgress.first_started_at.is_not(None), LessonProgress.lesson_id.in_(granted))))
+
+
 def opened_viz_ids(db: Session, user_id: int) -> Set[int]:
-    """Визуализации, открытые ученику: отдельно или через открытые ему занятия."""
-    lessons = granted_ids(db, user_id, "lesson")
+    """Визуализации, открытые ученику: отдельно или через начатые им занятия."""
+    lessons = started_lesson_ids(db, user_id)
     via_lessons = set(db.scalars(select(LessonViz.viz_id).where(LessonViz.lesson_id.in_(lessons)))) if lessons else set()
     return granted_ids(db, user_id, "viz") | via_lessons
 
@@ -45,6 +55,13 @@ def can_open(db: Session, request: Request, kind: str, item_id: int, user: Optio
         return item_id in opened_viz_ids(db, user.id)
     return db.scalar(select(Grant.id).where(
         Grant.user_id == user.id, Grant.kind == kind, Grant.item_id == item_id)) is not None
+
+
+def lesson_unlocked(db: Session, request: Request, lesson_id: int, user: Optional[User]) -> bool:
+    """Материалы занятия: админ — всегда, ученик — если занятие открыто ему и он нажал «Начать»."""
+    if is_admin(request):
+        return True
+    return user is not None and lesson_id in started_lesson_ids(db, user.id)
 
 
 def user_grants(db: Session) -> Dict[int, Dict[str, List[int]]]:

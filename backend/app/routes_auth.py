@@ -167,6 +167,12 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         item["done"] = item["deadline"]["state"] == "done"
         item.update(lesson_files(l))
         item["viz"] = [viz_public(viz[i]) for i in by_lesson.get(l.id, []) if i in viz]
+        # что лежит в папке — показываем всегда, а сами материалы — только после «Начать» (иначе ДЗ читают до старта срока)
+        item["inside"] = {"video": bool(l.url), "notes": bool(item.get("notes_url")), "hw": bool(item.get("hw_url")), "viz": len(item["viz"])}
+        p = progress.get(l.id)
+        item["locked"] = not (p and p.first_started_at)
+        if item["locked"]:
+            item.update(url=None, notes_url=None, hw_url=None, viz=[])
         out_lessons.append(item)
     mock_ids = granted_ids(db, user.id, "mock")
     mocks = db.scalars(select(Mock).where(Mock.id.in_(mock_ids)).order_by(Mock.number.desc())).all() if mock_ids else []

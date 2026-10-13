@@ -152,6 +152,10 @@ html.pop-lock { overflow: hidden; }
 .lesson__title { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(26px, 5vw, 34px); line-height: 1.1; overflow-wrap: break-word; hyphens: auto; }
 .lesson__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lesson__empty { padding: 18px; border: 1.5px dashed var(--dash); border-radius: 14px; color: var(--muted); }
+/* до «Начать» материалы закрыты: только перечень того, что в папке */
+.lesson__locked { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px 16px 52px; border: 1.5px dashed var(--dash); border-radius: 14px; color: var(--muted); font-size: 15px; line-height: 1.4;
+  background: no-repeat 18px 17px / 20px 20px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236c6a78' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E"); }
+.lesson__locked b { font-family: var(--display); font-size: 17px; color: var(--ink); }
 @media (max-width: 560px) {
   .lesson { width: 100vw; max-height: 100dvh; margin: auto 0 0; }
   .lesson__sheet { border-radius: 0 22px 0 0; max-height: calc(100dvh - 30px); border-top-width: 6px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
