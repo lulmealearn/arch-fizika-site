@@ -13,6 +13,26 @@
 .mark--sun { background: #fbeab8; }
 .mark--violet { background: var(--violet-tint); }
 .mark--rose { background: #fae1eb; }
+/* Маркер-ссылка: при наведении фиолетовая заливка проезжает слева направо, текст белеет, стрелка смещается */
+.mark--link {
+  display: inline-block; position: relative; isolation: isolate; color: var(--violet-ink); text-decoration: none; white-space: nowrap;
+  transition: color .22s var(--ease-out);
+}
+.mark--link::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--violet);
+  transform: scaleX(0); transform-origin: left center; transition: transform .28s var(--ease-out);
+}
+.mark--link::after { content: ""; position: absolute; inset: -8px -4px; } /* тач-цель не меньше 44px */
+.mark__arr { display: inline-block; width: .5em; height: .5em; margin-left: .18em; vertical-align: .32em; transition: transform .22s var(--ease-out); }
+@media (hover: hover) {
+  .mark--link:hover { color: #fff; }
+  .mark--link:hover::before { transform: scaleX(1); }
+  .mark--link:hover .mark__arr { transform: translate(2px, -2px); }
+}
+.mark--link:active { color: #fff; }
+.mark--link:active::before { transform: scaleX(1); }
+.mark--link:focus-visible { outline: 2.5px solid var(--violet); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .mark--link, .mark--link::before, .mark__arr { transition: none; } }
 .sec { display: flex; flex-direction: column; gap: 22px; padding-top: clamp(28px, 5vw, 48px); }
 .stars { color: #d48806; letter-spacing: 2px; }
 
@@ -91,9 +111,7 @@
 
 
 /* Живая визуализация на главной */
-.viz-card { display: flex; flex-direction: column; gap: 16px; }
-.viz-card .more { font-family: var(--mono); font-size: 13px; letter-spacing: .08em; min-height: 44px; display: inline-flex; align-items: center; }
-.mini { border: 1px solid var(--line); border-radius: 16px; background: var(--bg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.viz-card { display: flex; flex-direction: column; gap: 16px; }.mini { border: 1px solid var(--line); border-radius: 16px; background: var(--bg); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .mini__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .mini__chips span { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; }
 .mini__chips span.on { background: var(--ink); border-color: var(--ink); color: var(--on-dark); }
