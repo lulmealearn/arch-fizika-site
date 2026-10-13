@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from . import config, deadlines, files, telegram
+from . import config, deadlines, files, scale, telegram
 from .access import drop_item, item_users, set_item_users, set_user_grants, user_grants
 from .db import get_db
 from .mockcheck import grade, parse_key
@@ -218,6 +218,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
     from .routes_check import latest_submissions, submission_out
     subs = latest_submissions(db, u.id)
     msubs = latest_submissions(db, u.id, "mock_id")
+    sc = scale.get(db)
     lp = {p.lesson_id: p for p in db.scalars(select(LessonProgress).where(LessonProgress.user_id == u.id))}
     mp = {p.mock_id: p for p in db.scalars(select(MockProgress).where(MockProgress.user_id == u.id))}
     # последний раз открывал материалы занятия / пробник
@@ -254,6 +255,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
         "mocks": [dict(pk=m.id, number=m.number, title=m.title, opened_at=_iso(last_open.get("mock:" + str(m.number))),
                        result=_attempt_out(attempts.get(m.id)), has_key=bool(m.answer_key),
                        deadline=deadlines.status_out(mp.get(m.id), m), submission=submission_out(msubs.get(m.id)),
+                       total=scale.total(sc, attempts.get(m.id), msubs.get(m.id)),
                        **prog(mp.get(m.id))) for m in mocks],
     }
 
@@ -336,6 +338,23 @@ def users_tg_test(pk: int, db: Session = Depends(get_db)):
     except telegram.TelegramError as e:
         raise HTTPException(400, str(e))
     return {"ok": True}
+
+
+class ScaleIn(BaseModel):
+    scale: List[int]
+    year: str = ""
+    tasks: Optional[str] = None  # «номер: максимум: тема» построчно
+
+
+@router.get("/scale")
+def scale_get(db: Session = Depends(get_db)):
+    """Шкала перевода первичных баллов в тестовые (ЕГЭ по физике) и максимум второй части пробника."""
+    return scale.get(db)
+
+
+@router.put("/scale")
+def scale_put(body: ScaleIn, db: Session = Depends(get_db)):
+    return scale.save(db, body.scale, body.year, body.tasks)
 
 
 @router.get("/telegram")

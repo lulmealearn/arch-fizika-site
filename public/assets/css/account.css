@@ -310,3 +310,15 @@ html.pop-lock { overflow: hidden; }
 .acc__head > .acc__head-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
 .bsheet__h--files { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .bsheet .up { margin-top: 2px; }
+.sres__total { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: #fff; }
+.sres__total b { font-family: var(--display); font-size: 22px; color: var(--violet-ink); }
+.sres__note { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--muted); }
+.rrow__th { display: block; font-family: var(--serif); font-size: 11px; line-height: 1.25; color: var(--muted); letter-spacing: 0; text-transform: none; }
+.sres__tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sres__tasks li { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: #fff; font-size: 14px; }
+.sres__tasks b { font-family: var(--mono); font-size: 12px; }
+.sres__tasks span { color: var(--ink-2); line-height: 1.3; }
+.sres__tasks em { font-style: normal; font-family: var(--display); font-weight: 700; color: var(--ink); }
+.sres__tasks li.is-full em { color: var(--done-ink); }
+.sres__tasks li.is-zero em { color: var(--todo-ink); }
+.rrow { grid-template-columns: minmax(0, 1.5fr) minmax(0, .8fr) minmax(0, .8fr) 52px; }

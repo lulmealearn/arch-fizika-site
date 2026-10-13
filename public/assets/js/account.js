@@ -100,6 +100,7 @@
   }
 
   /* ── Занятия: папки ── */
+  var kim = null;  /* темы и максимумы заданий КИМ (для разбора пробника) */
   var lessons = [], mocks = [], sections = [], secFilter = 'all', filter = 'all', current = null, currentKind = 'lesson';
 
   function plural(n, one, few, many) {
@@ -425,7 +426,7 @@
     } else {
       box.appendChild(el('p', 'dl__text', 'Сдано ' + when(dl.submitted_at) + '.' +
         (over ? ' Срок был просрочен ' + over + ' ' + plural(over, 'раз', 'раза', 'раз') + '.' : '')));
-      if (l.submission) box.appendChild(submissionView(l.submission, mock));
+      if (l.submission) box.appendChild(submissionView(l.submission, mock, l.total));
     }
     box.appendChild(err);
   }
@@ -579,7 +580,7 @@
     return wrap;
   }
   /* Что сдано и результат проверки */
-  function submissionView(sb, mock) {
+  function submissionView(sb, mock, total) {
     var box = el('div', 'sres sres--' + sb.status);
     var files = el('div', 'sres__files');
     sb.files.forEach(function (f, i) {
@@ -594,8 +595,28 @@
       var pct = sb.max ? Math.round(100 * sb.score / sb.max) : 0;
       var head = el('div', 'sres__head');
       head.appendChild(el('span', 'dl__label', mock ? 'Вторая часть · проверка куратора' : 'Результат проверки'));
-      head.appendChild(el('b', 'sres__score', sb.score + ' из ' + sb.max + ' · ' + pct + '%'));
+      head.appendChild(el('b', 'sres__score', mock ? sb.score + ' из ' + sb.max + ' первичных' : sb.score + ' из ' + sb.max + ' · ' + pct + '%'));
       box.appendChild(head);
+      if (mock && sb.task_scores && kim && kim.part2) {
+        var br = el('ul', 'sres__tasks');
+        kim.part2.forEach(function (t) {
+          var v = sb.task_scores[String(t.n)];
+          if (v == null) return;
+          var li = el('li', v === t.max ? 'is-full' : v === 0 ? 'is-zero' : '');
+          li.appendChild(el('b', null, '№ ' + t.n));
+          li.appendChild(el('span', null, t.theme));
+          li.appendChild(el('em', null, v + ' / ' + t.max));
+          br.appendChild(li);
+        });
+        box.appendChild(br);
+      }
+      if (mock && total) {
+        var tot = el('div', 'sres__total');
+        tot.appendChild(el('span', 'dl__label', 'Итого за пробник'));
+        tot.appendChild(el('b', null, total.primary + ' из ' + total.max + ' первичных' + (total.test != null ? ' → ' + total.test + ' ' + plural(total.test, 'тестовый балл', 'тестовых балла', 'тестовых баллов') : '')));
+        if (total.test != null) tot.appendChild(el('span', 'sres__note', 'по шкале перевода ЕГЭ-' + total.year));
+        box.appendChild(tot);
+      }
       if (sb.comment) box.appendChild(el('p', 'sres__comment', sb.comment));
     } else {
       box.appendChild(el('p', 'sres__wait', mock ? 'Решения на проверке у куратора: баллы за вторую часть появятся здесь.' : 'Работа на проверке. Результат появится здесь.'));
@@ -701,7 +722,10 @@
     table.appendChild(hdr);
     r.details.forEach(function (d) {
       var row = el('div', 'rrow ' + (d.points === d.max ? 'rrow--ok' : d.points ? 'rrow--half' : 'rrow--bad'));
-      row.appendChild(el('span', 'rrow__n', String(d.n)));
+      var nCell = el('span', 'rrow__n', String(d.n));
+      var th = kim && kim.themes && kim.themes[String(d.n)];
+      if (th) { nCell.title = th; nCell.appendChild(el('small', 'rrow__th', th)); }
+      row.appendChild(nCell);
       row.appendChild(el('span', null, d.given || '—'));
       row.appendChild(el('span', null, d.correct));
       row.appendChild(el('span', 'rrow__pts', d.points + ' / ' + d.max));
@@ -763,6 +787,7 @@
       sections = d.sections || [];
       renderSecChips();
       mocks = d.mocks || [];
+      kim = d.kim || kim;
       renderFolders(); renderMocks(); renderReports(d.reports || []);
       $('kt-lessons').textContent = lessons.length || '';
       setKtab(hash === KTABS.mocks ? 'mocks' : hash === KTABS.reports ? 'reports' : 'lessons', false);

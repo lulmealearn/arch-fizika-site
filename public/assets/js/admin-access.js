@@ -388,6 +388,7 @@
       var head = el('div', 'urow__head');
       head.appendChild(el('h2', 'adm-row__title', u.nickname));
       if (u.role === 'curator') head.appendChild(el('span', 'urow__role', 'куратор' + (u.tg_chat_id ? '' : ' · без Telegram')));
+      else if (u.tg_chat_id) head.appendChild(el('span', 'urow__role urow__role--tg', 'Telegram'));
       var seen = el('span', 'urow__seen' + (st.last_seen_at && Date.now() - new Date(st.last_seen_at) < 864e5 ? ' is-fresh' : ''), ago(st.last_seen_at));
       seen.title = st.last_seen_at ? 'Последняя активность: ' + dateTime(st.last_seen_at) : '';
       head.appendChild(seen);
@@ -425,7 +426,7 @@
       acc.addEventListener('click', function () { editUserAccess(u); });
       var rep = el('button', 'btn btn--small', 'Отчёты'); rep.type = 'button';
       rep.addEventListener('click', function () { editUserReports(u); });
-      var cur = el('button', 'btn btn--small', 'Куратор'); cur.type = 'button';
+      var cur = el('button', 'btn btn--small', 'Telegram'); cur.type = 'button';
       cur.addEventListener('click', function () { editUserRole(u); });
       var pw = el('button', 'btn btn--small', 'Пароль'); pw.type = 'button';
       pw.addEventListener('click', function () { editUserPassword(u); });
@@ -520,7 +521,9 @@
               var sb = it.submission, sres = el('span', 'prow__res');
               var link = el('a', null, sb.files.length + ' ' + plural(sb.files.length, 'файл', 'файла', 'файлов'));
               link.href = '/check/#s' + sb.id; link.target = '_blank'; link.rel = 'noopener';
-              if (sb.status === 'checked') sres.appendChild(el('b', null, (mock ? '2 часть: ' : 'Проверено: ') + sb.score + ' из ' + sb.max + ' (' + Math.round(100 * sb.score / sb.max) + '%)  ·  '));
+              if (sb.status === 'checked') sres.appendChild(el('b', null, mock
+                ? '2 часть: ' + sb.score + ' из ' + sb.max + ' первичных' + (it.total ? ' · итого ' + it.total.primary + ' из ' + it.total.max + (it.total.test != null ? ' → ' + it.total.test + ' тестовых' : '') : '') + '  ·  '
+                : 'Проверено: ' + sb.score + ' из ' + sb.max + ' (' + Math.round(100 * sb.score / sb.max) + '%)  ·  '));
               else sres.appendChild(el('b', null, 'Ждёт проверки  ·  '));
               sres.appendChild(link);
               t.appendChild(sres);
@@ -653,19 +656,19 @@
 
   /* Куратор: проверяет сданные ДЗ на /check/, бот присылает ему новые работы */
   function editUserRole(u) {
-    openEditor2('Куратор: ' + u.nickname, function (body) {
-      body.appendChild(el('p', 'hint', 'Куратор входит в личный кабинет под своим ником и открывает страницу «Проверка работ» (/check/): там сданные ДЗ, фото и PDF, поле для результата и комментария. Ученик видит результат в папке занятия.'));
+    openEditor2('Telegram и роль: ' + u.nickname, function (body) {
+      body.appendChild(el('p', 'hint', 'Chat id ученика — бот присылает ему результаты проверки ДЗ и пробников одновременно с сайтом. Если отметить «Куратор», человек проверяет работы на странице «Проверка работ», а бот присылает ему новые сданные работы.'));
       var lab = el('label', 'check-row');
       var cb = el('input'); cb.type = 'checkbox'; cb.id = 'e-curator'; cb.checked = u.role === 'curator';
       lab.appendChild(cb); lab.appendChild(el('span', null, 'Куратор — проверяет домашние задания'));
       body.appendChild(lab);
       var chat = textInput('e-chat', u.tg_chat_id || '', 'например 123456789'); chat.inputMode = 'numeric'; chat.classList.add('mono');
-      body.appendChild(field('Telegram chat id — куда бот присылает новые работы', chat));
+      body.appendChild(field('Telegram chat id — ученику: результаты, куратору: новые работы', chat));
       var bot = el('p', 'hint', 'Проверяю бота…');
       body.appendChild(bot);
       api('GET', '/api/admin/telegram').then(function (t) {
         bot.textContent = t.enabled
-          ? 'Бот подключён. Chat id куратор узнаёт у @userinfobot (или командой в вашем боте), потом должен один раз открыть @Arch_Tutor_Bot и нажать /start — иначе Telegram не даст боту ему написать. Ссылки в сообщениях ведут на ' + t.site_url + '.'
+          ? 'Бот подключён. Chat id человек узнаёт у @userinfobot (или он уже есть в вашем боте); он должен хотя бы раз нажать /start у @Arch_Tutor_Bot — иначе Telegram не даст боту ему написать. Ссылки в сообщениях ведут на ' + t.site_url + '.'
           : 'Бот ещё не подключён: остановите сайт и выполните «python run.py set-bot» — он попросит токен бота и адрес сайта. Пока работы ждут на странице проверки без уведомлений.';
       }).catch(function () { bot.textContent = ''; });
       var test = el('button', 'btn btn--small', 'Отправить пробное сообщение'); test.type = 'button';
@@ -673,7 +676,7 @@
         test.disabled = true;
         api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: $('e-chat').value.trim() })
           .then(function () { return api('POST', '/api/admin/users/' + u.id + '/tg-test'); })
-          .then(function () { toast('Сообщение отправлено — проверьте Telegram куратора'); })
+          .then(function () { toast('Сообщение отправлено — проверьте Telegram'); })
           .catch(function (e) { toast(e.message, true); })
           .then(function () { test.disabled = false; });
       });
@@ -682,7 +685,7 @@
         var c = $('e-chat').value.trim();
         if (c && !/^-?\d{3,20}$/.test(c)) throw new Error('Chat id — это число, например 123456789.');
         return api('PUT', '/api/admin/users/' + u.id + '/role', { curator: $('e-curator').checked, tg_chat_id: c })
-          .then(function (r) { toast(r.role === 'curator' ? u.nickname + ' — куратор' : u.nickname + ' больше не куратор'); });
+          .then(function (r) { toast(u.nickname + (r.role === 'curator' ? ' — куратор' : ' — ученик') + (r.tg_chat_id ? ', Telegram подключён' : ', без Telegram')); });
       };
     });
   }
@@ -768,6 +771,36 @@
 
   $('lesson-add').addEventListener('click', function () { editLesson(null); });
   $('mock-add').addEventListener('click', function () { editMock(null); });
+  $('scale-edit').addEventListener('click', editScale);
+
+  /* Шкала перевода первичных баллов ЕГЭ в тестовые: её утверждают каждый год, поэтому она редактируется */
+  function editScale() {
+    openEditor2('Задания и шкала перевода', function (body) {
+      body.appendChild(el('p', 'hint', 'Загружаю…'));
+      api('GET', '/api/admin/scale').then(function (sc) {
+        body.textContent = '';
+        body.appendChild(el('p', 'hint', 'Задания 21–26 — вторая часть: куратор ставит баллы по каждому, сумма считается сама. Темы видит ученик в разборе. Шкала переводит итог из 45 первичных в тестовые; её утверждают каждый год (обычно в апреле) — тогда впишите новые числа.'));
+        var tasks = el('textarea', 'input input--key'); tasks.id = 'e-tasks'; tasks.rows = 10; tasks.spellcheck = false;
+        tasks.value = sc.tasks.map(function (t) { return t.n + ': ' + t.max + ': ' + t.theme; }).join('\n');
+        body.appendChild(field('Задания КИМ — «номер: максимум: тема»', tasks));
+        body.appendChild(field('Год шкалы', textInput('e-year', sc.year, '2026')));
+        var ta = el('textarea', 'input input--key'); ta.id = 'e-scale'; ta.rows = 10; ta.spellcheck = false;
+        ta.value = sc.scale.map(function (t, i) { return i + ': ' + t; }).join('\n');
+        body.appendChild(field('Шкала: первичные → тестовые, 46 строк (0–45)', ta));
+      });
+      return function () {
+        var lines = $('e-scale').value.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
+        var scale = lines.map(function (x) {
+          var m = /^(\d+)\s*[:=\-–—\s]\s*(\d+)$/.exec(x) || /^(\d+)$/.exec(x);
+          if (!m) throw new Error('Шкала: не понял строку «' + x + '». Нужно «первичные: тестовые», например «28: 70».');
+          return +(m[2] || m[1]);
+        });
+        return api('PUT', '/api/admin/scale', { scale: scale, year: $('e-year').value.trim(), tasks: $('e-tasks').value })
+          .then(function () { toast('Задания и шкала сохранены'); });
+      };
+    });
+  }
+
 
   /* ── Для admin.js ── */
   window.AdminAccess = {

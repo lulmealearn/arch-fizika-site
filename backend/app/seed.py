@@ -67,6 +67,9 @@ NEW_COLUMNS = [
     ("users", "tg_chat_id", "VARCHAR(32) NULL"),
     ("submissions", "mock_id", "INTEGER NULL"),
     ("submissions", "files_purged_at", "DATETIME NULL"),
+    ("submissions", "student_notified_at", "DATETIME NULL"),
+    ("submissions", "task_scores", "JSON NULL"),
+    ("submissions", "student_notify_error", "VARCHAR(300) NOT NULL DEFAULT ''"),
 ]
 
 

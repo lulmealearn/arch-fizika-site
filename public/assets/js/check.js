@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var status = 'new', items = [], target = null;
+  var status = 'new', items = [], target = null, part2Max = 17, part2 = [];
 
   function api(method, url, body) {
     var opts = { method: method, credentials: 'same-origin', headers: {} };
@@ -74,7 +74,7 @@
     if (s.mock) { var mv = el('a', null, 'вариант'); mv.href = s.mock.url; mv.target = '_blank'; mv.rel = 'noopener'; meta.appendChild(mv); }
     head.appendChild(meta);
     li.appendChild(head);
-    if (s.part1) li.appendChild(el('p', 'ck-part1', 'Первая часть (автопроверка): ' + s.part1.score + ' из ' + s.part1.max +
+    if (s.part1) li.appendChild(el('p', 'ck-part1', 'Первая часть (автопроверка): ' + s.part1.score + ' из ' + s.part1.max + ' первичных' +
       (s.part1.wrong.length ? ' · ошибки в заданиях ' + s.part1.wrong.join(', ') : ' · без ошибок')));
     if (s.purged) li.appendChild(el('p', 'ck-purged', 'Файлы удалены с сайта по сроку хранения; копия — в Telegram.'));
     if (s.notify_error) li.appendChild(el('p', 'ck-warn', 'Бот не смог прислать работу: ' + s.notify_error));
@@ -100,12 +100,20 @@
   }
   function resultBlock(s) {
     var box = el('div', 'ck-result');
-    box.appendChild(el('b', null, (s.kind === 'mock' ? '2 часть: ' : '') + s.score + ' из ' + s.max + ' · ' + Math.round(100 * s.score / s.max) + '%'));
+    if (s.kind === 'mock') {
+      box.appendChild(el('b', null, '2 часть: ' + s.score + ' из ' + s.max + ' первичных'));
+      if (s.task_scores) box.appendChild(el('span', null, Object.keys(s.task_scores).sort(function (x, y) { return x - y; }).map(function (n) { return '№' + n + ': ' + s.task_scores[n]; }).join(' · ')));
+      if (s.total) box.appendChild(el('b', 'ck-total', 'итого ' + s.total.primary + ' из ' + s.total.max + ' первичных' + (s.total.test != null ? ' → ' + s.total.test + ' тестовых' : '')));
+    } else {
+      box.appendChild(el('b', null, s.score + ' из ' + s.max + ' · ' + Math.round(100 * s.score / s.max) + '%'));
+    }
     box.appendChild(el('span', null, 'проверил ' + (s.checked_by || '—') + ', ' + when(s.checked_at)));
     var edit = el('button', 'btn btn--small', 'Изменить'); edit.type = 'button';
     edit.addEventListener('click', function () { s.editing = true; render(); });
     box.appendChild(edit);
     if (s.comment) box.appendChild(el('p', null, s.comment));
+    if (s.student_notified_at) box.appendChild(el('span', 'ck-sent', 'результат отправлен ученику в Telegram ' + when(s.student_notified_at)));
+    else if (s.student_notify_error) box.appendChild(el('span', 'ck-sent ck-sent--no', s.student_notify_error));
     return box;
   }
   function form(s) {
@@ -117,9 +125,40 @@
       lab.appendChild(inp);
       return [lab, inp];
     }
-    var mock = s.kind === 'mock';
-    var a = num(mock ? 'Баллы за 2 часть' : 'Верно', s.score, 'sc-' + s.id), b = num(mock ? 'Максимум' : 'Всего задач', s.max, 'mx-' + s.id);
-    f.appendChild(a[0]); f.appendChild(el('span', 'ck-of', 'из')); f.appendChild(b[0]);
+    var mock = s.kind === 'mock', a = null, b = null, cells = {};
+    if (mock) {
+      /* вторая часть — по заданиям, как в таблице: сумма считается сама */
+      var grid = el('div', 'ck-tasks');
+      var sumEl = el('b', 'ck-tasks__sum');
+      part2.forEach(function (t) {
+        var lab = el('label', 'ck-task');
+        var top = el('span', 'ck-task__n', '№ ' + t.n);
+        lab.appendChild(top);
+        lab.appendChild(el('span', 'ck-task__th', t.theme));
+        var row = el('span', 'ck-task__row');
+        var inp = el('input', 'ck-num ck-num--s'); inp.type = 'text'; inp.inputMode = 'numeric'; inp.maxLength = 2;
+        inp.setAttribute('aria-label', 'Баллы за задание ' + t.n + ' из ' + t.max);
+        var v = s.task_scores && s.task_scores[String(t.n)];
+        inp.value = v == null ? '' : v;
+        inp.addEventListener('input', function () { var x = inp.value.replace(/\D/g, ''); if (x !== inp.value) inp.value = x; total(); });
+        row.appendChild(inp); row.appendChild(el('span', 'ck-of', 'из ' + t.max));
+        lab.appendChild(row);
+        cells[t.n] = { inp: inp, max: t.max };
+        grid.appendChild(lab);
+      });
+      f.appendChild(grid);
+      var sumWrap = el('p', 'ck-tasks__total');
+      sumWrap.appendChild(document.createTextNode('Вторая часть: ')); sumWrap.appendChild(sumEl);
+      f.appendChild(sumWrap);
+      var total = function () {
+        var sum = 0; Object.keys(cells).forEach(function (n) { sum += +cells[n].inp.value || 0; });
+        sumEl.textContent = sum + ' из ' + part2Max + ' первичных' + (s.part1 ? ' · итого с первой частью ' + (sum + s.part1.score) + ' из ' + (part2Max + s.part1.max) : '');
+      };
+      total();
+    } else {
+      a = num('Верно', s.score, 'sc-' + s.id); b = num('Всего задач', s.max, 'mx-' + s.id);
+      f.appendChild(a[0]); f.appendChild(el('span', 'ck-of', 'из')); f.appendChild(b[0]);
+    }
     var cl = el('label', 'ck-comment', 'Комментарий для ученика');
     var ta = el('textarea'); ta.maxLength = 3000; ta.value = s.comment || ''; ta.placeholder = 'Например: №4 — cos 60° = 1/2, а не √3/2';
     cl.appendChild(ta); f.appendChild(cl);
@@ -133,11 +172,24 @@
     var err = el('p', 'form-error'); err.hidden = true; f.appendChild(err);
     f.addEventListener('submit', function (e) {
       e.preventDefault();
-      var sc = a[1].value.trim(), mx = b[1].value.trim();
-      if (!sc || !mx) { err.textContent = mock ? 'Впишите баллы и максимум.' : 'Впишите, сколько верно и из скольких.'; err.hidden = false; return; }
-      if (+sc > +mx) { err.textContent = mock ? 'Баллов не может быть больше максимума.' : '«Верно» не может быть больше, чем всего задач.'; err.hidden = false; return; }
+      var payload = { comment: ta.value.trim() };
+      if (mock) {
+        var ts = {}, bad = null;
+        Object.keys(cells).forEach(function (n) {
+          var v = cells[n].inp.value.trim();
+          if (v === '' || +v > cells[n].max) bad = bad || n;
+          ts[n] = +v;
+        });
+        if (bad) { err.textContent = 'Задание ' + bad + ': впишите баллы от 0 до ' + cells[bad].max + '.'; err.hidden = false; cells[bad].inp.focus(); return; }
+        payload.task_scores = ts;
+      } else {
+        var sc = a[1].value.trim(), mx = b[1].value.trim();
+        if (!sc || !mx) { err.textContent = 'Впишите, сколько верно и из скольких.'; err.hidden = false; return; }
+        if (+sc > +mx) { err.textContent = '«Верно» не может быть больше, чем всего задач.'; err.hidden = false; return; }
+        payload.score = +sc; payload.max_score = +mx;
+      }
       save.disabled = true; err.hidden = true;
-      api('PUT', '/api/check/submissions/' + s.id, { score: +sc, max_score: +mx, comment: ta.value.trim() }).then(function (r) {
+      api('PUT', '/api/check/submissions/' + s.id, payload).then(function (r) {
         var wasNew = s.status === 'new';
         Object.keys(r).forEach(function (k) { s[k] = r[k]; }); s.editing = false;
         if (wasNew && status === 'new') { counts.new--; counts.checked++; items = items.filter(function (x) { return x.id !== s.id; }); }
@@ -156,7 +208,7 @@
   }
   function load() {
     return api('GET', '/api/check/submissions?status=' + status).then(function (d) {
-      items = d.items; counts = d.counts; render();
+      items = d.items; counts = d.counts; part2Max = d.part2_max || 17; part2 = d.part2 || []; render();
       if (target) {
         var n = $('s' + target);
         if (n) n.scrollIntoView({ block: 'start' });

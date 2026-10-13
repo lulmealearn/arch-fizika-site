@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import config, deadlines, files, telegram
+from . import config, deadlines, files, scale, telegram
 from .access import current_user
 from .db import SessionLocal, get_db
 from .mockcheck import grade
@@ -61,6 +61,7 @@ def submission_out(s: Optional[Submission]) -> Optional[dict]:
         return None
     return {"id": s.id, "created_at": _iso(s.created_at), "files": files_out(s), "status": s.status,
             "score": s.score, "max": s.max_score, "comment": s.comment or "", "checked_at": _iso(s.checked_at),
+            "task_scores": s.task_scores or None,
             "purged": s.files_purged_at is not None}
 
 
@@ -215,20 +216,24 @@ def open_submission_file(sid: int, name: str, request: Request, db: Session = De
 
 # ── Страница проверки ──
 class CheckIn(BaseModel):
-    score: int
-    max_score: int
+    score: int = 0
+    max_score: int = 0
     comment: str = ""
+    task_scores: Optional[dict] = None  # пробник: баллы по заданиям второй части
 
 
 def check_out(s: Submission, u: Optional[User], l: Optional[Lesson], m: Optional[Mock] = None,
-              a: Optional[MockAttempt] = None) -> dict:
+              a: Optional[MockAttempt] = None, sc: Optional[dict] = None) -> dict:
     return {
+        "total": scale.total(sc, a, s) if (sc and m) else None,
+        "student_tg": bool(u and u.tg_chat_id),
+        "student_notified_at": _iso(s.student_notified_at), "student_notify_error": s.student_notify_error or "",
         "id": s.id, "student": u.nickname if u else "?", "student_id": s.user_id,
         "kind": "mock" if s.mock_id else "lesson",
         "lesson": {"pk": l.id, "number": l.number, "title": l.title, "hw_url": f"/hw/{l.number}" if l and l.hw_file else None} if l else None,
         "mock": {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}"} if m else None,
         "part1": {"score": a.score, "max": a.max_score, "wrong": [d["n"] for d in (a.details or []) if d["points"] < d["max"]]} if a else None,
-        "purged": s.files_purged_at is not None,
+        "purged": s.files_purged_at is not None, "task_scores": s.task_scores or None,
         "created_at": _iso(s.created_at), "overdue": s.overdue or 0, "files": files_out(s),
         "status": s.status, "score": s.score, "max": s.max_score, "comment": s.comment or "",
         "checked_by": s.checked_by, "checked_at": _iso(s.checked_at),
@@ -256,29 +261,42 @@ def check_list(response: Response, status: str = "new", name: str = Depends(requ
     mocks = {m.id: m for m in db.scalars(select(Mock).where(Mock.id.in_({s.mock_id for s in subs if s.mock_id})))} if subs else {}
     atts = {(a.user_id, a.mock_id): a for a in db.scalars(select(MockAttempt).where(MockAttempt.mock_id.in_(set(mocks))))} if mocks else {}
     counts = {st: len(db.scalars(select(Submission.id).where(Submission.status == st)).all()) for st in ("new", "checked")}
+    sc = scale.get(db)
     return {"items": [check_out(s, users.get(s.user_id), lessons.get(s.lesson_id), mocks.get(s.mock_id),
-                                atts.get((s.user_id, s.mock_id))) for s in subs], "counts": counts}
+                                atts.get((s.user_id, s.mock_id)), sc) for s in subs],
+            "counts": counts, "part2_max": sc["part2_max"], "part2": sc["part2"]}
 
 
 @router.put("/api/check/submissions/{sid}")
-def check_save(sid: int, body: CheckIn, name: str = Depends(require_staff), db: Session = Depends(get_db)):
+def check_save(sid: int, body: CheckIn, background: BackgroundTasks, name: str = Depends(require_staff), db: Session = Depends(get_db)):
     """Результат проверки: сколько верно из скольких и комментарий. Можно исправить позже."""
     s = db.get(Submission, sid)
     if s is None:
         raise HTTPException(404, "Работа не найдена.")
+    ts = None
+    if s.mock_id:
+        sc = scale.get(db)
+        ts = scale.part2_scores(sc, body.task_scores or {})
+        body.score, body.max_score = sum(ts.values()), sc["part2_max"]
     if not 1 <= body.max_score <= 500:
         raise HTTPException(400, "«Из скольких» — от 1 до 500.")
     if not 0 <= body.score <= body.max_score:
         raise HTTPException(400, "Баллов не может быть больше максимума." if s.mock_id else "«Верно» — от 0 до числа заданий.")
+    edited = s.status == "checked"
+    same = (edited and s.score == body.score and s.max_score == body.max_score and (s.task_scores or None) == ts
+            and (s.comment or "") == (body.comment or "").strip()[:3000])
     s.score, s.max_score = body.score, body.max_score
+    s.task_scores = ts
     s.comment = (body.comment or "").strip()[:3000]
     s.status = "checked"
     s.checked_by = name
     s.checked_at = datetime.now(timezone.utc)
     db.commit()
+    if not same:
+        background.add_task(notify_student, s.id, edited)  # результат — ученику в Telegram одновременно с сайтом
     m = db.get(Mock, s.mock_id) if s.mock_id else None
     a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id)) if m else None
-    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id) if s.lesson_id else None, m, a)
+    return check_out(s, db.get(User, s.user_id), db.get(Lesson, s.lesson_id) if s.lesson_id else None, m, a, scale.get(db))
 
 
 # ── Уведомления через бота ──
@@ -338,4 +356,55 @@ def notify_curators(sub_id: int) -> None:
             s.notify_error = "; ".join(errors)[:300]
             if len(errors) < len(to):
                 s.notified_at = datetime.now(timezone.utc)
+        db.commit()
+
+
+def student_message(db: Session, s: Submission, edited: bool) -> str:
+    """Текст для ученика: то же, что он видит на сайте."""
+    head = "Результат исправлен" if edited else "Работа проверена"
+    if s.mock_id:
+        m = db.get(Mock, s.mock_id)
+        a = db.scalar(select(MockAttempt).where(MockAttempt.user_id == s.user_id, MockAttempt.mock_id == s.mock_id))
+        lines = [f"{head}: пробник № {m.number}" + (f" «{m.title}»" if m.title else "")]
+        if a:
+            lines.append(f"Первая часть: {a.score} из {a.max_score} первичных")
+        lines.append(f"Вторая часть: {s.score} из {s.max_score} первичных")
+        if s.task_scores:
+            mx = {str(t["n"]): t["max"] for t in scale.get(db)["part2"]}
+            lines.append("  " + ", ".join(f"№{n}: {v}/{mx.get(n, '?')}" for n, v in sorted(s.task_scores.items(), key=lambda x: int(x[0]))))
+        t = scale.total(scale.get(db), a, s)
+        if t:
+            lines.append(f"Итого: {t['primary']} из {t['max']} первичных" + (f" → {t['test']} тестовых" if t["test"] is not None else ""))
+        link = f"{config.SITE_URL}/account/#p{m.number}"
+    else:
+        l = db.get(Lesson, s.lesson_id)
+        pct = round(100 * s.score / s.max_score) if s.max_score else 0
+        lines = [f"{head}: домашнее задание к занятию № {l.number}" + (f" «{l.title}»" if l.title else ""),
+                 f"Верно: {s.score} из {s.max_score} ({pct}%)"]
+        link = f"{config.SITE_URL}/account/#z{l.number}"
+    if s.comment:
+        lines.append(f"Комментарий: {s.comment}")
+    lines.append(f"Подробно — в личном кабинете: {link}")
+    return "\n".join(lines)
+
+
+def notify_student(sub_id: int, edited: bool = False) -> None:
+    """Фоном после проверки: результат ученику в Telegram (если у него указан chat id)."""
+    with SessionLocal() as db:
+        s = db.get(Submission, sub_id)
+        if s is None or s.status != "checked":
+            return
+        u = db.get(User, s.user_id)
+        if not telegram.enabled():
+            s.student_notify_error = "Бот не настроен — результат виден ученику только на сайте."
+        elif not (u and u.tg_chat_id):
+            s.student_notify_error = "У ученика не указан Telegram chat id — результат виден только на сайте."
+        else:
+            try:
+                telegram.send_text(u.tg_chat_id, student_message(db, s, edited)[:4000])
+                s.student_notified_at = datetime.now(timezone.utc)
+                s.student_notify_error = ""
+            except telegram.TelegramError as e:
+                s.student_notify_error = str(e)[:300]
+                log.warning("Результат %s не отправлен ученику: %s", s.id, e)
         db.commit()

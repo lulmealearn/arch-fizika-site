@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from . import config, deadlines
+from . import config, deadlines, scale
 from .access import current_user, granted_ids
 from .tracking import touch
 from .db import get_db
@@ -180,6 +180,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         db.commit()
     tries = {a.mock_id: a for a in db.scalars(select(MockAttempt).where(MockAttempt.user_id == user.id))}
     msubs = latest_submissions(db, user.id, "mock_id")
+    sc = scale.get(db)
     out_mocks = []
     for m in mocks:
         item = mock_out(m)
@@ -192,6 +193,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         if item["locked"]:
             item["url"] = None
         item["submission"] = submission_out(msubs.get(m.id))
+        item["total"] = scale.total(sc, tries.get(m.id), msubs.get(m.id))  # итог из 45 и тестовый балл
         out_mocks.append(item)
     reports = db.scalars(select(Report).where(Report.user_id == user.id).order_by(Report.created_at.desc(), Report.id.desc())).all()
     return {
@@ -201,6 +203,7 @@ def my_materials(request: Request, response: Response, db: Session = Depends(get
         "viz": [viz_public(v) for v in extra],
         "viz_total": len(extra_all),
         "mocks": out_mocks,
+        "kim": {"themes": sc["themes"], "part2": sc["part2"]} if mock_ids else None,
         "reports": [report_out(r) for r in reports],
     }
 

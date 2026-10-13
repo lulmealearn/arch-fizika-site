@@ -65,3 +65,15 @@
 @media (prefers-reduced-motion: reduce) { .ck-card, .ck-file { transition: none; } }
 .ck-part1 { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--violet-tint); color: var(--violet-ink); font-size: 15px; }
 .ck-purged { margin: 0; font-size: 14px; color: var(--muted); }
+.ck-total { font-size: 20px !important; color: var(--violet-ink) !important; }
+.ck-sent { flex: 1 1 100%; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: #17663a; }
+.ck-sent--no { color: #a61f1f; }
+.ck-tasks { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ck-task { gap: 4px !important; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); text-transform: none !important; letter-spacing: 0 !important; }
+.ck-task__n { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; color: var(--ink); }
+.ck-task__th { font-family: var(--serif); font-size: 13px; line-height: 1.3; color: var(--muted); min-height: 2.6em; }
+.ck-task__row { display: flex; align-items: center; gap: 8px; }
+.ck-num--s { width: 64px; min-height: 44px; }
+.ck-task__row .ck-of { padding-top: 0; }
+.ck-tasks__total { flex: 1 1 100%; margin: 0; font-size: 16px; color: var(--ink-2); }
+.ck-tasks__total b { font-family: var(--display); font-size: 20px; color: var(--violet-ink); }

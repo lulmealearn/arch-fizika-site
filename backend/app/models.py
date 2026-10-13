@@ -259,3 +259,16 @@ class Submission(Base):
     notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     notify_error: Mapped[str] = mapped_column(String(300), default="")
     files_purged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # пробник: баллы куратора по заданиям второй части {"21": 2, …} (сумма — в score)
+    task_scores: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    # результат проверки ушёл ученику в Telegram (если у него есть chat id)
+    student_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    student_notify_error: Mapped[str] = mapped_column(String(300), default="")
+
+
+class Setting(Base):
+    """Настройки, которые владелец меняет в админке (например, шкала перевода первичных баллов в тестовые)."""
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
