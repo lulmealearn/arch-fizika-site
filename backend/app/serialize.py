@@ -69,7 +69,8 @@ def mock_out(m: Mock, user_ids: Optional[List[int]] = None) -> Dict[str, Any]:
     """Пробник. С user_ids — для админки (там же текст ключа); без — для ученика (только номера заданий)."""
     key = m.answer_key or []
     out = {"pk": m.id, "number": m.number, "title": m.title, "url": f"/mock/{m.number}", "created_at": _iso(m.created_at),
-           "tasks": [t["n"] for t in key]}
+           "tasks": [t["n"] for t in key],
+           "two": [t["n"] for t in key if t["points"] == 2]}  # для подписи в бланке: «цифры слитно»
     if user_ids is not None:
         out["user_ids"] = sorted(user_ids)
         out["key_text"] = key_to_text(key)

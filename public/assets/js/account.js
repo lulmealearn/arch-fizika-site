@@ -101,6 +101,7 @@
 
   /* ── Занятия: папки ── */
   var kim = null;  /* темы и максимумы заданий КИМ (для разбора пробника) */
+  var myNick = '';  /* ник — в шапке бланка ответов */
   var lessons = [], mocks = [], sections = [], secFilter = 'all', filter = 'all', current = null, currentKind = 'lesson';
 
   function plural(n, one, few, many) {
@@ -760,19 +761,60 @@
     if (box.hidden) return;
     if (m.result) return renderResult(box, m.result);
 
-    box.appendChild(el('h3', 'bsheet__h', 'Бланк ответов · первая часть'));
-    box.appendChild(el('p', 'bsheet__hint', 'Дробные числа — через запятую, ответы из нескольких цифр — без пробелов. Ответы сохраняются на этом устройстве до отправки; отправить пробник можно один раз.'));
+    /* Бланк ответов № 1 — как на ЕГЭ: строка на задание, 17 клеточек, один символ в клеточке. Поверх клеточек —
+       прозрачное поле ввода, поэтому на телефоне печатается обычной клавиатурой, а видно — по клеточкам. */
+    var CELLS = 17;
+    box.appendChild(el('h3', 'bsheet__h', 'Бланк ответов № 1'));
+    var rules = el('div', 'bk-rules');
+    rules.innerHTML = '<b>Правила заполнения — как на настоящем ЕГЭ.</b> Один символ — одна клеточка, начиная с первой слева. ' +
+      'На ответ отведено 17 клеточек. Запятая и знак «минус» занимают отдельную клеточку. Пробелов, скобок и единиц измерения в бланке нет. ' +
+      'Число: <code>-2,5</code> → клетки <code>- 2 , 5</code>. Последовательность цифр пишется слитно: <code>41</code>, <code>245</code>. ' +
+      'Ответ из двух чисел (задание 19) — подряд, без пробела: <code>1,40,2</code>.';
+    box.appendChild(rules);
+    var who = el('div', 'bk-who');
+    function meta(label, value) {
+      var f = el('div', 'bk-meta'); f.appendChild(el('span', null, label)); f.appendChild(el('b', null, value)); return f;
+    }
+    who.appendChild(meta('Ученик', myNick || '—'));
+    who.appendChild(meta('Пробник', '№ ' + m.number));
+    who.appendChild(meta('Дата', new Date().toLocaleDateString('ru-RU')));
+    box.appendChild(who);
+    box.appendChild(el('h4', 'bk-sub', 'Ответы на задания 1–' + m.tasks[m.tasks.length - 1]));
     var draft = loadDraft(m);
-    var grid = el('div', 'bsheet__grid');
+    var grid = el('div', 'bk-rows');
+    var two = {};
+    (m.two || []).forEach(function (n) { two[n] = true; });
+    function clean(v) { return (v || '').replace(/\./g, ',').replace(/[^0-9,\-]/g, '').slice(0, CELLS); }
     m.tasks.forEach(function (n) {
-      var lab = el('label', 'cell');
-      lab.appendChild(el('span', 'cell__n', String(n)));
-      var inp = el('input', 'cell__in'); inp.type = 'text'; inp.maxLength = 20; inp.autocomplete = 'off'; inp.spellcheck = false;
-      inp.inputMode = 'decimal'; inp.dataset.n = n; inp.value = draft[n] || '';
+      var row = el('label', 'bk-row');
+      row.appendChild(el('span', 'bk-row__n', String(n)));
+      var field = el('span', 'bk-row__cells');
+      var cells = [];
+      for (var i = 0; i < CELLS; i++) { var c = el('span', 'bk-cell'); cells.push(c); field.appendChild(c); }
+      var inp = el('input', 'bk-row__in'); inp.type = 'text'; inp.maxLength = CELLS; inp.autocomplete = 'off'; inp.spellcheck = false;
+      /* обычная клавиатура: в цифровой на iPhone нет минуса */
+      inp.dataset.n = n; inp.value = clean(draft[n]);
       inp.setAttribute('aria-label', 'Ответ на задание ' + n);
-      inp.addEventListener('input', function () { draft[n] = inp.value; saveDraft(m, draft); count(); });
-      lab.appendChild(inp);
-      grid.appendChild(lab);
+      function paint() {
+        var v = inp.value, focus = document.activeElement === inp;
+        cells.forEach(function (c, i) {
+          c.textContent = v.charAt(i) || '';
+          c.classList.toggle('is-caret', focus && i === Math.min(v.length, CELLS - 1));
+        });
+      }
+      inp.addEventListener('input', function () {
+        var v = clean(inp.value);
+        if (v !== inp.value) inp.value = v;
+        draft[n] = v; saveDraft(m, draft); paint(); count();
+      });
+      inp.addEventListener('focus', paint);
+      inp.addEventListener('blur', paint);
+      field.appendChild(inp);
+      row.appendChild(field);
+      var kind = n === 19 ? 'два числа подряд' : two[n] ? 'цифры слитно' : 'число';
+      row.appendChild(el('span', 'bk-row__kind' + (kind === 'число' ? ' bk-row__kind--plain' : ''), kind));
+      paint();
+      grid.appendChild(row);
     });
     box.appendChild(grid);
     var foot = el('div', 'bsheet__foot');
@@ -780,8 +822,8 @@
     foot.appendChild(filled);
     box.appendChild(foot);
     function count() {
-      var n = m.tasks.filter(function (t) { return (draft[t] || '').trim(); }).length;
-      filled.textContent = 'заполнено ' + n + ' из ' + m.tasks.length;
+      var k = m.tasks.filter(function (t) { return (draft[t] || '').trim(); }).length;
+      filled.textContent = 'заполнено ' + k + ' из ' + m.tasks.length + ' · ответы сохраняются сами';
     }
     count();
     /* решения файлами и одна кнопка «Отправить пробник» — бланк уходит вместе с ними */
@@ -863,6 +905,7 @@
   function loadDash() {
     return api('GET', '/api/me/materials').then(function (d) {
       $('acc-eyebrow').textContent = 'Личный кабинет · ' + d.user.nickname;
+      myNick = d.user.nickname;
       $('curator-link').hidden = !d.user.curator;
       syncDeadlines();
       $('acc-title').textContent = d.user.curator ? 'Все материалы' : 'Мои материалы';

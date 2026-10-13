@@ -322,3 +322,31 @@ html.pop-lock { overflow: hidden; }
 .sres__tasks li.is-full em { color: var(--done-ink); }
 .sres__tasks li.is-zero em { color: var(--todo-ink); }
 .rrow { grid-template-columns: minmax(0, 1.5fr) minmax(0, .8fr) minmax(0, .8fr) 52px; }
+
+/* Бланк ответов № 1 — как на ЕГЭ: строка на задание, 17 клеточек */
+.bk-rules { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.bk-rules b { color: var(--ink); }
+.bk-rules code { padding: 1px 6px; border-radius: 4px; background: var(--violet-tint); color: var(--violet); font-family: var(--mono); font-size: 13px; white-space: pre; }
+.bk-who { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.bk-meta { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--paper); }
+.bk-meta span { font-size: 13px; color: var(--muted); }
+.bk-meta b { font-family: var(--mono); font-weight: 500; font-size: 15px; }
+.bk-sub { margin: 4px 0 0; font-family: var(--display); font-weight: 700; font-size: 16px; }
+.bk-rows { display: flex; flex-direction: column; gap: 6px; }
+.bk-row { display: grid; grid-template-columns: 26px minmax(0, auto) 1fr; align-items: center; gap: 10px; cursor: text; }
+.bk-row__n { font-family: var(--mono); font-weight: 600; font-size: 14px; text-align: right; color: var(--ink); }
+.bk-row__cells { position: relative; display: grid; grid-template-columns: repeat(17, 22px); gap: 2px; }
+.bk-cell { height: 30px; display: flex; align-items: center; justify-content: center; border: 1px solid #cfd3dc; border-radius: 4px; background: #fff;
+  font-family: var(--mono); font-size: 16px; color: #1d3fa8; }
+.bk-cell.is-caret { border-color: var(--violet); box-shadow: inset 0 -2px 0 var(--violet); }
+.bk-row__in { position: absolute; inset: -6px 0; width: 100%; height: calc(100% + 12px); opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text; }
+.bk-row:focus-within .bk-cell { border-color: #a99ef0; }
+.bk-row:focus-within .bk-row__n { color: var(--violet); }
+.bk-row__kind { font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 640px) {
+  .bk-row { grid-template-columns: 22px minmax(0, 1fr); gap: 2px 8px; }
+  .bk-row__cells { grid-template-columns: repeat(17, minmax(0, 1fr)); gap: 1.5px; }
+  .bk-cell { height: 26px; font-size: 13px; border-radius: 3px; }
+  .bk-row__kind { grid-column: 2; font-size: 11px; margin-top: -1px; }
+  .bk-row__kind--plain { display: none; }
+}
