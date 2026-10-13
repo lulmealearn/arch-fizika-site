@@ -400,6 +400,12 @@
       facts.appendChild(el('span', null, 'отчётов: ' + (u.reports || []).length));
       if (st.lessons_active) facts.appendChild(el('span', null, 'ДЗ в работе: ' + st.lessons_active));
       if (st.mocks_active) facts.appendChild(el('span', null, 'пробников в работе: ' + st.mocks_active));
+      if (st.next_due) {
+        var soon = new Date(st.next_due.due_at) - Date.now() < 864e5;
+        var nd = el('span', soon ? 'urow__warn' : null, 'ближайший срок: ' + st.next_due.label + ' — ' + timeLeft(st.next_due.due_at));
+        nd.title = 'Сдать до ' + dateTime(st.next_due.due_at);
+        facts.appendChild(nd);
+      }
       var over = (st.lessons_overdue || 0) + (st.mocks_overdue || 0);
       if (over) {
         var ov = el('span', 'urow__warn', 'просрочек: ' + over);
@@ -462,6 +468,33 @@
         tile('Устройства', String(s.devices_30d.length), s.devices_30d.join(', ') || '—', s.devices_30d.length >= 3);
         body.appendChild(tiles);
         if (s.devices_30d.length >= 3) body.appendChild(el('p', 'act-warn', 'За месяц заходили с ' + s.devices_30d.length + ' разных устройств. Это бывает у одного ученика (телефон, ноутбук, школьный компьютер), но может значить, что аккаунтом пользуются несколько человек.'));
+
+        /* Дедлайны ученика — то же, что он видит в панели «Дедлайны» */
+        var dls = a.deadlines || [];
+        var dlBox = el('ul', 'plist dlist');
+        if (!dls.length) dlBox.appendChild(el('li', 'picker__empty', 'Сейчас ничего не начато и не просрочено.'));
+        dls.forEach(function (x) {
+          var active = x.state === 'active', soon = active && new Date(x.due_at) - Date.now() < 864e5;
+          var li = el('li', 'prow dlrow prow--' + (active ? 'active' : 'todo') + (soon ? ' is-soon' : ''));
+          li.appendChild(el('span', 'prow__dot'));
+          var t = el('span', 'prow__text');
+          t.appendChild(el('b', null, x.label + (x.title ? ' · ' + x.title : '')));
+          if (active) {
+            t.appendChild(el('span', 'dlrow__left', 'осталось ' + timeLeft(x.due_at)));
+            t.appendChild(el('span', null, 'начал ' + dateTime(x.started_at) + '  ·  сдать до ' + dateTime(x.due_at) + '  ·  срок ' + x.days + ' ' + plural(x.days, 'день', 'дня', 'дней')));
+            var bar = el('span', 'dlrow__bar'), fill = el('i');
+            fill.style.width = Math.max(3, Math.min(100, 100 * (Date.now() - new Date(x.started_at)) / (new Date(x.due_at) - new Date(x.started_at)))) + '%';
+            bar.appendChild(fill); t.appendChild(bar);
+          } else {
+            t.appendChild(el('span', 'dlrow__left dlrow__left--late', 'срок истёк ' + dateTime(x.last_overdue_at)));
+            t.appendChild(el('span', null, 'ждёт, пока ученик возьмёт новый срок (' + x.days + ' ' + plural(x.days, 'день', 'дня', 'дней') + ')'));
+          }
+          if (x.overdue) t.appendChild(el('span', 'prow__res urow__warn', 'Просрочено ' + x.overdue + ' ' + plural(x.overdue, 'раз', 'раза', 'раз')));
+          li.appendChild(t);
+          dlBox.appendChild(li);
+        });
+        var nActive = dls.filter(function (x) { return x.state === 'active'; }).length, nLate = dls.length - nActive;
+        body.appendChild(field('Дедлайны: в работе ' + nActive + (nLate ? ', срок истёк ' + nLate : ''), dlBox));
 
         function progressList(items, kind) {
           var mock = kind === 'mock', what = mock ? 'Пробник' : 'ДЗ';
@@ -652,6 +685,15 @@
           .then(function (r) { toast(r.role === 'curator' ? u.nickname + ' — куратор' : u.nickname + ' больше не куратор'); });
       };
     });
+  }
+
+  function timeLeft(iso) {
+    var ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 'срок истёк';
+    var min = Math.ceil(ms / 60000), d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+    if (d) return d + ' ' + plural(d, 'день', 'дня', 'дней') + (h ? ' ' + h + ' ' + plural(h, 'час', 'часа', 'часов') : '');
+    if (h) return h + ' ' + plural(h, 'час', 'часа', 'часов') + (m ? ' ' + m + ' мин' : '');
+    return m + ' мин';
   }
 
   function editUserPassword(u) {

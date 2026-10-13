@@ -1,7 +1,8 @@
 /* Админка: тот же «лабораторный журнал», но рабочий и плотнее. */
 .adm { display: flex; flex-direction: column; gap: 18px; padding-block: 24px 24px; min-height: 50vh; }
 .muted { color: var(--muted); }
-.top-actions { display: flex; gap: 8px; }
+.top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
+@media (max-width: 520px) { .adm-topbar, header.topbar:has(.top-actions) { flex-wrap: wrap; } .top-actions { flex: 1 1 100%; justify-content: flex-start; } }
 .adm-h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 56px); line-height: 1; }
 .adm-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; border-bottom: 3px solid var(--ink); padding-bottom: 20px; }
 .adm-head > div { display: flex; flex-direction: column; gap: 10px; }
@@ -298,3 +299,11 @@ textarea.input { resize: vertical; min-height: 84px; }
 .urow__role { padding: 3px 9px; border-radius: 999px; background: var(--violet-tint); color: var(--violet-ink); font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .check-row { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); cursor: pointer; font-size: 17px; }
 .check-row input { width: 22px; height: 22px; accent-color: var(--violet); flex: none; }
+
+/* Дедлайны ученика в «Подробнее» */
+.prow__text .dlrow__left { font-family: var(--display); font-weight: 700; font-size: 20px; color: #5b21b6; }
+.dlrow.is-soon .prow__text .dlrow__left { color: #a61f1f; }
+.prow__text .dlrow__left--late { color: #a61f1f; font-size: 16px; }
+.prow__text .dlrow__bar { display: block; width: min(320px, 100%); height: 6px; margin-top: 4px; border-radius: 3px; background: var(--violet-tint); overflow: hidden; }
+.dlrow__bar i { display: block; height: 100%; border-radius: 3px; background: var(--violet); }
+.dlrow.is-soon .dlrow__bar i { background: #c8372d; }

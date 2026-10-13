@@ -8,7 +8,7 @@
 Время истечения проверяется при каждом чтении (settle) — фоновых задач нет.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .models import DEFAULT_DEADLINE_DAYS, DEFAULT_MOCK_DEADLINE_DAYS, Mock
 from .serialize import _iso
@@ -74,3 +74,32 @@ def start(p, lesson, now: Optional[datetime] = None) -> None:
 def submit(p, now: Optional[datetime] = None) -> None:
     p.submitted_at = now or datetime.now(timezone.utc)
     p.done = True
+
+
+def user_deadlines(db, user_id: int) -> List[Dict[str, Any]]:
+    """Сроки ученика для кнопки «Дедлайны» и для админки: что в работе (сколько осталось) и что просрочено
+    (срок истёк, ждёт нового «Начать»). Сначала в работе — ближайшие сверху."""
+    from sqlalchemy import select
+    from .access import granted_ids
+    from .models import Lesson, LessonProgress, MockProgress
+    out: List[Dict[str, Any]] = []
+    for model, prog, col, kind, label, href in ((Lesson, LessonProgress, "lesson_id", "lesson", "Занятие", "z"),
+                                                (Mock, MockProgress, "mock_id", "mock", "Пробник", "p")):
+        ids = granted_ids(db, user_id, kind)
+        if not ids:
+            continue
+        rows = db.scalars(select(prog).where(prog.user_id == user_id, getattr(prog, col).in_(ids))).all()
+        if any([settle(p) for p in rows]):
+            db.commit()
+        items = {i.id: i for i in db.scalars(select(model).where(model.id.in_({getattr(p, col) for p in rows})))} if rows else {}
+        for p in rows:
+            st = state(p)
+            it = items.get(getattr(p, col))
+            if it is None or not (st == "active" or (st == "todo" and p.overdue_count)):
+                continue
+            d = status_out(p, it)
+            out.append({"kind": kind, "label": f"{label} № {it.number}", "title": it.title or "", "url": f"/account/#{href}{it.number}",
+                        "state": st, "started_at": d["started_at"], "due_at": d["due_at"], "days": d["days"],
+                        "overdue": d["overdue"], "last_overdue_at": d["last_overdue_at"]})
+    out.sort(key=lambda x: (x["state"] != "active", x["due_at"] or "", x["label"]))
+    return out

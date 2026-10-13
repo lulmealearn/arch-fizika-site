@@ -122,8 +122,19 @@ def users_list(db: Session = Depends(get_db)):
     active_l: Dict[int, int] = {}
     overdue_m: Dict[int, int] = {}
     active_m: Dict[int, int] = {}
+    next_due: Dict[int, dict] = {}
+    names = {("lesson", l.id): l.number for l in db.scalars(select(Lesson))}
+    names.update({("mock", m.id): m.number for m in db.scalars(select(Mock))})
     for model, over, act in ((LessonProgress, overdue_l, active_l), (MockProgress, overdue_m, active_m)):
+        kind = "lesson" if model is LessonProgress else "mock"
         for p in db.scalars(select(model)):
+            if deadlines.state(p) == "active":
+                due = _aware(p.due_at)
+                cur = next_due.get(p.user_id)
+                if cur is None or due < cur["_due"]:
+                    pk = p.lesson_id if kind == "lesson" else p.mock_id
+                    next_due[p.user_id] = {"_due": due, "due_at": due.isoformat(),
+                                           "label": ("Занятие № " if kind == "lesson" else "Пробник № ") + str(names.get((kind, pk), "?"))}
             if p.overdue_count:
                 over[p.user_id] = over.get(p.user_id, 0) + p.overdue_count
             if deadlines.state(p) == "active":
@@ -147,6 +158,7 @@ def users_list(db: Session = Depends(get_db)):
             "mocks_total": len(g.get("mock", [])),
             "mocks_active": active_m.get(u.id, 0),
             "mocks_overdue": overdue_m.get(u.id, 0),
+            "next_due": {k: v for k, v in next_due[u.id].items() if k != "_due"} if u.id in next_due else None,
         }
         out.append(d)
     return {"users": out}
@@ -232,6 +244,7 @@ def user_activity(pk: int, db: Session = Depends(get_db)):
             "devices_30d": sorted({v.device for v in recent}),
             "views_30d": len([w for w in views if _aware(w.at) >= month_ago]),
         },
+        "deadlines": deadlines.user_deadlines(db, u.id),
         "visits": out_visits,
         "views": [{"kind": w.kind, "ref": w.ref, "title": w.title, "at": _iso(w.at)} for w in views[:80]],
         "lessons": [dict(pk=l.id, number=l.number, title=l.title, opened_at=_iso(last_open.get("lesson:" + str(l.number))),
