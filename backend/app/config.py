@@ -57,7 +57,14 @@ MAX_SUB_FILE_BYTES = int(float(os.environ.get("MAX_SUB_FILE_MB", "20")) * 1024 *
 MAX_SUB_FILES = int(os.environ.get("MAX_SUB_FILES", "15"))
 
 # Бот @Arch_Tutor_Bot присылает кураторам новые работы. Токен — от @BotFather (`python run.py set-bot`).
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+def _clean_token(raw: str) -> str:
+    """Токен вида 123456789:AAE…: убрать пробелы, кавычки, приставку «bot» и текст, скопированный вместе с токеном."""
+    import re
+    m = re.search(r"\d{5,}:[A-Za-z0-9_-]{20,}", raw or "")
+    return m.group(0) if m else (raw or "").strip()
+
+
+TELEGRAM_BOT_TOKEN = _clean_token(os.environ.get("TELEGRAM_BOT_TOKEN", ""))
 TELEGRAM_API = os.environ.get("TELEGRAM_API", "https://api.telegram.org")  # для тестов можно подменить
 # Ваш личный chat id: бот присылает новые работы и вам (необязательно)
 ADMIN_TG_CHAT_ID = os.environ.get("ADMIN_TG_CHAT_ID", "").strip()

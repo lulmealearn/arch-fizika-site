@@ -44,6 +44,10 @@ def _call(method: str, fields: Dict[str, str], files: Optional[List[Tuple[str, s
         with request.urlopen(req, timeout=TIMEOUT) as r:
             data = json.loads(r.read().decode("utf-8"))
     except error.HTTPError as e:
+        if e.code in (401, 404):
+            raise TelegramError("Telegram не узнал токен бота. Откройте файл .env в папке сайта: в строке TELEGRAM_BOT_TOKEN= "
+                                "должен быть только токен от @BotFather вида 123456789:AAE… — без пробелов, кавычек и слова bot. "
+                                "Исправьте (или заново python run.py set-bot) и перезапустите сайт.")
         try:
             data = json.loads(e.read().decode("utf-8"))
         except ValueError:
