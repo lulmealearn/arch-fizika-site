@@ -149,6 +149,8 @@ async def create(
         is_published=_flag(is_published), access=access,
     )
     db.add(v)
+    db.flush()
+    _place_in_section(db, v)  # новая — в конец своего раздела (Математика, Механика, МКТ, Электродинамика, Оптика, Кванты)
     db.commit()
     db.refresh(v)
     return viz_admin(v)
@@ -182,7 +184,11 @@ async def update(
     if parts is not None:
         v.parts = _clean_text(parts, 60, "Объём")
     if section is not None:
-        v.section_id = _section(db, section).id
+        new_sec = _section(db, section).id
+        if new_sec != v.section_id:
+            v.section_id = new_sec
+            db.flush()
+            _place_in_section(db, v)  # раздел сменился — переезжает в конец нового раздела
     if tags is not None:
         v.tags = _parse_tags(tags)
     if is_published is not None:
@@ -216,6 +222,36 @@ async def update(
 
 
 # ── Порядок ──
+def _ordered(db: Session) -> List[Visualization]:
+    return db.scalars(select(Visualization).options(joinedload(Visualization.section))
+                      .order_by(Visualization.position, Visualization.id)).all()
+
+
+def _place_in_section(db: Session, v: Visualization) -> None:
+    """Поставить визуализацию сразу после последней из своего или более раннего раздела (порядок разделов — как в seed)."""
+    db.expire(v, ["section"])  # section_id только что поменяли — подтянуть актуальный раздел
+    items = [x for x in _ordered(db) if x.id != v.id]
+    my = v.section.position if v.section else 999
+    at = 0
+    for i, x in enumerate(items):
+        if (x.section.position if x.section else 999) <= my:
+            at = i + 1
+    items.insert(at, v)
+    for pos, x in enumerate(items):
+        x.position = pos
+
+
+@router.post("/order/by-section", dependencies=guard)
+def reorder_by_section(db: Session = Depends(get_db)):
+    """Упорядочить всё по разделам; внутри раздела порядок сохраняется."""
+    items = _ordered(db)
+    items.sort(key=lambda x: x.section.position if x.section else 999)  # sort устойчивый
+    for pos, x in enumerate(items):
+        x.position = pos
+    db.commit()
+    return _all(db)
+
+
 @router.put("/order", dependencies=guard)
 def reorder(body: OrderIn, db: Session = Depends(get_db)):
     items = {v.id: v for v in db.scalars(select(Visualization))}

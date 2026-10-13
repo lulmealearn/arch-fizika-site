@@ -288,3 +288,6 @@ textarea.input { resize: vertical; min-height: 84px; }
 
 /* В админке шапка не липкая: у неё нет подложки, и при прокрутке надписи наезжали на вкладки */
 .topbar { position: relative; }
+
+.adm-head > .adm-head__actions { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center; }
+#sort-btn.is-armed { background: var(--ink); color: var(--on-dark); }

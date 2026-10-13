@@ -264,6 +264,22 @@
     return saveOrder(ids);
   }
 
+  /* Математика → Механика → МКТ → Электродинамика → Оптика → Кванты; внутри раздела порядок сохраняется */
+  $('sort-btn').addEventListener('click', function () {
+    var b = this;
+    if (!b.classList.contains('is-armed')) {
+      b.classList.add('is-armed'); b.textContent = 'Точно упорядочить?';
+      setTimeout(function () { b.classList.remove('is-armed'); b.textContent = 'Упорядочить по разделам'; }, 3500);
+      return;
+    }
+    b.disabled = true;
+    api('POST', '/api/admin/order/by-section').then(function (d) {
+      state.items = d.items; renderList(); toast('Упорядочено по разделам');
+    }).catch(function (e) { toast(e.message, true); }).then(function () {
+      b.disabled = false; b.classList.remove('is-armed'); b.textContent = 'Упорядочить по разделам';
+    });
+  });
+
   function saveOrder(ids) {
     return api('PUT', '/api/admin/order', { ids: ids }).then(function (d) {
       state.items = d.items; renderList(); toast('Порядок сохранён');
