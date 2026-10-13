@@ -47,8 +47,20 @@
   function open(fig) {
     var b = ensureBox(), stage = b.querySelector('.lightbox__stage'), hint = b.querySelector('.lightbox__hint');
     stage.textContent = '';
-    stage.classList.remove('is-2x');
-    if (fig.getAttribute('data-zoom') === 'img') {
+    stage.classList.remove('is-2x', 'is-pages');
+    if (fig.getAttribute('data-zoom') === 'pages') {
+      /* несколько страниц одна под другой (пример отчёта) */
+      var pages = fig.getAttribute('data-pages').split(/\s+/).filter(Boolean);
+      stage.classList.add('is-pages');
+      pages.forEach(function (src, i) {
+        var pg = document.createElement('img');
+        pg.src = src; pg.alt = 'Страница ' + (i + 1) + ' из ' + pages.length;
+        pg.decoding = 'async';
+        stage.appendChild(pg);
+      });
+      stage.scrollTop = 0;
+      hint.textContent = 'Пример отчёта · ' + pages.length + ' страниц, листайте вниз';
+    } else if (fig.getAttribute('data-zoom') === 'img') {
       var src = fig.getAttribute('data-full') || fig.querySelector('img').src;
       var img = document.createElement('img');
       img.src = src; img.alt = fig.querySelector('img').alt;
