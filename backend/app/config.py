@@ -55,9 +55,9 @@ MAX_PDF_BYTES = int(float(os.environ.get("MAX_PDF_MB", "25")) * 1024 * 1024)
 # Сдача ДЗ: фото сжимаются в браузере ученика, на сервер приходят уже лёгкими
 MAX_SUB_FILE_BYTES = int(float(os.environ.get("MAX_SUB_FILE_MB", "20")) * 1024 * 1024)
 MAX_SUB_FILES = int(os.environ.get("MAX_SUB_FILES", "15"))
-# Автоочистка ВЫКЛЮЧЕНА (решение владельца — сначала обдумать). Если задать SUBMISSION_KEEP_DAYS=N в .env, файлы работ,
-# проверенных больше N дней назад, удаляются (балл и комментарий остаются); непроверенные — никогда. 0 — не удалять.
-SUBMISSION_KEEP_DAYS = int(os.environ.get("SUBMISSION_KEEP_DAYS", "0"))
+# Файлы работ, проверенных больше N дней назад, удаляются (решение владельца: 90 дней после проверки); балл и комментарий
+# остаются, копии — у кураторов в Telegram. Непроверенные не удаляются никогда. 0 в .env — не удалять вообще.
+SUBMISSION_KEEP_DAYS = int(os.environ.get("SUBMISSION_KEEP_DAYS", "90"))
 
 # Бот @Arch_Tutor_Bot присылает кураторам новые работы. Токен — от @BotFather (`python run.py set-bot`).
 def _clean_token(raw: str) -> str:
